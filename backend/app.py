@@ -46,7 +46,44 @@ os.makedirs(DATA_DIR, exist_ok=True)
 #     referer   : Referer 头
 #   parse       : 响应解析函数，输入 requests.Response，返回 dict
 
-MINIMAX_GROUP_ID = os.environ.get("MINIMAX_GROUP_ID", "")
+# MiniMax GroupId - 支持环境变量或从数据文件自动获取
+def _get_minimax_group_id():
+    """获取 MiniMax GroupId，优先环境变量，其次数据文件"""
+    env_id = os.environ.get("MINIMAX_GROUP_ID", "")
+    if env_id:
+        return env_id
+    
+    # 从数据文件读取
+    cookie_file = get_cookie_file("minimax")
+    if os.path.exists(cookie_file):
+        try:
+            with open(cookie_file, "r") as f:
+                data = json.load(f)
+            if data.get("group_id"):
+                return data["group_id"]
+        except:
+            pass
+    return ""
+
+def _fetch_minimax_group_id(cookies):
+    """从 MiniMax API 获取用户的 GroupId"""
+    try:
+        # 尝试调用用户信息 API
+        url = "https://www.minimaxi.com/v1/api/openplatform/current_user_info"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Cookie": cookies,
+            "Referer": "https://platform.minimaxi.com/user-center/basic-info/interface-key"
+        }
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get("base_resp", {}).get("status_code") == 0:
+                return data.get("group_id", "")
+    except Exception as e:
+        print(f"获取 GroupId 失败: {e}")
+    return ""
 
 USAGE_PLUGINS = {
     "minimax": {
@@ -60,7 +97,7 @@ USAGE_PLUGINS = {
         "api": {
             "url": "https://www.minimaxi.com/v1/api/openplatform/coding_plan/remains",
             "method": "GET",
-            "params": {"GroupId": MINIMAX_GROUP_ID},
+            "params": lambda: {"GroupId": _get_minimax_group_id()},
             "headers": {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "Accept": "application/json, text/plain, */*"
@@ -553,7 +590,7 @@ def login_capabilities():
 
 @app.route("/api/set-cookie", methods=["POST"])
 def set_cookie():
-    """接收前端发送的 Cookie 和页面信息（如截止日期）"""
+    """接收前端发送的 Cookie 和页面信息（如截止日期），并自动获取 GroupId"""
     data = request.get_json() or {}
     service = data.get("service")
     cookies = data.get("cookies")
@@ -565,11 +602,22 @@ def set_cookie():
     if service not in USAGE_PLUGINS:
         return jsonify({"success": False, "error": f"未知服务: {service}"})
     
-    save_data(get_cookie_file(service), {
+    save_dict = {
         "cookies": cookies,
         "page_info": page_info,
         "timestamp": int(time.time() * 1000)
-    })
+    }
+    
+    # MiniMax 自动获取 GroupId
+    if service == "minimax":
+        group_id = os.environ.get("MINIMAX_GROUP_ID", "")
+        if not group_id:
+            # 尝试从 API 获取 GroupId
+            group_id = _fetch_minimax_group_id(cookies)
+            print(f"自动获取到 MiniMax GroupId: {group_id}")
+        save_dict["group_id"] = group_id
+    
+    save_data(get_cookie_file(service), save_dict)
     plugin = USAGE_PLUGINS[service]
     return jsonify({"success": True, "message": f"{plugin['name']} Cookie 保存成功"})
 
