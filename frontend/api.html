@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Token Monitor ✨</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 { font-size: 24px; color: #e0e0e0; margin-bottom: 5px; }
+        .header p { font-size: 12px; color: #888; }
+        
+        .cards { max-width: 600px; margin: 0 auto; }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        
+        .card-title { font-size: 18px; font-weight: 600; }
+        
+        .card-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .badge-ok { background: rgba(76, 175, 80, 0.2); color: #4CAF50; }
+        .badge-error { background: rgba(244, 67, 54, 0.2); color: #f44336; }
+        .badge-warn { background: rgba(255, 152, 0, 0.2); color: #FF9800; }
+        
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .stat-row:last-child { border-bottom: none; }
+        .stat-label { color: #999; font-size: 14px; }
+        .stat-value { font-weight: 600; font-size: 14px; color: #fff; }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        
+        .progress-fill.green { background: linear-gradient(90deg, #4CAF50, #8BC34A); }
+        .progress-fill.orange { background: linear-gradient(90deg, #FF9800, #FFC107); }
+        .progress-fill.red { background: linear-gradient(90deg, #f44336, #E91E63); }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+        
+        .loading::after {
+            content: "...";
+            animation: dots 1.5s infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: "."; }
+            40% { content: ".."; }
+            60%, 100% { content: "..."; }
+        }
+        
+        .login-box {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .login-btn {
+            display: inline-block;
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            margin-top: 12px;
+            transition: transform 0.2s;
+        }
+        
+        .login-btn:active { transform: scale(0.98); }
+        
+        .error-detail {
+            font-size: 12px;
+            color: #f44336;
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(244, 67, 54, 0.1);
+            border-radius: 8px;
+            word-break: break-all;
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .refresh-btn:active { transform: scale(0.95); }
+        .refresh-btn.spinning { animation: spin 1s linear infinite; }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .last-update {
+            text-align: center;
+            font-size: 11px;
+            color: #666;
+            margin-top: 20px;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 320px;
+            width: 90%;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .modal-content h3 { font-size: 18px; margin-bottom: 10px; color: #fff; }
+        .modal-content p { font-size: 13px; color: #888; margin-bottom: 20px; line-height: 1.5; }
+        
+        .modal-btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        
+        .modal-btn.secondary { background: rgba(255, 255, 255, 0.1); color: #888; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>✨ Token Monitor</h1>
+        <p>API 额度实时监控</p>
+    </div>
+    
+    <div class="cards">
+        <!-- MiniMax Card -->
+        <div class="card" id="minimax-card">
+            <div class="card-header">
+                <span class="card-title">🟠 MiniMax</span>
+                <span class="card-badge badge-ok" id="minimax-badge">加载中</span>
+            </div>
+            <div id="minimax-content">
+                <div class="loading">正在查询MiniMax额度</div>
+            </div>
+        </div>
+        
+        <!-- 讯飞 Card -->
+        <div class="card" id="xfyun-card">
+            <div class="card-header">
+                <span class="card-title">🔵 讯飞星辰 MaaS</span>
+                <span class="card-badge badge-ok" id="xfyun-badge">加载中</span>
+            </div>
+            <div id="xfyun-content">
+                <div class="loading">正在查询讯飞额度</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="last-update" id="last-update"></div>
+    
+    <button class="refresh-btn" id="refresh-btn" onclick="refreshAll()">↻</button>
+    
+    <!-- 登录引导弹窗 -->
+    <div id="login-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3 id="modal-title">需要登录</h3>
+            <p id="modal-desc">请点击下方按钮前往登录</p>
+            <button class="modal-btn" id="modal-login-btn">去登录</button>
+            <button class="modal-btn secondary" onclick="closeModal()">取消</button>
+        </div>
+    </div>
+    
+    <script>
+        // 当前域名 - 用于判断是否需要代理
+        const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        
+        // MiniMax API 代理配置（如果后端开启了代理）
+        const API_BASE = IS_LOCAL ? 'http://localhost:5188' : '';
+        
+        async function refreshAll() {
+            const btn = document.getElementById("refresh-btn");
+            btn.classList.add("spinning");
+            
+            await Promise.all([refreshMinimax(), refreshXfyun()]);
+            
+            document.getElementById("last-update").textContent = 
+                "最后更新: " + new Date().toLocaleTimeString("zh-CN");
+            
+            btn.classList.remove("spinning");
+        }
+        
+        async function refreshMinimax() {
+            const badge = document.getElementById("minimax-badge");
+            const content = document.getElementById("minimax-content");
+            
+            try {
+                // 尝试通过后端获取数据
+                let resp = await fetch("/api/minimax");
+                let data = await resp.json();
+                
+                if (data.error) {
+                    badge.className = "card-badge badge-error";
+                    badge.textContent = "需登录";
+                    content.innerHTML = `
+                        <div class="login-box">
+                            <p style="color: #888; font-size: 13px; margin-bottom: 12px;">${data.error}</p>
+                            <a class="login-btn" href="https://platform.minimaxi.com/user-center/payment/token-plan" target="_self">去 MiniMax 登录</a>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                badge.className = "card-badge badge-ok";
+                badge.textContent = "正常";
+                
+                const mainModel = data["MiniMax-M*"];
+                if (mainModel && mainModel.total > 0) {
+                    const total = mainModel.total;
+                    const used = mainModel.used;
+                    const remain = mainModel.remain;
+                    const percent = (used / total * 100).toFixed(1);
+                    const colorClass = percent > 80 ? "red" : percent > 50 ? "orange" : "green";
+                    
+                    content.innerHTML = `
+                        <div class="stat-row">
+                            <span class="stat-label">Token Plan 总额</span>
+                            <span class="stat-value">${total} 次 / 5小时</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">已使用</span>
+                            <span class="stat-value">${used} 次</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">剩余</span>
+                            <span class="stat-value">${remain} 次</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">使用率</span>
+                            <span class="stat-value">${percent}%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill ${colorClass}" style="width: ${percent}%"></div>
+                        </div>
+                    `;
+                } else {
+                    let html = "";
+                    for (const [model, info] of Object.entries(data)) {
+                        const remain = info.remain || 0;
+                        html += `<div class="stat-row"><span class="stat-label">${model}</span><span class="stat-value">剩余 ${remain}</span></div>`;
+                    }
+                    content.innerHTML = html || "<div class='loading'>无数据</div>";
+                }
+                
+            } catch (e) {
+                badge.className = "card-badge badge-error";
+                badge.textContent = "错误";
+                content.innerHTML = `<div class="error-detail">${e.message}</div>`;
+            }
+        }
+        
+        async function refreshXfyun() {
+            const badge = document.getElementById("xfyun-badge");
+            const content = document.getElementById("xfyun-content");
+            
+            try {
+                let resp = await fetch("/api/xfyun");
+                let data = await resp.json();
+                
+                if (data.error) {
+                    badge.className = "card-badge badge-error";
+                    badge.textContent = "需登录";
+                    content.innerHTML = `
+                        <div class="login-box">
+                            <p style="color: #888; font-size: 13px; margin-bottom: 12px;">${data.error}</p>
+                            <a class="login-btn" href="https://maas.xfyun.cn/packageSubscription" target="_self">去讯飞登录</a>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                badge.className = "card-badge badge-ok";
+                badge.textContent = "正常";
+                
+                const total = data.dailyLimit || 0;
+                const used = data.dailyUsage || 0;
+                const remain = data.dailyRemain || 0;
+                const percent = total > 0 ? (used / total * 100).toFixed(2) : 0;
+                const colorClass = percent > 80 ? "red" : percent > 50 ? "orange" : "green";
+                
+                const formatNum = (n) => {
+                    if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
+                    if (n >= 10000) return (n / 10000).toFixed(1) + '万';
+                    return n.toLocaleString();
+                };
+                
+                content.innerHTML = `
+                    <div class="stat-row">
+                        <span class="stat-label">日限额</span>
+                        <span class="stat-value">${formatNum(total)} tokens</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">当日已用</span>
+                        <span class="stat-value">${formatNum(used)} tokens</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">剩余</span>
+                        <span class="stat-value">${formatNum(remain)} tokens</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">使用率</span>
+                        <span class="stat-value">${percent}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill ${colorClass}" style="width: ${percent}%"></div>
+                    </div>
+                    <div class="stat-row" style="margin-top: 8px; font-size: 11px; color: #888;">
+                        <span class="stat-label">套餐截止</span>
+                        <span class="stat-value">${data.expiresAt || '未知'}</span>
+                    </div>
+                `;
+                
+            } catch (e) {
+                badge.className = "card-badge badge-error";
+                badge.textContent = "错误";
+                content.innerHTML = `<div class="error-detail">${e.message}</div>`;
+            }
+        }
+        
+        function showLoginModal(service) {
+            const modal = document.getElementById('login-modal');
+            const title = document.getElementById('modal-title');
+            const desc = document.getElementById('modal-desc');
+            const btn = document.getElementById('modal-login-btn');
+            
+            if (service === 'minimax') {
+                title.textContent = '需要登录 MiniMax';
+                desc.textContent = '点击按钮前往 MiniMax 官网登录\n登录完成后返回即可';
+                btn.onclick = () => { window.location.href = 'https://platform.minimaxi.com/user-center/payment/token-plan'; };
+            } else if (service === 'xfyun') {
+                title.textContent = '需要登录讯飞星辰';
+                desc.textContent = '点击按钮前往讯飞登录\n登录完成后返回即可';
+                btn.onclick = () => { window.location.href = 'https://maas.xfyun.cn/packageSubscription'; };
+            }
+            
+            modal.style.display = 'flex';
+        }
+        
+        function closeModal() {
+            document.getElementById('login-modal').style.display = 'none';
+        }
+        
+        // 首次加载
+        refreshAll();
+        
+        // 每60秒自动刷新
+        setInterval(refreshAll, 60000);
+    </script>
+</body>
+</html>

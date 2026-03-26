@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cookie 设置 - Token Monitor ✨</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+        
+        .container { max-width: 600px; margin: 0 auto; }
+        
+        h1 { font-size: 24px; text-align: center; margin-bottom: 10px; }
+        .subtitle { text-align: center; color: #888; font-size: 13px; margin-bottom: 30px; }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        h2 { font-size: 16px; margin-bottom: 15px; color: #e0e0e0; }
+        h3 { font-size: 14px; margin: 15px 0 10px; color: #bbb; }
+        
+        .step {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .step-num {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        
+        .step code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: #4CAF50;
+        }
+        
+        .step a { color: #667eea; text-decoration: none; }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            text-align: center;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .tab.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-color: transparent;
+        }
+        
+        .tab:hover:not(.active) {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* CDP Section */
+        .cdp-status {
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .cdp-status.connected {
+            border: 1px solid rgba(76,175,80,0.5);
+        }
+        
+        .cdp-status.disconnected {
+            border: 1px solid rgba(244,67,54,0.5);
+        }
+        
+        .cdp-status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .cdp-status-row:last-child { margin-bottom: 0; }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-dot.green { background: #4CAF50; }
+        .status-dot.red { background: #f44336; }
+        
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        input::placeholder { color: #666; }
+        
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            padding: 12px;
+            color: #fff;
+            font-family: monospace;
+            font-size: 12px;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+        
+        textarea::placeholder { color: #666; }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: transform 0.1s;
+        }
+        
+        .btn:active { transform: scale(0.98); }
+        
+        .btn-secondary { background: rgba(255,255,255,0.1); }
+        .btn-success { background: linear-gradient(135deg, #4CAF50, #8BC34A); }
+        .btn-warning { background: linear-gradient(135deg, #FF9800, #FFC107); color: #333; }
+        
+        .status {
+            text-align: center;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-size: 13px;
+            display: none;
+        }
+        
+        .status.success { background: rgba(76,175,80,0.2); color: #4CAF50; display: block; }
+        .status.error { background: rgba(244,67,54,0.2); color: #f44336; display: block; }
+        .status.info { background: rgba(33,150,243,0.2); color: #2196F3; display: block; }
+        
+        .cookie-input {
+            margin-bottom: 10px;
+        }
+        
+        .cookie-input label {
+            display: block;
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        
+        .cookie-input input {
+            margin-bottom: 0;
+        }
+        
+        .required { color: #f44336; }
+        
+        .back-link {
+            display: block;
+            text-align: center;
+            color: #888;
+            font-size: 13px;
+            text-decoration: none;
+            margin-top: 20px;
+        }
+        
+        .back-link:hover { color: #fff; }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #888;
+        }
+        
+        .targets-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+        
+        .target-item {
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 12px;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+        
+        .target-item:hover { border-color: #667eea; }
+        .target-item.selected { border-color: #4CAF50; background: rgba(76,175,80,0.1); }
+        .target-item-highlight { border-color: #4CAF50 !important; background: rgba(76,175,80,0.15) !important; }
+        
+        .target-title { font-weight: 600; color: #fff; margin-bottom: 4px; }
+        .target-url { color: #888; word-break: break-all; }
+        
+        .auto-fill-hint {
+            font-size: 12px;
+            color: #888;
+            text-align: center;
+            margin-top: 10px;
+        }
+        
+        .refresh-btn {
+            padding: 6px 14px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 12px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        
+        .refresh-btn:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .login-url-dynamic {
+            margin-bottom: 15px;
+        }
+        
+        .login-url-single {
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .login-url-single .url-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .login-url-single .url-service {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .login-url-single .url-text {
+            color: #4CAF50;
+            font-size: 12px;
+            word-break: break-all;
+            font-family: monospace;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 6px;
+        }
+        
+        .selected-service-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .selected-service-item .service-icon {
+            font-size: 18px;
+            margin-right: 10px;
+        }
+        
+        .selected-service-item .service-info {
+            flex: 1;
+        }
+        
+        .selected-service-item .service-name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .selected-service-item .service-domain {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        .selected-service-item .remove-btn {
+            background: rgba(244,67,54,0.2);
+            border: none;
+            color: #f44336;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 16px;
+            margin-left: 10px;
+        }
+        
+        .selected-service-item .remove-btn:hover {
+            background: rgba(244,67,54,0.4);
+        }
+        
+        .add-service-row {
+            display: flex;
+            align-items: center;
+        }
+        
+        .service-dropdown {
+            position: relative;
+            z-index: 100;
+        }
+        
+        .dropdown-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 99;
+        }
+        
+        .dropdown-content {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(30, 33, 48, 0.98);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            padding: 12px;
+            margin-top: 8px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            z-index: 100;
+        }
+        
+        .dropdown-header {
+            font-size: 12px;
+            color: #888;
+            padding: 4px 8px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 8px;
+        }
+        
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        
+        .dropdown-item:hover {
+            background: rgba(102,126,234,0.2);
+        }
+        
+        .dropdown-item .item-icon {
+            font-size: 20px;
+            margin-right: 12px;
+        }
+        
+        .dropdown-item .item-info {
+            flex: 1;
+        }
+        
+        .dropdown-item .item-name {
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .dropdown-item .item-domain {
+            font-size: 12px;
+            color: #888;
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-overlay.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-header h2 {
+            font-size: 18px;
+            margin: 0;
+        }
+        
+        .modal-close {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #fff;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        
+        .modal-close:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .modal-img {
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .modal-note {
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            font-size: 13px;
+            color: #888;
+        }
+        
+        .modal-note code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✨ Cookie 设置</h1>
+        <p class="subtitle">设置登录凭证后才能查询用量</p>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="cdp">🤖 浏览器连接</div>
+            <div class="tab" data-tab="manual">📋 手动输入</div>
+        </div>
+        
+        <!-- CDP 连接模式 -->
+        <div id="tab-cdp" class="tab-content active">
+            <div class="card">
+                <h2>🤖 CDP 自动获取 Cookie</h2>
+                
+                <div id="cdp-status" class="cdp-status disconnected">
+                    <div class="cdp-status-row">
+                        <span><span class="status-dot red"></span>未连接</span>
+                        <span id="cdp-port-display">-</span>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <span class="step-num">1</span>
+                    <strong>创建浏览器调试快捷方式</strong>：
+                    <br>① 找到你电脑上的 Chrome 或 Edge 快捷方式（开始菜单或桌面）
+                    <br>② 右键 → <strong>属性</strong> → 复制「目标」里的路径
+                    <br>③ 桌面右键 → 新建 → 快捷方式 → 粘贴刚才复制的路径
+                    <br>④ 在路径最后加上参数：
+                    <br><code style="color:#667eea;"> --remote-debugging-port=9223 --remote-allow-origins=* --user-data-dir="C:\ChromeDebug"</code>
+                </div>
+                <div class="step">
+                    <span class="step-num">2</span>
+                    <strong>双击这个快捷方式启动浏览器</strong>
+                </div>
+                <div class="step">
+                    <span class="step-num">3</span>
+                    在地址栏输入 <code style="color:#667eea;">chrome://inspect/#remote-debugging</code> 并回车
+                    <br>✅ 勾选 <strong>Allow remote debugging for this browser instance</strong>
+                    <br>✅ 确认看到 <code>Server running at: 127.0.0.1:9223</code>（端口号可能不同）
+                    <br><button class="btn" style="padding:8px 16px;font-size:13px;margin-top:8px;" onclick="showChromeInspectGuide()">📸 查看示例截图</button>
+                </div>
+                <div class="step">
+                    <span class="step-num">4</span>
+                    回到本页面，填入端口号，点击连接
+                </div>
+                
+                <select id="browser-type">
+                    <option value="chrome">Chrome</option>
+                    <option value="edge">Edge</option>
+                </select>
+                
+                <input type="text" id="cdp-host" placeholder="IP地址，默认 127.0.0.1" value="127.0.0.1" style="margin-bottom:10px;">
+                <input type="number" id="cdp-port" placeholder="端口号，如 9223 或 61917" value="9223">
+                
+                <button class="btn btn-success" id="btn-connect" onclick="connectBrowser()">🔗 连接浏览器</button>
+                <button class="btn btn-secondary" id="btn-disconnect" onclick="disconnectBrowser()" style="display:none;">断开连接</button>
+                
+                <div id="cdp-message" class="status"></div>
+            </div>
+            
+            <div class="card" id="cdp-login-section" style="display:none;">
+                <h2>🌐 登录获取 Cookie</h2>
+                
+                <div class="step" style="background:rgba(76,175,80,0.1);border:1px solid rgba(76,175,80,0.3);">
+                    <span class="step-num" style="background:linear-gradient(135deg, #4CAF50, #8BC34A);">!</span>
+                    <strong>请先在上面的浏览器中登录供应商网站</strong>
+                    <br>用连接的这个 Chrome 打开 MiniMax 或讯飞官网并登录账号
+                </div>
+                
+                <h3>🔗 已选择的服务</h3>
+                <div id="selected-services-list" class="selected-services-list" style="margin-bottom:15px;">
+                    <div class="loading">加载中...</div>
+                </div>
+                
+                <button class="btn btn-secondary" id="btn-add-service" onclick="toggleServiceDropdown()" style="display:none;">
+                    ➕ 添加更多服务
+                </button>
+                
+                <div id="service-dropdown" class="service-dropdown" style="display:none;">
+                    <div class="dropdown-backdrop" onclick="toggleServiceDropdown()"></div>
+                    <div class="dropdown-content">
+                        <div class="dropdown-header">选择要添加的服务</div>
+                        <div id="service-dropdown-list"></div>
+                    </div>
+                </div>
+                
+                <h3>🔗 登录地址</h3>
+                <div id="login-url-dynamic" class="login-url-dynamic" style="margin-bottom:15px;">
+                    <div class="login-url-single" style="text-align:center;color:#888;">
+                        选择服务后显示登录地址
+                    </div>
+                </div>
+                <div id="auto-fill-hint" class="auto-fill-hint" style="display:none;">
+                    ✅ 获取成功！Cookie 已自动填充到下方输入框
+                </div>
+                
+                <div id="targets-area">
+                    <div class="step" style="background:rgba(33,150,243,0.1);border:1px solid rgba(33,150,243,0.3);font-size:12px;">
+                        <span class="step-num" style="background:linear-gradient(135deg, #2196F3, #64B5F6);">💡</span>
+                        <strong>操作提示：</strong>先勾选要获取的服务 → 在浏览器中打开对应登录地址并登录 → 点击刷新列表 → 确认看到✅标记后 → 再获取Cookie
+                    </div>
+                    <h3>
+                        📑 可用标签页
+                        <button class="refresh-btn" id="btn-refresh-targets" onclick="refreshTargets()" style="display:none;">🔄 刷新列表</button>
+                    </h3>
+                    <div id="targets-list" class="targets-list">
+                        <div class="loading">点击「连接浏览器」后显示可用页面</div>
+                    </div>
+                </div>
+                
+                <button class="btn btn-success" id="btn-get-cookies" onclick="getCookies()">🍪 获取 Cookie 并自动填充</button>
+            </div>
+        </div>
+        
+        <!-- 手动输入模式 -->
+        <div id="tab-manual" class="tab-content">
+            <!-- 动态渲染的配置窗口容器 -->
+            <div id="manual-services-container"></div>
+            
+            <!-- 添加配置按钮 -->
+            <button class="btn btn-secondary" id="btn-add-manual-service" onclick="toggleManualAddDropdown()" style="display:none;">
+                ➕ 添加配置
+            </button>
+            
+            <!-- 添加配置下拉框 -->
+            <div id="manual-add-dropdown" class="service-dropdown" style="display:none; position:relative; z-index:50;">
+                <div class="dropdown-backdrop" onclick="toggleManualAddDropdown()"></div>
+                <div class="dropdown-content" style="max-width:320px;">
+                    <div class="dropdown-header">选择要添加的配置</div>
+                    <div id="manual-add-dropdown-list"></div>
+                </div>
+            </div>
+        </div>
+        
+        <a href="index.html" class="back-link">← 返回监控页面</a>
+    </div>
+    
+    <script>
+        const API_BASE = window.location.hostname === 'localhost' 
+            ? 'http://localhost:5188' 
+            : '';
+        
+        let cdpConnected = false;
+        let cdpWsUrl = null;
+        let cdpTargets = [];
+        
+        // ============ Tab 切换 ============
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                tab.classList.add('active');
+                const tabId = tab.dataset.tab;
+                document.getElementById('tab-' + tabId).classList.add('active');
+            });
+        });
+        
+        // ============ CDP 浏览器连接 ============
+        async function connectBrowser() {
+            const host = document.getElementById('cdp-host').value.trim() || '127.0.0.1';
+            const port = document.getElementById('cdp-port').value.trim();
+            const browser = document.getElementById('browser-type').value;
+            
+            if (!port) {
+                showMessage('cdp-message', 'error', '请输入端口号');
+                return;
+            }
+            
+            const btn = document.getElementById('btn-connect');
+            btn.textContent = '🔄 连接中...';
+            btn.disabled = true;
+            
+            try {
+                const resp = await fetch(`${API_BASE}/api/cdp/connect`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        host: host, 
+                        port: parseInt(port) 
+                    })
+                });
+                
+                const data = await resp.json();
+                
+                if (data.success) {
+                    cdpConnected = true;
+                    cdpWsUrl = data.ws_url;
+                    cdpTargets = data.targets || [];
+                    
+                    // 更新 UI
+                    const statusEl = document.getElementById('cdp-status');
+                    statusEl.className = 'cdp-status connected';
+                    statusEl.innerHTML = `
+                        <div class="cdp-status-row">
+                            <span><span class="status-dot green"></span>已连接 (${browser})</span>
+                            <span id="cdp-port-display">${host}:${port}</span>
+                        </div>
+                        <div class="cdp-status-row">
+                            <span style="color:#888;font-size:12px;">找到 ${data.targets.length} 个可用页面</span>
+                        </div>
+                    `;
+                    
+                    document.getElementById('btn-connect').style.display = 'none';
+                    document.getElementById('btn-disconnect').style.display = 'block';
+                    document.getElementById('cdp-login-section').style.display = 'block';
+                    
+                    // 显示刷新按钮
+                    document.getElementById('btn-refresh-targets').style.display = 'inline-block';
+                    
+                    // 确保服务列表已加载后再更新标签页（用于高亮匹配）
+                    if (cdpServices.length === 0) {
+                        await loadServices();
+                    }
+                    
+                    // 默认选中第一个服务（如果还没选过）
+                    if (selectedServices.length === 0 && cdpServices.length > 0) {
+                        selectedServices = [cdpServices[0].id];
+                    }
+                    
+                    // 渲染已选服务列表
+                    renderSelectedServicesList();
+                    
+                    // 显示添加按钮区域
+                    updateAddServiceUIVisibility();
+                    
+                    // 更新标签页列表（服务加载后执行才能正确高亮）
+                    updateTargetsList();
+                    
+                    // 初始显示选中服务的登录地址
+                    updateLoginUrlDisplay();
+                } else {
+                    showMessage('cdp-message', 'error', data.error || '连接失败');
+                    if (data.hint) {
+                        showMessage('cdp-message', 'info', data.hint);
+                    }
+                }
+            } catch (e) {
+                showMessage('cdp-message', 'error', '网络错误: ' + e.message);
+            } finally {
+                btn.textContent = '🔗 连接浏览器';
+                btn.disabled = false;
+            }
+        }
+        
+        async function disconnectBrowser() {
+            try {
+                await fetch(`${API_BASE}/api/cdp/disconnect`, { method: 'POST' });
+            } catch (e) {}
+            
+            cdpConnected = false;
+            cdpWsUrl = null;
+            cdpTargets = [];
+            
+            const statusEl = document.getElementById('cdp-status');
+            statusEl.className = 'cdp-status disconnected';
+            statusEl.innerHTML = `
+                <div class="cdp-status-row">
+                    <span><span class="status-dot red"></span>未连接</span>
+                    <span id="cdp-port-display">-</span>
+                </div>
+            `;
+            
+            document.getElementById('btn-connect').style.display = 'block';
+            document.getElementById('btn-disconnect').style.display = 'none';
+            document.getElementById('cdp-login-section').style.display = 'none';
+            document.getElementById('btn-refresh-targets').style.display = 'none';
+            document.getElementById('targets-list').innerHTML = '<div class="loading">点击「连接浏览器」后显示可用页面</div>';
+            
+            showMessage('cdp-message', 'info', '已断开连接');
+        }
+        
+        function updateTargetsList() {
+            const container = document.getElementById('targets-list');
+            
+            if (cdpTargets.length === 0) {
+                container.innerHTML = '<div class="loading">未找到可用页面，请先在浏览器中打开目标网站</div>';
+                return;
+            }
+            
+            // 获取所有选中服务的域名，用于高亮匹配
+            const selected = getSelectedServices();
+            const highlightDomains = selected.map(s => s.domain);
+            
+            container.innerHTML = cdpTargets.map((t, i) => {
+                const url = t.url || '';
+                const matchedService = selected.find(s => url.includes(s.domain));
+                const isHighlighted = !!matchedService;
+                const highlightClass = isHighlighted ? 'target-item-highlight' : '';
+                const badge = isHighlighted ? `<span style="background:#4CAF50;color:#fff;padding:2px 8px;border-radius:10px;font-size:10px;margin-left:8px;">✅ ${matchedService.name}</span>` : '';
+                return `
+                    <div class="target-item ${highlightClass}" data-index="${i}">
+                        <div class="target-title">${t.title || '未知页面'}${badge}</div>
+                        <div class="target-url">${url}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            // 点击选中
+            container.querySelectorAll('.target-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    container.querySelectorAll('.target-item').forEach(i => i.classList.remove('selected'));
+                    item.classList.add('selected');
+                });
+            });
+        }
+        
+        async function refreshTargets() {
+            const btn = document.getElementById('btn-refresh-targets');
+            btn.textContent = '🔄 刷新中...';
+            btn.disabled = true;
+            
+            try {
+                const resp = await fetch(`${API_BASE}/api/cdp/targets`);
+                const data = await resp.json();
+                
+                if (data.success) {
+                    cdpTargets = data.targets || [];
+                    updateTargetsList();
+                    showMessage('cdp-message', 'success', `✅ 已刷新，找到 ${cdpTargets.length} 个页面`);
+                } else {
+                    showMessage('cdp-message', 'error', data.error || '刷新失败');
+                }
+            } catch (e) {
+                showMessage('cdp-message', 'error', '网络错误: ' + e.message);
+            } finally {
+                btn.textContent = '🔄 刷新列表';
+                btn.disabled = false;
+            }
+        }
+        
+        function updateLoginUrlDisplay() {
+            const container = document.getElementById('login-url-dynamic');
+            const selected = getSelectedServices();
+            
+            if (selected.length === 0) {
+                container.innerHTML = `
+                    <div class="login-url-single" style="text-align:center;color:#888;">
+                        添加服务后显示登录地址
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = selected.map(service => `
+                <div class="login-url-single" style="margin-bottom:15px;">
+                    <div style="display:flex;align-items:center;margin-bottom:6px;">
+                        <span style="font-weight:bold;">${service.icon} ${service.name}</span>
+                    </div>
+                    <div class="url-text" style="background:rgba(0,0,0,0.2);padding:10px;border-radius:6px;word-break:break-all;font-size:13px;">${service.login_url}</div>
+                </div>
+            `).join('');
+        }
+        
+        let cdpServices = [];
+        let selectedServices = [];  // CDP 标签页选择的服务
+        let manualServices = [];    // 手动配置 tab 显示的服务
+        let copyFeedbackTimer = null;
+        let pendingPageInfo = {};    // 临时存储从页面获取的信息（如截止日期）
+        
+        async function loadServices() {
+            try {
+                const resp = await fetch(`${API_BASE}/api/cdp/services`);
+                const data = await resp.json();
+                
+                if (data.success) {
+                    cdpServices = data.services;
+                    
+                    // 如果还没选择过 CDP 服务，默认选中第一个
+                    if (selectedServices.length === 0 && cdpServices.length > 0) {
+                        selectedServices = [cdpServices[0].id];
+                    }
+                    
+                    // 如果手动配置 tab 还没显示任何服务，默认显示第一个
+                    if (manualServices.length === 0 && cdpServices.length > 0) {
+                        manualServices = [cdpServices[0].id];
+                        renderManualServices();
+                        loadCurrentConfig();  // 渲染完成后加载配置状态
+                    }
+                    
+                    renderSelectedServicesList();
+                    updateAddServiceUIVisibility();
+                    updateLoginUrlDisplay();
+                }
+            } catch (e) {
+                console.error('加载服务列表失败:', e);
+            }
+        }
+        
+        function renderSelectedServicesList() {
+            const container = document.getElementById('selected-services-list');
+            
+            if (cdpServices.length === 0) {
+                container.innerHTML = '<div class="loading">暂无可用服务</div>';
+                return;
+            }
+            
+            if (selectedServices.length === 0) {
+                container.innerHTML = '<div style="color:#888;font-size:13px;padding:10px;">暂未选择服务，请从下方添加～</div>';
+                return;
+            }
+            
+            const showRemoveBtn = selectedServices.length > 1;
+            
+            container.innerHTML = selectedServices.map(serviceId => {
+                const service = cdpServices.find(s => s.id === serviceId);
+                if (!service) return '';
+                const removeBtn = showRemoveBtn 
+                    ? `<button class="remove-btn" onclick="removeService('${service.id}')">×</button>`
+                    : '';
+                return `
+                    <div class="selected-service-item" data-service-id="${service.id}">
+                        <span class="service-icon">${service.icon}</span>
+                        <div class="service-info">
+                            <div class="service-name">${service.name}</div>
+                            <div class="service-domain">${service.domain}</div>
+                        </div>
+                        ${removeBtn}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function toggleServiceDropdown() {
+            const dropdown = document.getElementById('service-dropdown');
+            const btn = document.getElementById('btn-add-service');
+            
+            if (dropdown.style.display === 'none') {
+                // 显示下拉列表
+                dropdown.style.display = 'block';
+                btn.textContent = '✕ 关闭';
+                renderServiceDropdownList();
+            } else {
+                // 隐藏
+                dropdown.style.display = 'none';
+                btn.textContent = '➕ 添加更多服务';
+            }
+        }
+        
+        function renderServiceDropdownList() {
+            const container = document.getElementById('service-dropdown-list');
+            const available = cdpServices.filter(s => !selectedServices.includes(s.id));
+            
+            if (available.length === 0) {
+                container.innerHTML = '<div style="color:#888;font-size:13px;padding:12px;text-align:center;">所有服务都已添加</div>';
+                return;
+            }
+            
+            container.innerHTML = available.map(service => `
+                <div class="dropdown-item" onclick="addServiceFromDropdown('${service.id}')">
+                    <span class="item-icon">${service.icon}</span>
+                    <div class="item-info">
+                        <div class="item-name">${service.name}</div>
+                        <div class="item-domain">${service.domain}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function addServiceFromDropdown(serviceId) {
+            if (!selectedServices.includes(serviceId)) {
+                selectedServices.push(serviceId);
+                renderSelectedServicesList();
+                updateLoginUrlDisplay();
+            }
+            // 关闭下拉
+            toggleServiceDropdown();
+        }
+        
+        function removeService(serviceId) {
+            // 至少保留一个服务，不允许删除最后一个
+            if (selectedServices.length <= 1) {
+                return;
+            }
+            selectedServices = selectedServices.filter(id => id !== serviceId);
+            renderSelectedServicesList();
+            updateAddServiceUIVisibility();
+            updateLoginUrlDisplay();
+        }
+        
+        function getSelectedServices() {
+            return cdpServices.filter(s => selectedServices.includes(s.id));
+        }
+        
+        function updateAddServiceUIVisibility() {
+            const btn = document.getElementById('btn-add-service');
+            const availableCount = cdpServices.filter(s => !selectedServices.includes(s.id)).length;
+            
+            if (availableCount > 0) {
+                btn.style.display = 'block';
+            } else {
+                btn.style.display = 'none';
+                // 关闭下拉以防万一
+                const dropdown = document.getElementById('service-dropdown');
+                dropdown.style.display = 'none';
+                btn.textContent = '➕ 添加更多服务';
+            }
+        }
+        
+        // ============ 手动配置 Tab 服务管理 ============
+        
+        function getManualService(serviceId) {
+            return cdpServices.find(s => s.id === serviceId);
+        }
+        
+        function renderManualServices() {
+            const container = document.getElementById('manual-services-container');
+            const addBtn = document.getElementById('btn-add-manual-service');
+            
+            if (!container) return;
+            
+            if (manualServices.length === 0) {
+                container.innerHTML = '<div style="color:#888;text-align:center;padding:40px;">暂无配置，请添加服务</div>';
+                if (addBtn) addBtn.style.display = 'none';
+                return;
+            }
+            
+            container.innerHTML = manualServices.map(serviceId => {
+                const service = getManualService(serviceId);
+                if (!service) return '';
+                return renderManualServiceCard(service);
+            }).join('');
+            
+            // 更新添加按钮可见性
+            const available = cdpServices.filter(s => !manualServices.includes(s.id));
+            if (addBtn) {
+                addBtn.style.display = available.length > 0 ? 'block' : 'none';
+            }
+        }
+        
+        function renderManualServiceCard(service) {
+            if (service.id === 'minimax') {
+                return `
+                <div class="card" id="manual-card-${service.id}">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;">
+                        <h2>${service.icon} ${service.name} Cookie 设置</h2>
+                        <button class="remove-btn" onclick="removeManualService('${service.id}')" title="移除此配置">×</button>
+                    </div>
+                    <div id="${service.id}-status-display" style="margin-bottom:15px;padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;font-size:13px;">
+                        加载中...
+                    </div>
+                    <div class="step">
+                        <span class="step-num">1</span>
+                        用 Chrome 打开 <code>${service.login_url}</code> 并登录
+                    </div>
+                    <div class="step">
+                        <span class="step-num">2</span>
+                        按 <code>F12</code> → <code>Application</code> → 左侧 <code>Cookies</code> → <code>${service.domain}</code>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">3</span>
+                        复制下方表格中的 <code>Value</code> 值，粘贴到对应位置
+                    </div>
+                    
+                    <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px;margin-bottom:15px;font-size:12px;">
+                        <p style="color:#888;margin-bottom:8px;">填写 Cookie 的 Value 值（不需要带等号）：</p>
+                        
+                        <div class="cookie-input">
+                            <label>HERTZ-SESSION <span class="required">*必填</span></label>
+                            <input type="text" id="${service.id}-HERTZ-SESSION" placeholder="必填，复制Value粘贴">
+                        </div>
+                        
+                        <div class="cookie-input">
+                            <label>_gc_usr_id_cs0_d0_sec0_part0</label>
+                            <input type="text" id="${service.id}-_gc_usr_id" placeholder="复制Value粘贴">
+                        </div>
+                        
+                        <div class="cookie-input">
+                            <label>_gc_s_cs0_d0_sec0_part0</label>
+                            <input type="text" id="${service.id}-_gc_s_cs0" placeholder="复制Value粘贴">
+                        </div>
+                        
+                        <div class="cookie-input">
+                            <label>_c_WBKFRo</label>
+                            <input type="text" id="${service.id}-_c_WBKFRo" placeholder="复制Value粘贴">
+                        </div>
+                        
+                        <div class="cookie-input">
+                            <label>sajssdk_2015_cross_new_user</label>
+                            <input type="text" id="${service.id}-sajssdk" placeholder="复制Value粘贴">
+                        </div>
+                        
+                        <div class="cookie-input">
+                            <label>sensorsdata2015jssdkcross</label>
+                            <input type="text" id="${service.id}-sensors1" placeholder="复制Value粘贴">
+                        </div>
+                        
+                        <div class="cookie-input">
+                            <label>sensorsdata2015jssdkchannel</label>
+                            <input type="text" id="${service.id}-sensors2" placeholder="复制Value粘贴">
+                        </div>
+                        
+                        <button class="btn" style="margin-top:10px;" onclick="saveCookie('minimax')">保存 Cookie</button>
+                    </div>
+                    <div id="${service.id}-status" class="status"></div>
+                </div>
+                `;
+            } else if (service.id === 'xfyun') {
+                return `
+                <div class="card" id="manual-card-${service.id}">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;">
+                        <h2>${service.icon} ${service.name} Cookie 设置</h2>
+                        <button class="remove-btn" onclick="removeManualService('${service.id}')" title="移除此配置">×</button>
+                    </div>
+                    <div id="${service.id}-status-display" style="margin-bottom:15px;padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;font-size:13px;">
+                        加载中...
+                    </div>
+                    <div class="step">
+                        <span class="step-num">1</span>
+                        用 Chrome 打开 <code>${service.login_url}</code> 并登录
+                    </div>
+                    <div class="step">
+                        <span class="step-num">2</span>
+                        按 <code>F12</code> → <code>Application</code> → 左侧 <code>Cookies</code> → <code>${service.domain}</code>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">3</span>
+                        复制完整的 Cookie 字符串，粘贴到下方
+                    </div>
+                    
+                    <textarea id="${service.id}-cookie" placeholder="粘贴 Cookie（会覆盖当前配置）"></textarea>
+                    <button class="btn" onclick="saveCookie('${service.id}')">保存 Cookie</button>
+                    <div id="${service.id}-status" class="status"></div>
+                </div>
+                `;
+            } else {
+                return `
+                <div class="card" id="manual-card-${service.id}">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;">
+                        <h2>${service.icon} ${service.name} Cookie 设置</h2>
+                        <button class="remove-btn" onclick="removeManualService('${service.id}')" title="移除此配置">×</button>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">1</span>
+                        用 Chrome 打开 <code>${service.login_url}</code> 并登录
+                    </div>
+                    <div class="step">
+                        <span class="step-num">2</span>
+                        按 <code>F12</code> → <code>Application</code> → 左侧 <code>Cookies</code> → <code>${service.domain}</code>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">3</span>
+                        复制完整的 Cookie 字符串，粘贴到下方
+                    </div>
+                    
+                    <textarea id="${service.id}-cookie" placeholder="粘贴 Cookie（会覆盖当前配置）"></textarea>
+                    <button class="btn" onclick="saveCookie('${service.id}')">保存 Cookie</button>
+                    <div id="${service.id}-status" class="status"></div>
+                </div>
+                `;
+            }
+        }
+        
+        function addManualService(serviceId) {
+            if (!manualServices.includes(serviceId)) {
+                manualServices.push(serviceId);
+                renderManualServices();
+                loadCurrentConfig();  // 添加后加载新服务的配置状态
+            }
+            toggleManualAddDropdown();
+        }
+        
+        function removeManualService(serviceId) {
+            // 至少保留一个配置
+            if (manualServices.length <= 1) {
+                return;
+            }
+            
+            // 保存当前所有输入框的值
+            const savedInputs = {};
+            for (const sid of manualServices) {
+                savedInputs[sid] = getServiceInputValues(sid);
+            }
+            
+            // 移除服务
+            manualServices = manualServices.filter(id => id !== serviceId);
+            renderManualServices();
+            
+            // 恢复剩余服务的输入值
+            for (const sid of manualServices) {
+                if (savedInputs[sid]) {
+                    restoreServiceInputValues(sid, savedInputs[sid]);
+                }
+            }
+        }
+        
+        // 获取服务输入框的值
+        function getServiceInputValues(serviceId) {
+            if (serviceId === 'minimax') {
+                return {
+                    'HERTZ-SESSION': document.getElementById('minimax-HERTZ-SESSION')?.value || '',
+                    '_gc_usr_id': document.getElementById('minimax-_gc_usr_id')?.value || '',
+                    '_gc_s_cs0': document.getElementById('minimax-_gc_s_cs0')?.value || '',
+                    '_c_WBKFRo': document.getElementById('minimax-_c_WBKFRo')?.value || '',
+                    'sajssdk': document.getElementById('minimax-sajssdk')?.value || '',
+                    'sensors1': document.getElementById('minimax-sensors1')?.value || '',
+                    'sensors2': document.getElementById('minimax-sensors2')?.value || ''
+                };
+            } else {
+                return {
+                    'cookie': document.getElementById(`${serviceId}-cookie`)?.value || ''
+                };
+            }
+        }
+        
+        // 恢复服务输入框的值
+        function restoreServiceInputValues(serviceId, values) {
+            if (serviceId === 'minimax') {
+                const mappings = {
+                    'HERTZ-SESSION': 'minimax-HERTZ-SESSION',
+                    '_gc_usr_id': 'minimax-_gc_usr_id',
+                    '_gc_s_cs0': 'minimax-_gc_s_cs0',
+                    '_c_WBKFRo': 'minimax-_c_WBKFRo',
+                    'sajssdk': 'minimax-sajssdk',
+                    'sensors1': 'minimax-sensors1',
+                    'sensors2': 'minimax-sensors2'
+                };
+                for (const [key, inputId] of Object.entries(mappings)) {
+                    const input = document.getElementById(inputId);
+                    if (input && values[key]) {
+                        input.value = values[key];
+                    }
+                }
+            } else {
+                const input = document.getElementById(`${serviceId}-cookie`);
+                if (input && values.cookie) {
+                    input.value = values.cookie;
+                }
+            }
+        }
+        
+        function toggleManualAddDropdown() {
+            const dropdown = document.getElementById('manual-add-dropdown');
+            const btn = document.getElementById('btn-add-manual-service');
+            
+            if (!dropdown) return;
+            
+            if (dropdown.style.display === 'none') {
+                dropdown.style.display = 'block';
+                btn.textContent = '✕ 关闭';
+                renderManualAddDropdownList();
+            } else {
+                dropdown.style.display = 'none';
+                btn.textContent = '➕ 添加配置';
+            }
+        }
+        
+        function renderManualAddDropdownList() {
+            const container = document.getElementById('manual-add-dropdown-list');
+            if (!container) return;
+            
+            const available = cdpServices.filter(s => !manualServices.includes(s.id));
+            
+            if (available.length === 0) {
+                container.innerHTML = '<div style="color:#888;font-size:13px;padding:12px;text-align:center;">所有服务都已添加</div>';
+                return;
+            }
+            
+            container.innerHTML = available.map(service => `
+                <div class="dropdown-item" onclick="addManualService('${service.id}')">
+                    <span class="item-icon">${service.icon}</span>
+                    <div class="item-info">
+                        <div class="item-name">${service.name}</div>
+                        <div class="item-domain">${service.domain}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function getCookies() {
+            console.log('getCookies called, cdpConnected=', cdpConnected, 'selectedServices=', selectedServices);
+            
+            if (!cdpConnected) {
+                showMessage('cdp-message', 'error', '请先连接浏览器');
+                return;
+            }
+            
+            // 如果 cdpServices 还没加载，先加载
+            if (cdpServices.length === 0) {
+                await loadServices();
+            }
+            
+            const selected = getSelectedServices();
+            console.log('selected services=', selected);
+            
+            if (selected.length === 0) {
+                showMessage('cdp-message', 'error', '请先选择一个服务');
+                return;
+            }
+            
+            // 收集成功获取的 cookie 和页面信息，渲染 DOM 后再填充
+            const collectedCookies = {};
+            const collectedPageInfo = {};
+            
+            const btn = document.getElementById('btn-get-cookies');
+            btn.textContent = '🔄 获取中...';
+            btn.disabled = true;
+            
+            let successCount = 0;
+            let failCount = 0;
+            const errors = [];
+            
+            try {
+                // 先刷新标签页列表，确保有最新的数据
+                const targetsResp = await fetch(`${API_BASE}/api/cdp/targets`);
+                const targetsData = await targetsResp.json();
+                
+                if (!targetsData.success) {
+                    showMessage('cdp-message', 'error', targetsData.error || '获取标签页失败');
+                    return;
+                }
+                
+                const targets = targetsData.targets || [];
+                console.log('Available targets:', targets);
+                
+                for (const service of selected) {
+                    console.log('Getting cookies for:', service.name, service.domain);
+                    
+                    // 找到匹配该服务域名的标签页
+                    const matchedTarget = targets.find(t => {
+                        const url = t.url || '';
+                        // 检查 URL 是否包含服务的任意一个 cookie domain
+                        return service.cookie_domains.some(d => url.includes(d));
+                    });
+                    
+                    if (!matchedTarget) {
+                        errors.push(`${service.name}: 请先在浏览器中打开并登录 ${service.domain}`);
+                        failCount++;
+                        continue;
+                    }
+                    
+                    console.log('Found matching target:', matchedTarget.title, matchedTarget.url);
+                    
+                    // 从匹配的标签页获取 cookie
+                    const resp = await fetch(`${API_BASE}/api/cdp/get-cookies`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            target_id: matchedTarget.id,
+                            domain: service.domain
+                        })
+                    });
+                    
+                    const data = await resp.json();
+                    
+                    if (data.success) {
+                        // 先收集 cookie，不立即填充（因为 DOM 还没渲染）
+                        if (!collectedCookies[service.id]) {
+                            collectedCookies[service.id] = data.cookies;
+                        }
+                        successCount++;
+                        
+                        // 自动添加到手动配置 tab（如果还没添加）
+                        if (!manualServices.includes(service.id)) {
+                            manualServices.push(service.id);
+                        }
+                        
+                        // 获取页面上的截止日期
+                        try {
+                            const pageInfoResp = await fetch(`${API_BASE}/api/cdp/get-page-info`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    target_id: matchedTarget.id,
+                                    service_id: service.id
+                                })
+                            });
+                            const pageInfoData = await pageInfoResp.json();
+                            if (pageInfoData.success && pageInfoData.page_info) {
+                                pendingPageInfo[service.id] = pageInfoData.page_info;
+                            }
+                        } catch (e) {
+                            console.log('获取页面信息失败:', e);
+                        }
+                    } else {
+                        failCount++;
+                        errors.push(`${service.name}: ${data.error || '获取失败'}`);
+                    }
+                }
+                
+                if (successCount > 0) {
+                    document.getElementById('auto-fill-hint').style.display = 'block';
+                    
+                    let msg = `✅ 成功获取 ${successCount} 个服务的 Cookie`;
+                    if (failCount > 0) {
+                        msg += `，${failCount} 个失败`;
+                    }
+                    showMessage('cdp-message', successCount > 0 ? 'success' : 'error', msg);
+                    if (errors.length > 0) {
+                        showMessage('cdp-message', 'info', errors.join('；'));
+                    }
+                    
+                    // 先渲染手动配置 tab（更新新增的服务）
+                    renderManualServices();
+                    
+                    // DOM 渲染完成后再填充数据
+                    for (const [serviceId, cookieStr] of Object.entries(collectedCookies)) {
+                        if (serviceId === 'minimax') {
+                            autoFillMinimaxCookies(cookieStr);
+                        } else {
+                            autoFillXfyunCookies(cookieStr);
+                        }
+                    }
+                    
+                    // 更新状态显示（变成"已配置"）
+                    loadCurrentConfig();
+                    
+                    // 切换到手动输入标签页显示结果
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    document.querySelector('[data-tab="manual"]').classList.add('active');
+                    document.getElementById('tab-manual').classList.add('active');
+                } else {
+                    showMessage('cdp-message', 'error', '获取失败: ' + errors.join('；'));
+                }
+            } catch (e) {
+                showMessage('cdp-message', 'error', '网络错误: ' + e.message);
+            } finally {
+                btn.textContent = '🍪 获取 Cookie 并自动填充';
+                btn.disabled = false;
+            }
+        }
+        
+        function autoFillMinimaxCookies(cookieStr) {
+            // 解析 cookie 字符串并填充到对应输入框
+            const cookies = parseCookieString(cookieStr);
+            
+            const mappings = {
+                'HERTZ-SESSION': 'minimax-HERTZ-SESSION',
+                '_gc_usr_id_cs0_d0_sec0_part0': 'minimax-_gc_usr_id',
+                '_gc_s_cs0_d0_sec0_part0': 'minimax-_gc_s_cs0',
+                '_c_WBKFRo': 'minimax-_c_WBKFRo',
+                'sajssdk_2015_cross_new_user': 'minimax-sajssdk',
+                'sensorsdata2015jssdkcross': 'minimax-sensors1',
+                'sensorsdata2015jssdkchannel': 'minimax-sensors2'
+            };
+            
+            for (const [name, inputId] of Object.entries(mappings)) {
+                const input = document.getElementById(inputId);
+                if (input && cookies[name]) {
+                    input.value = cookies[name];
+                }
+            }
+        }
+        
+        function autoFillXfyunCookies(cookieStr) {
+            document.getElementById('xfyun-cookie').value = cookieStr;
+        }
+        
+        function parseCookieString(cookieStr) {
+            const result = {};
+            cookieStr.split(';').forEach(cookie => {
+                const [name, ...valueParts] = cookie.trim().split('=');
+                if (name && valueParts.length) {
+                    result[name.trim()] = valueParts.join('=').trim();
+                }
+            });
+            return result;
+        }
+        
+        function showMessage(elId, type, text) {
+            const el = document.getElementById(elId);
+            el.className = 'status ' + type;
+            el.textContent = text;
+            
+            // 5秒后清除
+            setTimeout(() => {
+                el.className = 'status';
+                el.textContent = '';
+            }, 5000);
+        }
+        
+        function copyUrl(service) {
+            const urlEl = document.getElementById('url-' + service + '-text');
+            const url = urlEl.textContent;
+            
+            navigator.clipboard.writeText(url).then(() => {
+                showCopyFeedback('地址已复制！');
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = url;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showCopyFeedback('地址已复制！');
+            });
+        }
+        
+        function showCopyFeedback(text) {
+            // 找到对应的复制按钮并显示反馈
+            showMessage('cdp-message', 'success', '✅ ' + text);
+        }
+        
+        // ============ 页面加载时获取配置 ============
+        async function loadCurrentConfig() {
+            try {
+                const resp = await fetch(`${API_BASE}/api/current-cookies`);
+                const data = await resp.json();
+                
+                // 更新 manualServices 中每个服务的状态显示
+                for (const serviceId of manualServices) {
+                    const statusDisplay = document.getElementById(`${serviceId}-status-display`);
+                    if (!statusDisplay) continue;
+                    
+                    const serviceData = data[serviceId];
+                    if (serviceData && serviceData.has) {
+                        statusDisplay.innerHTML = `<span style="color:#4CAF50;">✅ 已配置</span> - ${serviceData.preview}`;
+                    } else {
+                        statusDisplay.innerHTML = `<span style="color:#f44336;">❌ 未配置</span>`;
+                    }
+                }
+            } catch (e) {
+                console.error('获取配置失败:', e);
+            }
+        }
+        
+        async function saveCookie(service) {
+            let cookies;
+            
+            if (service === 'minimax') {
+                // 从各个输入框收集
+                const hertz = document.getElementById('minimax-HERTZ-SESSION').value.trim();
+                if (!hertz) {
+                    alert('请填写 HERTZ-SESSION 的值（必填）');
+                    return;
+                }
+                
+                let cookieStr = 'HERTZ-SESSION=' + hertz;
+                
+                const fields = [
+                    ['minimax-_gc_usr_id', '_gc_usr_id_cs0_d0_sec0_part0'],
+                    ['minimax-_gc_s_cs0', '_gc_s_cs0_d0_sec0_part0'],
+                    ['minimax-_c_WBKFRo', '_c_WBKFRo'],
+                    ['minimax-sajssdk', 'sajssdk_2015_cross_new_user'],
+                    ['minimax-sensors1', 'sensorsdata2015jssdkcross'],
+                    ['minimax-sensors2', 'sensorsdata2015jssdkchannel']
+                ];
+                
+                fields.forEach(([inputId, cookieName]) => {
+                    const val = document.getElementById(inputId).value.trim();
+                    if (val) cookieStr += '; ' + cookieName + '=' + val;
+                });
+                
+                cookies = cookieStr;
+            } else {
+                cookies = document.getElementById('xfyun-cookie').value.trim();
+            }
+            
+            if (!cookies) {
+                alert('请先输入 Cookie');
+                return;
+            }
+            
+            const status = document.getElementById(service + '-status');
+            
+            try {
+                const resp = await fetch(`${API_BASE}/api/set-cookie`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        service, 
+                        cookies,
+                        page_info: pendingPageInfo[service] || null
+                    })
+                });
+                
+                const data = await resp.json();
+                
+                if (data.success) {
+                    status.className = 'status success';
+                    status.textContent = '✅ Cookie 保存成功！';
+                    loadCurrentConfig();
+                    
+                    // 清除输入框
+                    if (service === 'minimax') {
+                        document.getElementById('minimax-HERTZ-SESSION').value = '';
+                        document.getElementById('minimax-_gc_usr_id').value = '';
+                        document.getElementById('minimax-_gc_s_cs0').value = '';
+                        document.getElementById('minimax-_c_WBKFRo').value = '';
+                        document.getElementById('minimax-sajssdk').value = '';
+                        document.getElementById('minimax-sensors1').value = '';
+                        document.getElementById('minimax-sensors2').value = '';
+                    } else {
+                        document.getElementById('xfyun-cookie').value = '';
+                    }
+                    
+                    document.getElementById('auto-fill-hint').style.display = 'none';
+                } else {
+                    status.className = 'status error';
+                    status.textContent = '❌ 保存失败: ' + (data.error || '未知错误');
+                }
+            } catch (e) {
+                status.className = 'status error';
+                status.textContent = '❌ 网络错误: ' + e.message;
+            }
+        }
+        
+        // 保留旧的 generateMinimaxCookie 函数兼容性
+        function generateMinimaxCookie() {
+            saveCookie('minimax');
+        }
+        
+        // 页面加载
+        loadCurrentConfig();
+        
+        // 加载服务列表（页面打开时立即显示）
+        loadServices();
+        
+        // 显示 Chrome inspect 引导图
+        function showChromeInspectGuide() {
+            const modal = document.getElementById('chrome-inspect-modal');
+            modal.classList.add('show');
+        }
+        
+        function closeChromeInspectGuide() {
+            const modal = document.getElementById('chrome-inspect-modal');
+            modal.classList.remove('show');
+        }
+    </script>
+    
+    <!-- Chrome Inspect 引导弹窗 -->
+    <div id="chrome-inspect-modal" class="modal-overlay" onclick="closeChromeInspectGuide()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>📸 chrome://inspect 页面示例</h2>
+                <button class="modal-close" onclick="closeChromeInspectGuide()">×</button>
+            </div>
+            
+            <img class="modal-img" src="/static/chrome-inspect-demo.png" alt="Chrome Inspect 示例" 
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+            
+            <div class="modal-note" style="display:none;">
+                <p>📷 图片加载失败，请手动在浏览器地址栏输入 <code>chrome://inspect/#remote-debugging</code> 查看</p>
+            </div>
+            
+            <div class="modal-note">
+                <p>✅ <strong>确认项：</strong></p>
+                <p>1. 找到「Server running at: 127.0.0.1:9223」这一行</p>
+                <p>2. 端口号 <code>9223</code> 要填入下方连接框中</p>
+                <p>3. 如果看到的是 <code>localhost:9223</code>，填入 <code>9223</code> 即可</p>
+                <p>4. 确保状态是「Discover nearby targets」已勾选</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
