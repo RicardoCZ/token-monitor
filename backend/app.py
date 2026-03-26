@@ -18,6 +18,14 @@ import time
 import threading
 from pathlib import Path
 
+# 禁用代理，让 requests 直连
+for var in ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy', 'NO_PROXY', 'no_proxy']:
+    os.environ.pop(var, None)
+
+# 创建不使用代理的 requests session
+session = requests.Session()
+session.proxies = {'http': None, 'https': None}
+
 app = Flask(__name__)
 
 # ============ 路径配置 ============
@@ -76,7 +84,7 @@ def _fetch_minimax_group_id(cookies):
             "Cookie": cookies,
             "Referer": "https://platform.minimaxi.com/user-center/basic-info/interface-key"
         }
-        resp = requests.get(url, headers=headers, timeout=10)
+        resp = session.get(url, headers=headers, timeout=10)
         if resp.status_code == 200:
             data = resp.json()
             if data.get("base_resp", {}).get("status_code") == 0:
@@ -254,9 +262,9 @@ def check_usage(service_id):
         method = api_config.get("method", "GET")
         
         if method == "GET":
-            response = requests.get(url, headers=headers, params=params, timeout=10)
+            response = session.get(url, headers=headers, params=params, timeout=10)
         else:
-            response = requests.post(url, headers=headers, json=params, timeout=10)
+            response = session.post(url, headers=headers, json=params, timeout=10)
         
         # 解析响应
         result = plugin["parse"](response)
