@@ -97,7 +97,7 @@ USAGE_PLUGINS = {
     "minimax": {
         "id": "minimax",
         "name": "MiniMax",
-        "icon": "🟠",
+        "icon": "🍊",
         "domain": "minimaxi.com",
         "login_url": "https://platform.minimaxi.com/user-center/payment/token-plan",
         "cookie_domains": ["minimaxi.com", "minimax.com"],
@@ -155,29 +155,60 @@ CDP_SERVICES = [
 # ============ 内部解析函数（保持原有逻辑）============
 
 def _parse_minimax(resp):
-    """解析 MiniMax API 响应"""
+    """解析 MiniMax API 响应，返回统一格式"""
     if resp.status_code == 200:
         resp_data = resp.json()
         base_resp = resp_data.get("base_resp", {})
         
         if base_resp.get("status_code") == 0:
             model_remains = resp_data.get("model_remains", [])
-            result = {}
+            
+            # 找到 MiniMax-M* 模型
+            main_model = None
             for m in model_remains:
-                model_name = m.get("model_name", "unknown")
-                total = m.get("current_interval_total_count", 0)
-                usage_count = m.get("current_interval_usage_count", 0)
-                remains_time = m.get("remains_time", 0)
+                if m.get("model_name") == "MiniMax-M*":
+                    main_model = m
+                    break
+            
+            if main_model:
+                total = main_model.get("current_interval_total_count", 0)
+                # current_interval_usage_count 实际上是剩余次数，不是已用次数
+                remain = main_model.get("current_interval_usage_count", 0)
+                remains_time_ms = main_model.get("remains_time", 0)
+                start_time = main_model.get("start_time", 0)
+                end_time = main_model.get("end_time", 0)
                 
-                used = total - usage_count if total > 0 else 0
+                # 已使用 = 总量 - 剩余
+                used = total - remain if total > 0 else 0
+                percent = round((used / total) * 100, 1) if total > 0 else 0
                 
-                result[model_name] = {
-                    "total": total,
-                    "used": used,
-                    "remain": usage_count if total > 0 else remains_time,
-                    "remains_time": remains_time
+                # remains_time 是毫秒，转换为小时+分钟
+                remains_time_sec = remains_time_ms // 1000
+                reset_hours = remains_time_sec // 3600
+                reset_minutes = (remains_time_sec % 3600) // 60
+                
+                # 截止日期
+                from datetime import datetime
+                expires_at = datetime.fromtimestamp(end_time / 1000).strftime("%Y-%m-%d %H:%M") if end_time else "-"
+                
+                return {
+                    "page_info": {
+                        "used": used,
+                        "total": total,
+                        "percent": percent,
+                        "expiresAt": expires_at,
+                        "resetHours": reset_hours,
+                        "resetMinutes": reset_minutes
+                    },
+                    "models": {m.get("model_name"): {
+                        "total": m.get("current_interval_total_count", 0),
+                        "used": m.get("current_interval_total_count", 0) - m.get("current_interval_usage_count", 0),
+                        "remain": m.get("current_interval_usage_count", 0),
+                        "remains_time": m.get("remains_time", 0)
+                    } for m in model_remains}
                 }
-            return result
+            
+            return {"error": "未找到 MiniMax-M* 模型数据"}
         elif base_resp.get("status_code") in [1004, 401]:
             return {"error": "MiniMax 登录已过期，请重新登录", "need_login": True}
         else:
@@ -186,7 +217,7 @@ def _parse_minimax(resp):
         return {"error": f"HTTP {resp.status_code}"}
 
 def _parse_xfyun(resp):
-    """解析讯飞星辰 API 响应"""
+    """解析讯飞星辰 API 响应，返回统一格式"""
     if resp.status_code == 200:
         resp_data = resp.json()
         if resp_data.get("code") == 0:
@@ -197,13 +228,24 @@ def _parse_xfyun(resp):
             plan = rows[0]
             usage = plan.get("codingPlanUsageDTO", {})
             
+            daily_limit = usage.get("dailyLimit", 0)
+            daily_usage = usage.get("dailyUsage", 0)
+            daily_remain = daily_limit - daily_usage if daily_limit else 0
+            expires_at = plan.get("expiresAt", "")
+            
             return {
+                "page_info": {
+                    "dailyQuota": round(daily_limit / 10000, 1) if daily_limit else 0,
+                    "dailyUsed": round(daily_usage / 10000, 1) if daily_usage else 0,
+                    "dailyRemain": round(daily_remain / 10000, 1) if daily_remain else 0,
+                    "expiresAt": expires_at
+                },
                 "appId": plan.get("appId", ""),
                 "channel": usage.get("channel", ""),
-                "dailyLimit": usage.get("dailyLimit", 0),
-                "dailyUsage": usage.get("dailyUsage", 0),
-                "dailyRemain": usage.get("dailyLimit", 0) - usage.get("dailyUsage", 0) if usage.get("dailyLimit") else 0,
-                "expiresAt": plan.get("expiresAt", "")
+                "dailyLimit": daily_limit,
+                "dailyUsage": daily_usage,
+                "dailyRemain": daily_remain,
+                "expiresAt": expires_at
             }
         else:
             return {"error": f"API 错误: {resp_data.get('msg', '未知错误')}"}
@@ -241,7 +283,6 @@ def check_usage(service_id):
         return {"error": f"请先登录 {plugin['name']}", "need_login": True}
     
     cookies = data.get("cookies", "")
-    page_info = data.get("page_info")  # 截止日期等页面信息
     
     try:
         api_config = plugin["api"]
@@ -266,12 +307,8 @@ def check_usage(service_id):
         else:
             response = session.post(url, headers=headers, json=params, timeout=10)
         
-        # 解析响应
+        # 解析响应（已包含 page_info）
         result = plugin["parse"](response)
-        
-        # 如果有 page_info（截止日期），添加到结果中
-        if page_info and isinstance(result, dict) and "error" not in result:
-            result["page_info"] = page_info
         
         return result
         
@@ -483,6 +520,10 @@ def index():
 @app.route("/index.html")
 def index_html():
     return send_from_directory(FRONTEND_DIR, "index.html")
+
+@app.route("/api.html")
+def api_html():
+    return send_from_directory(FRONTEND_DIR, "api.html")
 
 @app.route("/setup")
 def setup():

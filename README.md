@@ -8,13 +8,27 @@
 ~/share/new/
 ├── backend/           # Flask API 服务
 │   └── app.py         # 后端主程序
-├── frontend/          # 前端静态页面
-│   └── index.html    # 主页面
+├── frontend/          # Web 前端静态页面
+│   ├── index.html     # 主页面
+│   ├── api.html       # API 监控页面
+│   └── setup.html     # Cookie 设置页面
+├── mobile-app/        # Android 手机端 (Capacitor)
+│   ├── src/           # 前端源码
+│   └── android/       # Android 原生项目
 ├── data/              # 数据存储（Cookie 等）
 │   ├── minimax_cookies.json
 │   └── xfyun_cookies.json
 └── README.md
 ```
+
+## 功能特性
+
+- ✅ MiniMax Token Plan 用量监控
+- ✅ 讯飞星辰每日额度监控
+- ✅ Web 端 + Android 手机端
+- ✅ 内嵌 WebView 自动提取 Cookie
+- ✅ CDP 自动获取 Cookie（Web 端）
+- ✅ 重置时间倒计时
 
 ## 部署架构
 
@@ -39,13 +53,23 @@
 
 ### 后端
 ```bash
-cd ~/share/new/backend
+cd backend
 pip install -r requirements.txt
 python3 app.py
 ```
 
-### 前端
+### Web 前端
 直接用浏览器打开 `frontend/index.html`，或者部署到 Nginx。
+
+### Android 手机端
+```bash
+cd mobile-app
+npm install
+npm run build
+npx cap sync android
+cd android && ./gradlew assembleDebug
+# APK: android/app/build/outputs/apk/debug/app-debug.apk
+```
 
 ## API 接口
 
@@ -59,11 +83,11 @@ python3 app.py
 
 ## Cookie 管理
 
-Cookie 存在 `data/` 目录下：
+Cookie 存储在 `data/` 目录下：
 - `data/minimax_cookies.json`
 - `data/xfyun_cookies.json`
 
-Cookie 有效期：30分钟
+**注意**：`data/` 目录已被 `.gitignore` 忽略，Cookie 不会提交到 git。
 
 ### 手动设置 Cookie
 
@@ -79,6 +103,34 @@ curl -X POST http://localhost:5188/api/set-cookie \
   -d '{"service":"xfyun","cookies":"你的cookie"}'
 ```
 
+## 数据格式
+
+### MiniMax 返回格式
+```json
+{
+  "page_info": {
+    "used": 0,
+    "total": 600,
+    "percent": 0.0,
+    "expiresAt": "2026-03-29 10:00",
+    "resetHours": 4,
+    "resetMinutes": 32
+  }
+}
+```
+
+### 讯飞返回格式
+```json
+{
+  "page_info": {
+    "dailyQuota": 5000.0,
+    "dailyUsed": 3943.8,
+    "dailyRemain": 1056.2,
+    "expiresAt": "2026-04-19 16:10:58"
+  }
+}
+```
+
 ## 依赖
 
 ### 后端
@@ -86,6 +138,20 @@ curl -X POST http://localhost:5188/api/set-cookie \
 Flask>=3.0.0
 requests>=2.31.0
 ```
+
+### 手机端
+```
+@capacitor/core: ^8.0.0
+@capacitor/android: ^8.0.0
+vite: ^8.0.0
+```
+
+## 安全说明
+
+- Cookie 存储在 `data/` 目录，已被 `.gitignore` 忽略
+- 日志文件 `*.log` 已被 `.gitignore` 忽略
+- 无硬编码的敏感信息（API Key、密码等）
+- 所有敏感数据仅存储在本地
 
 ---
 

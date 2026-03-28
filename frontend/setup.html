@@ -199,6 +199,15 @@
             margin-bottom: 10px;
         }
         
+        .status-display-box {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            font-size: 13px;
+            min-height: 20px;
+        }
+        
         .cookie-input label {
             display: block;
             font-size: 12px;
@@ -1027,6 +1036,11 @@
                 return renderManualServiceCard(service);
             }).join('');
             
+            // 每张卡片独立加载自己的状态（解决多卡片时关闭一张导致其他显示"加载中"的问题）
+            for (const serviceId of manualServices) {
+                loadManualServiceStatus(serviceId);
+            }
+            
             // 更新添加按钮可见性
             const available = cdpServices.filter(s => !manualServices.includes(s.id));
             if (addBtn) {
@@ -1042,9 +1056,7 @@
                         <h2>${service.icon} ${service.name} Cookie 设置</h2>
                         <button class="remove-btn" onclick="removeManualService('${service.id}')" title="移除此配置">×</button>
                     </div>
-                    <div id="${service.id}-status-display" style="margin-bottom:15px;padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;font-size:13px;">
-                        加载中...
-                    </div>
+                    <div id="${service.id}-status-display" class="status-display-box" data-service="${service.id}"></div>
                     <div class="step">
                         <span class="step-num">1</span>
                         用 Chrome 打开 <code>${service.login_url}</code> 并登录
@@ -1108,9 +1120,7 @@
                         <h2>${service.icon} ${service.name} Cookie 设置</h2>
                         <button class="remove-btn" onclick="removeManualService('${service.id}')" title="移除此配置">×</button>
                     </div>
-                    <div id="${service.id}-status-display" style="margin-bottom:15px;padding:10px;background:rgba(0,0,0,0.2);border-radius:8px;font-size:13px;">
-                        加载中...
-                    </div>
+                    <div id="${service.id}-status-display" class="status-display-box" data-service="${service.id}"></div>
                     <div class="step">
                         <span class="step-num">1</span>
                         用 Chrome 打开 <code>${service.login_url}</code> 并登录
@@ -1504,7 +1514,7 @@
                 const resp = await fetch(`${API_BASE}/api/current-cookies`);
                 const data = await resp.json();
                 
-                // 更新 manualServices 中每个服务的状态显示
+                // 更新 manualServices 中每个服务的状态显示（per-card 方式）
                 for (const serviceId of manualServices) {
                     const statusDisplay = document.getElementById(`${serviceId}-status-display`);
                     if (!statusDisplay) continue;
@@ -1518,6 +1528,29 @@
                 }
             } catch (e) {
                 console.error('获取配置失败:', e);
+            }
+        }
+        
+        // 每张卡片独立加载自己的状态（per-card loading）
+        async function loadManualServiceStatus(serviceId) {
+            const statusDisplay = document.getElementById(`${serviceId}-status-display`);
+            if (!statusDisplay) return;
+            
+            try {
+                const resp = await fetch(`${API_BASE}/api/current-cookies`);
+                if (!resp.ok) {
+                    statusDisplay.innerHTML = `<span style="color:#f44336;">❌ 状态加载失败</span>`;
+                    return;
+                }
+                const data = await resp.json();
+                const serviceData = data[serviceId];
+                if (serviceData && serviceData.has) {
+                    statusDisplay.innerHTML = `<span style="color:#4CAF50;">✅ 已配置</span> - ${serviceData.preview}`;
+                } else {
+                    statusDisplay.innerHTML = `<span style="color:#f44336;">❌ 未配置</span>`;
+                }
+            } catch (e) {
+                statusDisplay.innerHTML = `<span style="color:#f44336;">❌ 加载失败</span>`;
             }
         }
         

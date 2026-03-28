@@ -275,7 +275,7 @@
             const content = document.getElementById("minimax-content");
             
             try {
-                // 尝试通过后端获取数据
+                // 获取存储的页面数据
                 let resp = await fetch("/api/minimax");
                 let data = await resp.json();
                 
@@ -285,7 +285,7 @@
                     content.innerHTML = `
                         <div class="login-box">
                             <p style="color: #888; font-size: 13px; margin-bottom: 12px;">${data.error}</p>
-                            <a class="login-btn" href="https://platform.minimaxi.com/user-center/payment/token-plan" target="_self">去 MiniMax 登录</a>
+                            <a class="login-btn" href="setup.html">去设置 Cookie</a>
                         </div>
                     `;
                     return;
@@ -294,43 +294,38 @@
                 badge.className = "card-badge badge-ok";
                 badge.textContent = "正常";
                 
-                const mainModel = data["MiniMax-M*"];
-                if (mainModel && mainModel.total > 0) {
-                    const total = mainModel.total;
-                    const used = mainModel.used;
-                    const remain = mainModel.remain;
-                    const percent = (used / total * 100).toFixed(1);
-                    const colorClass = percent > 80 ? "red" : percent > 50 ? "orange" : "green";
-                    
-                    content.innerHTML = `
-                        <div class="stat-row">
-                            <span class="stat-label">Token Plan 总额</span>
-                            <span class="stat-value">${total} 次 / 5小时</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">已使用</span>
-                            <span class="stat-value">${used} 次</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">剩余</span>
-                            <span class="stat-value">${remain} 次</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">使用率</span>
-                            <span class="stat-value">${percent}%</span>
-                        </div>
-                        <div class="progress-bar">
-                            <div class="progress-fill ${colorClass}" style="width: ${percent}%"></div>
-                        </div>
-                    `;
-                } else {
-                    let html = "";
-                    for (const [model, info] of Object.entries(data)) {
-                        const remain = info.remain || 0;
-                        html += `<div class="stat-row"><span class="stat-label">${model}</span><span class="stat-value">剩余 ${remain}</span></div>`;
-                    }
-                    content.innerHTML = html || "<div class='loading'>无数据</div>";
-                }
+                // 使用页面数据
+                const pageInfo = data.page_info || {};
+                const used = pageInfo.used || '-';
+                const total = pageInfo.total || '-';
+                const percent = pageInfo.percent || '0';
+                const expiresAt = pageInfo.expiresAt || '-';
+                const resetMinutes = pageInfo.resetMinutes;
+                const resetHours = pageInfo.resetHours;
+                
+                let resetTime = '-';
+                if (resetMinutes) resetTime = resetMinutes + ' 分钟后';
+                else if (resetHours) resetTime = resetHours + ' 小时后';
+                
+                const colorClass = percent > 80 ? "red" : percent > 50 ? "orange" : "green";
+                
+                content.innerHTML = `
+                    <div class="stat-row">
+                        <span class="stat-label">使用量</span>
+                        <span class="stat-value">${used}/${total} (${percent}%)</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">截止日期</span>
+                        <span class="stat-value">${expiresAt}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">重置时间</span>
+                        <span class="stat-value">${resetTime}</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill ${colorClass}" style="width: ${percent}%"></div>
+                    </div>
+                `;
                 
             } catch (e) {
                 badge.className = "card-badge badge-error";
@@ -353,7 +348,7 @@
                     content.innerHTML = `
                         <div class="login-box">
                             <p style="color: #888; font-size: 13px; margin-bottom: 12px;">${data.error}</p>
-                            <a class="login-btn" href="https://maas.xfyun.cn/packageSubscription" target="_self">去讯飞登录</a>
+                            <a class="login-btn" href="setup.html">去设置 Cookie</a>
                         </div>
                     `;
                     return;
@@ -362,41 +357,19 @@
                 badge.className = "card-badge badge-ok";
                 badge.textContent = "正常";
                 
-                const total = data.dailyLimit || 0;
-                const used = data.dailyUsage || 0;
-                const remain = data.dailyRemain || 0;
-                const percent = total > 0 ? (used / total * 100).toFixed(2) : 0;
-                const colorClass = percent > 80 ? "red" : percent > 50 ? "orange" : "green";
-                
-                const formatNum = (n) => {
-                    if (n >= 100000000) return (n / 100000000).toFixed(1) + '亿';
-                    if (n >= 10000) return (n / 10000).toFixed(1) + '万';
-                    return n.toLocaleString();
-                };
+                // 使用页面数据
+                const pageInfo = data.page_info || {};
+                const dailyQuota = pageInfo.dailyQuota || '-';
+                const expiresAt = pageInfo.expiresAt || '-';
                 
                 content.innerHTML = `
                     <div class="stat-row">
-                        <span class="stat-label">日限额</span>
-                        <span class="stat-value">${formatNum(total)} tokens</span>
+                        <span class="stat-label">每日额度</span>
+                        <span class="stat-value">${dailyQuota} 万</span>
                     </div>
                     <div class="stat-row">
-                        <span class="stat-label">当日已用</span>
-                        <span class="stat-value">${formatNum(used)} tokens</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">剩余</span>
-                        <span class="stat-value">${formatNum(remain)} tokens</span>
-                    </div>
-                    <div class="stat-row">
-                        <span class="stat-label">使用率</span>
-                        <span class="stat-value">${percent}%</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill ${colorClass}" style="width: ${percent}%"></div>
-                    </div>
-                    <div class="stat-row" style="margin-top: 8px; font-size: 11px; color: #888;">
-                        <span class="stat-label">套餐截止</span>
-                        <span class="stat-value">${data.expiresAt || '未知'}</span>
+                        <span class="stat-label">到期时间</span>
+                        <span class="stat-value">${expiresAt}</span>
                     </div>
                 `;
                 

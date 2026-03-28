@@ -195,20 +195,27 @@
                 badge.className = 'badge badge-ok';
                 badge.textContent = '正常';
                 
-                const m = data['MiniMax-M*'];
-                if (m) {
-                    const percent = (m.used / m.total * 100).toFixed(1);
-                    const color = percent > 80 ? 'red' : percent > 50 ? 'orange' : 'green';
-                    const deadline = data.page_info ? `<div class="stat-row"><span class="stat-label">到期</span><span class="stat-value">${data.page_info}</span></div>` : '';
-                    content.innerHTML = `
-                        <div class="stat-row"><span class="stat-label">Token Plan</span><span class="stat-value">${m.total}次/5小时</span></div>
-                        <div class="stat-row"><span class="stat-label">已使用</span><span class="stat-value">${m.used}次</span></div>
-                        <div class="stat-row"><span class="stat-label">剩余</span><span class="stat-value">${m.remain}次</span></div>
-                        <div class="stat-row"><span class="stat-label">使用率</span><span class="stat-value">${percent}%</span></div>
-                        <div class="progress-bar"><div class="progress-fill ${color}" style="width:${percent}%"></div></div>
-                        ${deadline}
-                    `;
-                }
+                // 使用 page_info 格式
+                const pageInfo = data.page_info || {};
+                const used = pageInfo.used ?? 0;
+                const total = pageInfo.total ?? 0;
+                const percent = pageInfo.percent ?? 0;
+                const expiresAt = pageInfo.expiresAt || '-';
+                const resetHours = pageInfo.resetHours || 0;
+                const resetMinutes = pageInfo.resetMinutes || 0;
+                
+                const resetTime = resetHours > 0 
+                    ? `${resetHours}小时${resetMinutes}分钟` 
+                    : `${resetMinutes}分钟`;
+                
+                const color = percent > 80 ? 'red' : percent > 50 ? 'orange' : 'green';
+                
+                content.innerHTML = `
+                    <div class="stat-row"><span class="stat-label">使用量</span><span class="stat-value">${used}/${total} (${percent}%)</span></div>
+                    <div class="stat-row"><span class="stat-label">截止日期</span><span class="stat-value">${expiresAt}</span></div>
+                    <div class="stat-row"><span class="stat-label">重置时间</span><span class="stat-value">${resetTime}</span></div>
+                    <div class="progress-bar"><div class="progress-fill ${color}" style="width:${percent}%"></div></div>
+                `;
             } catch (e) {
                 badge.className = 'badge badge-error';
                 badge.textContent = '错误';
@@ -238,23 +245,24 @@
                 badge.className = 'badge badge-ok';
                 badge.textContent = '正常';
                 
-                const total = data.dailyLimit || 0;
-                const used = data.dailyUsage || 0;
-                const remain = data.dailyRemain || 0;
-                const percent = total > 0 ? (used / total * 100).toFixed(2) : 0;
-                const color = percent > 80 ? 'red' : percent > 50 ? 'orange' : 'green';
-                const expiresAt = data.expiresAt ? new Date(data.expiresAt).toLocaleString('zh-CN') : '未知';
+                // 使用 page_info 格式
+                const pageInfo = data.page_info || {};
+                const dailyQuota = pageInfo.dailyQuota || 0;
+                const dailyUsed = pageInfo.dailyUsed || 0;
+                const dailyRemain = pageInfo.dailyRemain || 0;
+                const expiresAt = pageInfo.expiresAt || '-';
                 
-                const fmt = n => n >= 1e8 ? (n/1e8).toFixed(1)+'亿' : n >= 1e4 ? (n/1e4).toFixed(1)+'万' : n.toLocaleString();
+                const percent = dailyQuota > 0 ? (dailyUsed / dailyQuota * 100).toFixed(1) : 0;
+                const color = percent > 80 ? 'red' : percent > 50 ? 'orange' : 'green';
                 
                 content.innerHTML = `
-                    <div class="stat-row"><span class="stat-label">日限额</span><span class="stat-value">${fmt(total)} tokens</span></div>
-                    <div class="stat-row"><span class="stat-label">已用</span><span class="stat-value">${fmt(used)}</span></div>
-                    <div class="stat-row"><span class="stat-label">剩余</span><span class="stat-value">${fmt(remain)}</span></div>
+                    <div class="stat-row"><span class="stat-label">每日额度</span><span class="stat-value">${dailyQuota} 万</span></div>
+                    <div class="stat-row"><span class="stat-label">今日已用</span><span class="stat-value">${dailyUsed} 万</span></div>
+                    <div class="stat-row"><span class="stat-label">今日剩余</span><span class="stat-value">${dailyRemain} 万</span></div>
                     <div class="stat-row"><span class="stat-label">使用率</span><span class="stat-value">${percent}%</span></div>
                     <div class="progress-bar"><div class="progress-fill ${color}" style="width:${percent}%"></div></div>
                     <div class="stat-row" style="margin-top:10px;border-top:1px solid rgba(255,255,255,0.1);padding-top:10px;">
-                        <span class="stat-label">到期</span><span class="stat-value">${expiresAt}</span>
+                        <span class="stat-label">到期时间</span><span class="stat-value">${expiresAt}</span>
                     </div>
                 `;
             } catch (e) {

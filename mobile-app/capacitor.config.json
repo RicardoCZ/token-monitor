@@ -1,0 +1,17 @@
+{
+  "appId": "com.tokenmonitor.app",
+  "appName": "Token Monitor",
+  "webDir": "www",
+  "server": {
+    "cleartext": true,
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
+    "CapacitorCookies": {
+      "enabled": true
+    }
+  }
+}
