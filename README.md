@@ -153,6 +153,28 @@ vite: ^8.0.0
 - 无硬编码的敏感信息（API Key、密码等）
 - 所有敏感数据仅存储在本地
 
+## 开发规范
+
+### Git 提交格式
+```bash
+git commit -m "feat: 新功能描述
+- 具体改动1
+- 具体改动2
+
+fix: 修复描述
+- 修复内容"
+```
+
+### 推送前检查
+1. 确认无敏感信息泄露（Cookie、API Key、密码等）
+2. 确认 `data/*.json` 已被 `.gitignore` 忽略
+3. 确认 `*.log` 已被 `.gitignore` 忽略
+
+### 推送命令
+```bash
+git push origin master
+```
+
 ---
 
 *由爱丽丝维护 ✨*
