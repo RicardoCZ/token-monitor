@@ -47,13 +47,18 @@ function renderHome() {
     <div class="container">
       <header>
         <h1>✨ Token Monitor</h1>
-        <p class="subtitle">API 额度监控</p>
+        <p class="subtitle">API额度实时监控</p>
       </header>
       
       <div class="server-config">
         <label>服务器地址</label>
         <input type="text" id="server-input" value="${serverUrl}" placeholder="http://192.168.3.36:5188">
         <button id="save-server">保存</button>
+      </div>
+      
+      <div class="action-bar">
+        <button class="action-btn primary" id="global-refresh">🔄 刷新</button>
+        <button class="action-btn secondary" id="global-settings">⚙️ 设置</button>
       </div>
       
       <div class="cards" id="cards">
@@ -144,21 +149,12 @@ async function loadServices() {
     
     cardsEl.innerHTML = cards.join('')
     
-    // 绑定刷新按钮事件
-    document.querySelectorAll('.refresh-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation()
-        loadServices()
-      })
-    })
+    // 绑定全局刷新按钮事件
+    document.getElementById('global-refresh')?.addEventListener('click', loadServices)
     
-    // 绑定设置按钮事件
-    document.querySelectorAll('.settings-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation()
-        const serviceId = btn.getAttribute('data-service')
-        if (serviceId) renderCookiePage(serviceId)
-      })
+    // 绑定全局设置按钮事件 - 显示服务选择
+    document.getElementById('global-settings')?.addEventListener('click', () => {
+      showServiceSelector()
     })
     
   } catch (err) {
@@ -334,6 +330,39 @@ function renderCookiePage(serviceId: string) {
   })
 }
 
+// 显示服务选择弹窗
+function showServiceSelector() {
+  app.innerHTML = `
+    <div class="container">
+      <header>
+        <button class="back-btn" id="back-btn">← 返回</button>
+        <h1>⚙️ Cookie 设置</h1>
+        <p class="subtitle">选择要配置的服务</p>
+      </header>
+      
+      <div class="service-list">
+        <button class="service-item" data-service="minimax">
+          <span class="service-icon">🍊</span>
+          <span class="service-name">MiniMax</span>
+        </button>
+        <button class="service-item" data-service="xfyun">
+          <span class="service-icon">🔵</span>
+          <span class="service-name">讯飞星辰 MaaS</span>
+        </button>
+      </div>
+    </div>
+  `
+  
+  document.getElementById('back-btn')?.addEventListener('click', renderHome)
+  
+  document.querySelectorAll('.service-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const serviceId = btn.getAttribute('data-service')
+      if (serviceId) renderCookiePage(serviceId)
+    })
+  })
+}
+
 // 创建卡片 HTML
 function createCard(serviceId: string, title: string, badgeClass: string, badgeText: string, stats: {label: string, value: string}[], percent: string, showButtons: boolean = false) {
   const colorClass = Number(percent) > 80 ? 'red' : Number(percent) > 50 ? 'orange' : 'green'
@@ -354,16 +383,6 @@ function createCard(serviceId: string, title: string, badgeClass: string, badgeT
           <div class="progress-fill ${colorClass}" style="width: ${percent}%"></div>
         </div>
       </div>
-      ${showButtons ? `
-      <div class="card-actions">
-        <button class="refresh-btn" data-service="${serviceId}">🔄 刷新</button>
-        <button class="settings-btn" data-service="${serviceId}">⚙️ 设置</button>
-      </div>
-      ` : `
-      <div class="card-footer">
-        <span class="hint">点击设置 Cookie</span>
-      </div>
-      `}
     </div>
   `
 }
@@ -378,10 +397,6 @@ function createErrorCard(serviceId: string, title: string, errorMsg: string) {
       </div>
       <div class="card-body">
         <p class="error-msg">${errorMsg}</p>
-      </div>
-      <div class="card-actions">
-        <button class="refresh-btn" data-service="${serviceId}">🔄 重试</button>
-        <button class="settings-btn" data-service="${serviceId}">⚙️ 设置</button>
       </div>
     </div>
   `

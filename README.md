@@ -178,3 +178,59 @@ git push origin master
 ---
 
 *由爱丽丝维护 ✨*
+
+---
+
+## 构建说明
+
+### 1. 环境要求
+
+| 软件 | 版本 | 说明 |
+|------|------|------|
+| JDK / JBR | 17+ | Android Studio 自带 JBR 或独立安装 |
+| Android SDK | - | Android Studio 安装时一并安装 |
+| Node.js | 18+ | 手机端构建需要 |
+
+### 2. Android 构建配置
+
+首次构建前，需要创建 `mobile-app/android/local.properties` 文件：
+
+```properties
+sdk.dir=C:\\Users\\你的用户名\\AppData\\Local\\Android\\Sdk
+```
+
+### 3. 构建命令
+
+```bash
+cd mobile-app
+
+# 安装依赖
+npm install
+
+# 构建 Web 资源
+npm run build
+
+# 同步到 Android
+npx cap sync android
+
+# 用 Android Studio 打开并构建
+npx cap open android
+# 或命令行构建
+cd android
+gradlew assembleDebug
+```
+
+### 4. 常见问题
+
+**Q: 提示 `BUILD TOOLS 损坏`？**
+A: 删除 `build-tools` 问题版本，重新安装 Android SDK Build Tools
+
+**Q: Gradle 下载超时？**
+A: 设置代理或使用国内镜像
+
+**Q: 提示 `JAVA_HOME` 未设置？**
+A: 设置环境变量指向 JDK/JBR 目录
+
+---
+
+*其他问题可提交 Issue*
