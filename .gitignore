@@ -2,9 +2,13 @@ __pycache__/
 *.pyc
 .env
 *.log
-data/*.json
+# 本地数据（Cookie、admin 初始口令等）
+data/**
 !data/.gitkeep
 .DS_Store
+
+# 含内网/本机路径的运维笔记，勿提交公开仓库
+TOOLS.md
 *.egg-info/
 dist/
 build/
@@ -19,3 +23,8 @@ mobile-app/android/app/build/
 mobile-app/android/.idea/
 mobile-app/android/local.properties
 mobile-app/.idea/
+backend/.env
+
+# 覆盖率报告（可能含测试用口令片段，勿提交）
+backend/htmlcov/
+htmlcov/
