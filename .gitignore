@@ -24,6 +24,8 @@ mobile-app/android/.idea/
 mobile-app/android/local.properties
 mobile-app/.idea/
 backend/.env
+backend/.admin_password.env
+backend/.admin_password.env.ps1
 
 # 覆盖率报告（可能含测试用口令片段，勿提交）
 backend/htmlcov/
