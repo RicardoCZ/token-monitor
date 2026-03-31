@@ -35,6 +35,35 @@ interface WebViewPluginInterface {
 }
 const WebViewPlugin = Capacitor.registerPlugin('WebViewPlugin') as WebViewPluginInterface
 
+type HistoryQuery = {
+  limit: number
+  offset: number
+  metric_key?: string
+  start_at?: string
+  end_at?: string
+}
+
+type HistoryResponse = {
+  source?: string
+  pagination?: {
+    limit?: number
+    offset?: number
+    returned?: number
+    total?: number
+    has_more?: boolean
+  }
+  filters?: {
+    metric_key?: string | null
+    start_at?: string | null
+    end_at?: string | null
+  }
+  items?: Array<{
+    metric_key?: string
+    collected_at?: string
+    normalized_payload?: Record<string, unknown>
+  }>
+}
+
 type ToastVariant = 'ok' | 'err' | 'info'
 
 function showToast(message: string, variant: ToastVariant = 'info'): void {
@@ -49,6 +78,21 @@ function showToast(message: string, variant: ToastVariant = 'info'): void {
     el.classList.remove('tm-toast--visible')
     window.setTimeout(() => el.remove(), 280)
   }, 2600)
+}
+
+function toRecord(data: unknown): Record<string, unknown> {
+  if (typeof data === 'string') {
+    try {
+      const parsed = JSON.parse(data) as Record<string, unknown>
+      return parsed || {}
+    } catch {
+      return {}
+    }
+  }
+  if (data && typeof data === 'object') {
+    return data as Record<string, unknown>
+  }
+  return {}
 }
 
 // 获取保存的服务器地址
@@ -429,6 +473,7 @@ async function loadServices() {
       })
     ])
     
+    const historyByService = await loadLatestHistoryByService(token)
     const cards: string[] = []
     
     if (minimaxResp.status === 200 && minimaxResp.data && !minimaxResp.data.error) {
@@ -445,13 +490,16 @@ async function loadServices() {
         : `${resetMinutes}分钟`
       const expiresAt = pageInfo.expiresAt || '-'
       
+      const minimaxHistory = historyByService.minimax
       cards.push(createCard('minimax', '🍊 MiniMax', 'ok', '正常', [
         { label: 'Token Plan', value: `${total} 次/5小时` },
         { label: '已使用', value: `${used} 次` },
         { label: '剩余', value: `${remain} 次` },
         { label: '使用率', value: `${percent}%` },
         { label: '到期时间', value: expiresAt },
-        { label: '重置时间', value: resetTime }
+        { label: '重置时间', value: resetTime },
+        { label: '最近采集', value: minimaxHistory.collectedAt },
+        { label: '历史指标', value: minimaxHistory.metricKey }
       ], String(percent)))
     } else {
       const errorMsg = minimaxResp.data?.error || minimaxResp.data?.detail || '请设置 Cookie'
@@ -469,12 +517,15 @@ async function loadServices() {
         ? ((dailyUsed / dailyQuota) * 100).toFixed(1) 
         : '0'
       
+      const xfyunHistory = historyByService.xfyun
       cards.push(createCard('xfyun', '🔵 讯飞星辰 MaaS', 'ok', '正常', [
         { label: '日限额', value: `${dailyQuota} 万 tokens` },
         { label: '已用', value: `${dailyUsed} 万` },
         { label: '剩余', value: `${dailyRemain} 万` },
         { label: '使用率', value: `${percent}%` },
-        { label: '到期时间', value: expiresAt }
+        { label: '到期时间', value: expiresAt },
+        { label: '最近采集', value: xfyunHistory.collectedAt },
+        { label: '历史指标', value: xfyunHistory.metricKey }
       ], percent))
     } else {
       const errorMsg = xfyunResp.data?.error || xfyunResp.data?.detail || '请设置 Cookie'
@@ -496,6 +547,105 @@ async function loadServices() {
       </div>
     `
     document.getElementById('retry-btn')?.addEventListener('click', loadServices)
+  }
+}
+
+function formatHistoryTime(value: string | undefined): string {
+  if (!value) return '-'
+  const dt = new Date(value)
+  if (Number.isNaN(dt.getTime())) return '-'
+  return dt.toLocaleString('zh-CN', { hour12: false })
+}
+
+function buildHistoryQuery(params: HistoryQuery): string {
+  const query = new URLSearchParams({
+    limit: String(params.limit),
+    offset: String(params.offset)
+  })
+  if (params.metric_key) query.set('metric_key', params.metric_key)
+  if (params.start_at) query.set('start_at', params.start_at)
+  if (params.end_at) query.set('end_at', params.end_at)
+  return query.toString()
+}
+
+async function loadLatestHistoryByService(token: string | null): Promise<Record<string, { collectedAt: string; metricKey: string }>> {
+  const empty: Record<string, { collectedAt: string; metricKey: string }> = {
+    minimax: { collectedAt: '-', metricKey: '-' },
+    xfyun: { collectedAt: '-', metricKey: '-' }
+  }
+  if (!token) return empty
+
+  try {
+    const accountResp = await CapacitorHttp.request({
+      method: 'GET',
+      url: `${getServerUrl()}/api/accounts`,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    })
+    if (accountResp.status !== 200) return empty
+    let accounts: Array<Record<string, unknown>> = []
+    if (Array.isArray(accountResp.data)) {
+      accounts = accountResp.data as Array<Record<string, unknown>>
+    } else if (typeof accountResp.data === 'string') {
+      try {
+        const parsed = JSON.parse(accountResp.data) as unknown
+        if (Array.isArray(parsed)) {
+          accounts = parsed as Array<Record<string, unknown>>
+        } else if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { items?: unknown[] }).items)) {
+          accounts = (parsed as { items: Array<Record<string, unknown>> }).items
+        }
+      } catch {
+        accounts = []
+      }
+    } else {
+      const accountData = toRecord(accountResp.data)
+      if (Array.isArray(accountData.items)) {
+        accounts = accountData.items as Array<Record<string, unknown>>
+      }
+    }
+    const byService: Record<string, { id: number }> = {}
+    for (const raw of accounts) {
+      const item = raw as Record<string, unknown>
+      const sid = String(item.service_id || '').trim()
+      const id = Number(item.id)
+      if (sid && Number.isFinite(id)) byService[sid] = { id }
+    }
+
+    const requests: Array<Promise<void>> = []
+    const specs = [
+      { sid: 'minimax', metric: 'quota' },
+      { sid: 'xfyun', metric: 'daily_quota' }
+    ]
+    for (const spec of specs) {
+      const account = byService[spec.sid]
+      if (!account) continue
+      const query = buildHistoryQuery({ limit: 1, offset: 0, metric_key: spec.metric })
+      requests.push((async () => {
+        const historyResp = await CapacitorHttp.request({
+          method: 'GET',
+          url: `${getServerUrl()}/api/accounts/${account.id}/history?${query}`,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        if (historyResp.status !== 200) return
+        const payload = toRecord(historyResp.data) as HistoryResponse
+        const items = Array.isArray(payload.items) ? payload.items : []
+        const first = items[0]
+        if (!first) return
+        empty[spec.sid] = {
+          collectedAt: formatHistoryTime(first.collected_at),
+          metricKey: String(first.metric_key || spec.metric)
+        }
+      })())
+    }
+    await Promise.all(requests)
+    return empty
+  } catch {
+    return empty
   }
 }
 

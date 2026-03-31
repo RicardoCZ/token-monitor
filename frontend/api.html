@@ -220,6 +220,71 @@
         .header-top-link:hover {
             color: #8b9cff;
         }
+
+        .history-filter-panel {
+            max-width: 600px;
+            margin: 0 auto 16px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 12px;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .history-filter-panel .field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .history-filter-panel label {
+            font-size: 12px;
+            color: #a8b0d3;
+        }
+
+        .history-filter-panel input,
+        .history-filter-panel select {
+            width: 100%;
+            min-height: 34px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(10, 12, 22, 0.5);
+            color: #fff;
+            padding: 6px 8px;
+            font-size: 13px;
+        }
+
+        .history-filter-panel .actions {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .history-filter-panel .actions button {
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .history-filter-panel .btn-apply {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        .history-filter-panel .btn-reset {
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        .history-filter-panel .status {
+            font-size: 12px;
+            color: #9aa2c1;
+            margin-left: auto;
+        }
     </style>
 </head>
 <body>
@@ -227,6 +292,39 @@
         <h1>✨ Token Monitor</h1>
         <p>API 额度实时监控</p>
         <div id="user-info" style="margin-top: 10px; font-size: 12px; color: #888; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 10px;"></div>
+    </div>
+
+    <div class="history-filter-panel">
+        <div class="field">
+            <label for="history-metric-key">metric_key</label>
+            <select id="history-metric-key">
+                <option value="">全部</option>
+                <option value="quota">quota（MiniMax）</option>
+                <option value="daily_quota">daily_quota（讯飞）</option>
+            </select>
+        </div>
+        <div class="field">
+            <label for="history-start-at">start_at</label>
+            <input id="history-start-at" type="datetime-local">
+        </div>
+        <div class="field">
+            <label for="history-end-at">end_at</label>
+            <input id="history-end-at" type="datetime-local">
+        </div>
+        <div class="field">
+            <label for="history-limit">limit</label>
+            <select id="history-limit">
+                <option value="1" selected>1</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+            </select>
+        </div>
+        <div class="actions">
+            <button class="btn-apply" id="history-apply-btn">应用筛选</button>
+            <button class="btn-reset" id="history-reset-btn">重置</button>
+            <span class="status" id="history-filter-status">当前：默认（最新 1 条）</span>
+        </div>
     </div>
     
     <div class="cards">
@@ -274,6 +372,13 @@
         // 用户状态
         let currentUser = null;
         let authToken = localStorage.getItem('token');
+        let historyFilters = {
+            metric_key: "",
+            start_at: "",
+            end_at: "",
+            limit: 1,
+            offset: 0,
+        };
         
         // 检查登录状态
         async function checkAuth() {
@@ -329,13 +434,181 @@
         async function refreshAll() {
             const btn = document.getElementById("refresh-btn");
             btn.classList.add("spinning");
-            
-            await Promise.all([refreshMinimax(), refreshXfyun()]);
+
+            const accountsByService = await loadAccountMapByService();
+            await Promise.all([
+                refreshMinimax(accountsByService),
+                refreshXfyun(accountsByService),
+            ]);
             
             document.getElementById("last-update").textContent = 
                 "最后更新: " + new Date().toLocaleTimeString("zh-CN");
             
             btn.classList.remove("spinning");
+        }
+
+        function toUtcIsoOrEmpty(localValue) {
+            if (!localValue) return "";
+            const dt = new Date(localValue);
+            if (Number.isNaN(dt.getTime())) return "";
+            return dt.toISOString();
+        }
+
+        function toLocalInputValue(isoValue) {
+            if (!isoValue) return "";
+            const dt = new Date(isoValue);
+            if (Number.isNaN(dt.getTime())) return "";
+            const offset = dt.getTimezoneOffset() * 60000;
+            const local = new Date(dt.getTime() - offset);
+            return local.toISOString().slice(0, 16);
+        }
+
+        function normalizeHistoryLimit(rawValue) {
+            const num = Number(rawValue || 1);
+            return Number.isFinite(num) ? Math.max(1, Math.min(20, num)) : 1;
+        }
+
+        function writeHistoryFiltersToUrl() {
+            const url = new URL(window.location.href);
+            const params = url.searchParams;
+            const setOrDelete = (key, value) => {
+                if (value === "" || value == null) params.delete(key);
+                else params.set(key, String(value));
+            };
+            setOrDelete("metric_key", historyFilters.metric_key);
+            setOrDelete("start_at", historyFilters.start_at);
+            setOrDelete("end_at", historyFilters.end_at);
+            setOrDelete("limit", historyFilters.limit !== 1 ? historyFilters.limit : "");
+            const newUrl = `${url.pathname}${params.toString() ? `?${params.toString()}` : ""}${url.hash || ""}`;
+            window.history.replaceState(null, "", newUrl);
+        }
+
+        function readHistoryFiltersFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            historyFilters = {
+                metric_key: params.get("metric_key") || "",
+                start_at: params.get("start_at") || "",
+                end_at: params.get("end_at") || "",
+                limit: normalizeHistoryLimit(params.get("limit") || "1"),
+                offset: 0,
+            };
+        }
+
+        function applyHistoryFiltersToUi() {
+            const metricEl = document.getElementById("history-metric-key");
+            const startEl = document.getElementById("history-start-at");
+            const endEl = document.getElementById("history-end-at");
+            const limitEl = document.getElementById("history-limit");
+            if (metricEl) metricEl.value = historyFilters.metric_key || "";
+            if (startEl) startEl.value = toLocalInputValue(historyFilters.start_at);
+            if (endEl) endEl.value = toLocalInputValue(historyFilters.end_at);
+            if (limitEl) limitEl.value = String(historyFilters.limit || 1);
+        }
+
+        function updateHistoryFilterStatus() {
+            const statusEl = document.getElementById("history-filter-status");
+            if (!statusEl) return;
+            const parts = [];
+            if (historyFilters.metric_key) parts.push(`metric_key=${historyFilters.metric_key}`);
+            if (historyFilters.start_at) parts.push(`start_at=${historyFilters.start_at}`);
+            if (historyFilters.end_at) parts.push(`end_at=${historyFilters.end_at}`);
+            if (historyFilters.limit !== 1) parts.push(`limit=${historyFilters.limit}`);
+            statusEl.textContent = parts.length ? `当前：${parts.join(" | ")}` : "当前：默认（最新 1 条）";
+        }
+
+        function collectHistoryFiltersFromUi() {
+            const metric = document.getElementById("history-metric-key")?.value || "";
+            const startLocal = document.getElementById("history-start-at")?.value || "";
+            const endLocal = document.getElementById("history-end-at")?.value || "";
+            const limitValue = Number(document.getElementById("history-limit")?.value || "1");
+            historyFilters = {
+                metric_key: metric,
+                start_at: toUtcIsoOrEmpty(startLocal),
+                end_at: toUtcIsoOrEmpty(endLocal),
+                limit: normalizeHistoryLimit(limitValue),
+                offset: 0,
+            };
+            updateHistoryFilterStatus();
+        }
+
+        function initHistoryFilterControls() {
+            const applyBtn = document.getElementById("history-apply-btn");
+            const resetBtn = document.getElementById("history-reset-btn");
+
+            applyBtn?.addEventListener("click", async () => {
+                collectHistoryFiltersFromUi();
+                writeHistoryFiltersToUrl();
+                await refreshAll();
+            });
+
+            resetBtn?.addEventListener("click", async () => {
+                document.getElementById("history-metric-key").value = "";
+                document.getElementById("history-start-at").value = "";
+                document.getElementById("history-end-at").value = "";
+                document.getElementById("history-limit").value = "1";
+                collectHistoryFiltersFromUi();
+                writeHistoryFiltersToUrl();
+                await refreshAll();
+            });
+
+            readHistoryFiltersFromUrl();
+            applyHistoryFiltersToUi();
+            updateHistoryFilterStatus();
+        }
+
+        async function loadAccountMapByService() {
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                if (!resp.ok) return {};
+                const accounts = await resp.json();
+                const map = {};
+                for (const item of (Array.isArray(accounts) ? accounts : [])) {
+                    if (item && item.service_id) {
+                        map[item.service_id] = item;
+                    }
+                }
+                return map;
+            } catch {
+                return {};
+            }
+        }
+
+        function formatHistoryTime(value) {
+            if (!value) return "-";
+            const dt = new Date(value);
+            if (Number.isNaN(dt.getTime())) return "-";
+            return dt.toLocaleString("zh-CN", { hour12: false });
+        }
+
+        async function fetchLatestHistory(accountId, defaultMetricKey, filters) {
+            const search = new URLSearchParams({
+                limit: String(filters?.limit || 1),
+                offset: String(filters?.offset || 0),
+            });
+            const metricFromUi = filters?.metric_key || "";
+            const metricToUse = metricFromUi || defaultMetricKey;
+            if (metricToUse) search.set("metric_key", metricToUse);
+            if (filters?.start_at) search.set("start_at", filters.start_at);
+            if (filters?.end_at) search.set("end_at", filters.end_at);
+
+            const resp = await fetch(`${API_BASE}/api/accounts/${accountId}/history?${search.toString()}`, {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            if (!resp.ok) {
+                throw new Error(`history 请求失败 (${resp.status})`);
+            }
+
+            const data = await resp.json();
+            const items = Array.isArray(data?.items) ? data.items : [];
+            const pagination = data?.pagination || {};
+            const parsedFilters = data?.filters || {};
+            return {
+                item: items[0] || null,
+                pagination,
+                filters: parsedFilters,
+            };
         }
 
         /** FastAPI HTTPException / 旧版 body.error */
@@ -374,7 +647,7 @@
             `;
         }
         
-        async function refreshMinimax() {
+        async function refreshMinimax(accountsByService = {}) {
             const badge = document.getElementById("minimax-badge");
             const content = document.getElementById("minimax-content");
             
@@ -418,6 +691,21 @@
                 }
                 
                 const colorClass = percent > 80 ? "red" : percent > 50 ? "orange" : "green";
+                let historyInfo = { collectedAt: "-", metricKey: "-" };
+                const account = accountsByService["minimax"];
+                if (account?.id) {
+                    try {
+                        const history = await fetchLatestHistory(account.id, "quota", historyFilters);
+                        if (history.item) {
+                            historyInfo = {
+                                collectedAt: formatHistoryTime(history.item.collected_at),
+                                metricKey: history.item.metric_key || "quota",
+                            };
+                        }
+                    } catch {
+                        // 历史查询失败不影响主流程展示
+                    }
+                }
                 
                 content.innerHTML = `
                     <div class="card-stats-block">
@@ -447,6 +735,14 @@
                             <span class="stat-label">重置时间</span>
                             <span class="stat-value">${resetTime}</span>
                         </div>
+                        <div class="stat-row">
+                            <span class="stat-label">最近采集</span>
+                            <span class="stat-value">${historyInfo.collectedAt}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">历史指标</span>
+                            <span class="stat-value">${historyInfo.metricKey}</span>
+                        </div>
                     </div>
                     <div class="card-progress-wrap">
                         <div class="progress-bar">
@@ -462,7 +758,7 @@
             }
         }
         
-        async function refreshXfyun() {
+        async function refreshXfyun(accountsByService = {}) {
             const badge = document.getElementById("xfyun-badge");
             const content = document.getElementById("xfyun-content");
             
@@ -498,6 +794,21 @@
                 const expiresAt = pageInfo.expiresAt || '-';
                 
                 const colorClass = percent > 80 ? "red" : percent > 50 ? "orange" : "green";
+                let historyInfo = { collectedAt: "-", metricKey: "-" };
+                const account = accountsByService["xfyun"];
+                if (account?.id) {
+                    try {
+                        const history = await fetchLatestHistory(account.id, "daily_quota", historyFilters);
+                        if (history.item) {
+                            historyInfo = {
+                                collectedAt: formatHistoryTime(history.item.collected_at),
+                                metricKey: history.item.metric_key || "daily_quota",
+                            };
+                        }
+                    } catch {
+                        // 历史查询失败不影响主流程展示
+                    }
+                }
                 
                 content.innerHTML = `
                     <div class="card-stats-block">
@@ -522,6 +833,14 @@
                         <div class="stat-row meta-row-first">
                             <span class="stat-label">到期时间</span>
                             <span class="stat-value">${expiresAt}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">最近采集</span>
+                            <span class="stat-value">${historyInfo.collectedAt}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">历史指标</span>
+                            <span class="stat-value">${historyInfo.metricKey}</span>
                         </div>
                     </div>
                     <div class="card-progress-wrap">
@@ -562,6 +881,7 @@
         }
         
         // 首次加载 - 先检查登录状态
+        initHistoryFilterControls();
         checkAuth().then(loggedIn => {
             if (loggedIn) {
                 refreshAll();
