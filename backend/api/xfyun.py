@@ -16,12 +16,14 @@ from models.db_models import User, Account
 from services.xunfei_service import XunFeiService
 from core.security import get_current_user
 from core.encryption import decrypt_data
+from utils.usage_snapshot_writer import persist_usage_collection
 
 router = APIRouter(prefix="/api/xfyun", tags=["讯飞"])
 
 
 @router.get("/", response_model=XunFeiResponse)
 async def get_xfyun_status(
+    record: bool = False,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -53,6 +55,12 @@ async def get_xfyun_status(
     
     if "error" in data:
         raise HTTPException(status_code=400, detail=data["error"])
+
+    if record:
+        try:
+            await persist_usage_collection(db, account, data, write_history=False)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
     
     return data
 

@@ -16,12 +16,14 @@ from models.db_models import User, Account, UsageHistory
 from services.minimax_service import MiniMaxService
 from core.security import get_current_user
 from core.encryption import decrypt_data
+from utils.usage_snapshot_writer import persist_usage_collection
 
 router = APIRouter(prefix="/api/minimax", tags=["MiniMax"])
 
 
 @router.get("/", response_model=MiniMaxResponse)
 async def get_minimax_status(
+    record: bool = False,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -56,6 +58,12 @@ async def get_minimax_status(
     
     if "error" in data:
         raise HTTPException(status_code=400, detail=data["error"])
+
+    if record:
+        try:
+            await persist_usage_collection(db, account, data, write_history=False)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
     
     return data
 

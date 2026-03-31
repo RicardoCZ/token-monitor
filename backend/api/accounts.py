@@ -11,10 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 
 from models.database import get_db
-from models.db_models import User, Account, Service, UsageHistory
+from models.db_models import User, Account, Service, UsageHistory, UsageSnapshot
 from core.security import get_current_user
 from core.config import settings
 from core.encryption import encrypt_data, decrypt_data
+from utils.usage_snapshot_writer import persist_usage_collection
 
 router = APIRouter(prefix="/api/accounts", tags=["账号管理"])
 
@@ -53,6 +54,12 @@ class AccountResponse(BaseModel):
 class AccountDetail(AccountResponse):
     """账号详情（包含用量信息）"""
     usage: Optional[dict] = None
+
+
+class UsageHistoryResponse(BaseModel):
+    source: str
+    total: int
+    items: List[dict]
 
 
 # ============ API 路由 ============
@@ -191,25 +198,48 @@ async def get_account(
     service_result = await db.execute(select(Service).where(Service.id == account.service_id))
     service = service_result.scalar_one_or_none()
     
-    # 获取最新用量
-    usage_result = await db.execute(
-        select(UsageHistory)
-        .where(UsageHistory.account_id == account_id)
-        .order_by(UsageHistory.recorded_at.desc())
+    # 获取最新用量（优先 usage_snapshots，旧表兜底）
+    usage_data = None
+    snapshot_result = await db.execute(
+        select(UsageSnapshot)
+        .where(UsageSnapshot.account_id == account_id)
+        .order_by(UsageSnapshot.collected_at.desc(), UsageSnapshot.id.desc())
         .limit(1)
     )
-    latest_usage = usage_result.scalar_one_or_none()
-    
-    usage_data = None
-    if latest_usage:
+    latest_snapshot = snapshot_result.scalar_one_or_none()
+    if latest_snapshot:
+        normalized_payload = latest_snapshot.normalized_payload or {}
         usage_data = {
-            "used": latest_usage.used,
-            "total": latest_usage.total,
-            "percent": latest_usage.percent,
-            "expires_at": latest_usage.expires_at,
-            "reset_hours": latest_usage.reset_hours,
-            "reset_minutes": latest_usage.reset_minutes
+            "used": latest_snapshot.used_value,
+            "total": latest_snapshot.total_value,
+            "percent": latest_snapshot.percent_value,
+            "expires_at": (
+                latest_snapshot.expires_at.isoformat()
+                if latest_snapshot.expires_at
+                else normalized_payload.get("expires_at", "")
+            ),
+            "reset_hours": normalized_payload.get("reset_hours", 0),
+            "reset_minutes": normalized_payload.get("reset_minutes", 0),
+            "source": "usage_snapshots",
         }
+    else:
+        usage_result = await db.execute(
+            select(UsageHistory)
+            .where(UsageHistory.account_id == account_id)
+            .order_by(UsageHistory.recorded_at.desc())
+            .limit(1)
+        )
+        latest_usage = usage_result.scalar_one_or_none()
+        if latest_usage:
+            usage_data = {
+                "used": latest_usage.used,
+                "total": latest_usage.total,
+                "percent": latest_usage.percent,
+                "expires_at": latest_usage.expires_at,
+                "reset_hours": latest_usage.reset_hours,
+                "reset_minutes": latest_usage.reset_minutes,
+                "source": "usage_history",
+            }
     
     return AccountDetail(
         id=account.id,
@@ -222,6 +252,84 @@ async def get_account(
         last_sync_at=account.last_sync_at,
         created_at=account.created_at,
         usage=usage_data
+    )
+
+
+@router.get("/{account_id}/history", response_model=UsageHistoryResponse)
+async def get_account_usage_history(
+    account_id: int,
+    limit: int = 20,
+    offset: int = 0,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    获取账号用量历史（优先 usage_snapshots，旧表兜底）
+    """
+    safe_limit = max(1, min(limit, 100))
+    safe_offset = max(0, offset)
+
+    result = await db.execute(
+        select(Account).where(
+            and_(Account.id == account_id, Account.user_id == current_user.id)
+        )
+    )
+    account = result.scalar_one_or_none()
+    if not account:
+        raise HTTPException(status_code=404, detail="账号不存在")
+
+    snapshot_result = await db.execute(
+        select(UsageSnapshot)
+        .where(UsageSnapshot.account_id == account_id)
+        .order_by(UsageSnapshot.collected_at.desc(), UsageSnapshot.id.desc())
+        .offset(safe_offset)
+        .limit(safe_limit)
+    )
+    snapshots = snapshot_result.scalars().all()
+    if snapshots:
+        items = [
+            {
+                "metric_key": row.metric_key,
+                "used": row.used_value,
+                "total": row.total_value,
+                "percent": row.percent_value,
+                "expires_at": row.expires_at.isoformat() if row.expires_at else None,
+                "reset_at": row.reset_at.isoformat() if row.reset_at else None,
+                "collected_at": row.collected_at.isoformat() if row.collected_at else None,
+                "normalized_payload": row.normalized_payload,
+            }
+            for row in snapshots
+        ]
+        return UsageHistoryResponse(
+            source="usage_snapshots",
+            total=len(items),
+            items=items,
+        )
+
+    history_result = await db.execute(
+        select(UsageHistory)
+        .where(UsageHistory.account_id == account_id)
+        .order_by(UsageHistory.recorded_at.desc())
+        .offset(safe_offset)
+        .limit(safe_limit)
+    )
+    history_rows = history_result.scalars().all()
+    items = [
+        {
+            "used": row.used,
+            "total": row.total,
+            "percent": row.percent,
+            "expires_at": row.expires_at,
+            "reset_hours": row.reset_hours,
+            "reset_minutes": row.reset_minutes,
+            "collected_at": row.recorded_at.isoformat() if row.recorded_at else None,
+        }
+        for row in history_rows
+    ]
+    return UsageHistoryResponse(
+        source="usage_history",
+        total=len(items),
+        items=items,
     )
 
 
@@ -349,25 +457,11 @@ async def sync_account_usage(
     else:
         raise HTTPException(status_code=400, detail="不支持的服务类型")
     
-    # 保存用量历史
-    page_info = data.get("page_info", {})
-    if page_info:
-        usage = UsageHistory(
-            account_id=account_id,
-            used=page_info.get("used", 0),
-            total=page_info.get("total", 0),
-            percent=page_info.get("percent", 0),
-            expires_at=page_info.get("expiresAt", ""),
-            reset_hours=page_info.get("resetHours", 0),
-            reset_minutes=page_info.get("resetMinutes", 0)
-        )
-        db.add(usage)
-        
-        # 更新最后同步时间
-        account.last_sync_at = datetime.utcnow()
-        
-        await db.commit()
-    
+    try:
+        page_info = await persist_usage_collection(db, account, data, write_history=True)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
     return {
         "message": "同步成功",
         "success": True,
