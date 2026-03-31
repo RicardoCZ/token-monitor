@@ -121,14 +121,40 @@ class Alert(Base):
 
     id = Column(Integer, primary_key=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
+    metric_key = Column(String(64), nullable=False, default="usage_percent", index=True)
     threshold = Column(Float, default=80)  # 告警阈值（%）
+    cooldown_seconds = Column(Integer, default=1800)  # 告警冷却秒数
     notify_channels = Column(String(255))  # 通知渠道（JSON）
     is_enabled = Column(Boolean, default=True)
+    is_firing = Column(Boolean, default=False)  # 当前是否处于告警中
     last_triggered_at = Column(DateTime)
+    last_recovered_at = Column(DateTime)
     created_at = Column(DateTime, server_default=func.now())
 
     # 关联
     account = relationship("Account", back_populates="alerts")
+    events = relationship("AlertEvent", back_populates="alert", cascade="all, delete-orphan")
+
+
+class AlertEvent(Base):
+    """告警事件表（P2-3）"""
+    __tablename__ = "alert_events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    alert_id = Column(Integer, ForeignKey("alerts.id"), nullable=False, index=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
+    service_id = Column(String(50), nullable=False, index=True)
+    metric_key = Column(String(64), nullable=False, index=True)
+    snapshot_id = Column(Integer, ForeignKey("usage_snapshots.id"), index=True)
+    threshold_value = Column(Float, nullable=False)
+    observed_percent = Column(Float)
+    status = Column(String(16), nullable=False, default="triggered")  # triggered / recovered
+    notify_channel = Column(String(64), nullable=False, default="log")
+    message = Column(Text)
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+
+    # 关联
+    alert = relationship("Alert", back_populates="events")
 
 
 class ApiKey(Base):

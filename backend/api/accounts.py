@@ -5,13 +5,14 @@ Token Monitor - 账号管理 API 路由
 
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime, timezone
+import json
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 
 from models.database import get_db
-from models.db_models import User, Account, Service, UsageSnapshot
+from models.db_models import User, Account, Service, UsageSnapshot, Alert, AlertEvent
 from core.security import get_current_user
 from core.encryption import encrypt_data
 from services.account_collector import collect_account_usage
@@ -62,6 +63,25 @@ class UsageHistoryResponse(BaseModel):
     items: List[dict]
 
 
+class AlertRuleUpsertRequest(BaseModel):
+    threshold: float = 80.0
+    cooldown_seconds: int = 1800
+    is_enabled: bool = True
+    notify_channels: List[str] = ["log"]
+
+
+class AlertRuleResponse(BaseModel):
+    id: int
+    metric_key: str
+    threshold: float
+    cooldown_seconds: int
+    is_enabled: bool
+    is_firing: bool
+    notify_channels: List[str]
+    last_triggered_at: Optional[datetime]
+    last_recovered_at: Optional[datetime]
+
+
 # ============ API 路由 ============
 
 
@@ -78,6 +98,41 @@ def _parse_history_datetime(value: Optional[str], field_name: str) -> Optional[d
     if dt.tzinfo is not None:
         return dt.astimezone(timezone.utc).replace(tzinfo=None)
     return dt
+
+
+def _normalize_notify_channels(raw: Any) -> list[str]:
+    if isinstance(raw, list):
+        channels = [str(item).strip() for item in raw if str(item).strip()]
+        return channels or ["log"]
+    if isinstance(raw, str):
+        text = raw.strip()
+        if not text:
+            return ["log"]
+        if text.startswith("["):
+            try:
+                parsed = json.loads(text)
+                if isinstance(parsed, list):
+                    channels = [str(item).strip() for item in parsed if str(item).strip()]
+                    return channels or ["log"]
+            except json.JSONDecodeError:
+                pass
+        channels = [item.strip() for item in text.split(",") if item.strip()]
+        return channels or ["log"]
+    return ["log"]
+
+
+def _serialize_alert_rule(rule: Alert) -> AlertRuleResponse:
+    return AlertRuleResponse(
+        id=rule.id,
+        metric_key=rule.metric_key,
+        threshold=float(rule.threshold or 0),
+        cooldown_seconds=int(rule.cooldown_seconds or 0),
+        is_enabled=bool(rule.is_enabled),
+        is_firing=bool(rule.is_firing),
+        notify_channels=_normalize_notify_channels(rule.notify_channels),
+        last_triggered_at=rule.last_triggered_at,
+        last_recovered_at=rule.last_recovered_at,
+    )
 
 @router.get("", response_model=List[AccountResponse])
 async def list_accounts(
@@ -397,6 +452,150 @@ async def update_account(
         last_sync_at=account.last_sync_at,
         created_at=account.created_at
     )
+
+
+@router.get("/{account_id}/alerts", response_model=List[AlertRuleResponse])
+async def list_account_alert_rules(
+    account_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取账号告警规则（按 metric_key）"""
+    account_result = await db.execute(
+        select(Account).where(
+            and_(Account.id == account_id, Account.user_id == current_user.id)
+        )
+    )
+    account = account_result.scalar_one_or_none()
+    if not account:
+        raise HTTPException(status_code=404, detail="账号不存在")
+
+    result = await db.execute(
+        select(Alert)
+        .where(Alert.account_id == account_id)
+        .order_by(Alert.metric_key.asc())
+    )
+    rules = result.scalars().all()
+    return [_serialize_alert_rule(item) for item in rules]
+
+
+@router.put("/{account_id}/alerts/{metric_key}", response_model=AlertRuleResponse)
+async def upsert_account_alert_rule(
+    account_id: int,
+    metric_key: str,
+    req: AlertRuleUpsertRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """按 account_id + metric_key 新增/更新告警规则"""
+    normalized_metric_key = metric_key.strip()
+    if not normalized_metric_key:
+        raise HTTPException(status_code=400, detail="metric_key 不能为空")
+
+    account_result = await db.execute(
+        select(Account).where(
+            and_(Account.id == account_id, Account.user_id == current_user.id)
+        )
+    )
+    account = account_result.scalar_one_or_none()
+    if not account:
+        raise HTTPException(status_code=404, detail="账号不存在")
+
+    result = await db.execute(
+        select(Alert).where(
+            and_(
+                Alert.account_id == account_id,
+                Alert.metric_key == normalized_metric_key,
+            )
+        )
+    )
+    rule = result.scalar_one_or_none()
+    channels = _normalize_notify_channels(req.notify_channels)
+
+    if rule is None:
+        rule = Alert(
+            account_id=account_id,
+            metric_key=normalized_metric_key,
+            threshold=float(req.threshold),
+            cooldown_seconds=max(0, int(req.cooldown_seconds)),
+            notify_channels=json.dumps(channels, ensure_ascii=False),
+            is_enabled=bool(req.is_enabled),
+            is_firing=False,
+        )
+        db.add(rule)
+    else:
+        rule.threshold = float(req.threshold)
+        rule.cooldown_seconds = max(0, int(req.cooldown_seconds))
+        rule.notify_channels = json.dumps(channels, ensure_ascii=False)
+        rule.is_enabled = bool(req.is_enabled)
+
+    await db.commit()
+    await db.refresh(rule)
+    return _serialize_alert_rule(rule)
+
+
+@router.get("/{account_id}/alerts/events")
+async def list_account_alert_events(
+    account_id: int,
+    limit: int = 20,
+    offset: int = 0,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """获取账号告警事件（数据库事件流）"""
+    safe_limit = max(1, min(limit, 100))
+    safe_offset = max(0, offset)
+
+    account_result = await db.execute(
+        select(Account).where(
+            and_(Account.id == account_id, Account.user_id == current_user.id)
+        )
+    )
+    account = account_result.scalar_one_or_none()
+    if not account:
+        raise HTTPException(status_code=404, detail="账号不存在")
+
+    total_result = await db.execute(
+        select(func.count())
+        .select_from(AlertEvent)
+        .where(AlertEvent.account_id == account_id)
+    )
+    total = int(total_result.scalar() or 0)
+
+    result = await db.execute(
+        select(AlertEvent)
+        .where(AlertEvent.account_id == account_id)
+        .order_by(AlertEvent.created_at.desc(), AlertEvent.id.desc())
+        .offset(safe_offset)
+        .limit(safe_limit)
+    )
+    events = result.scalars().all()
+    items = [
+        {
+            "id": item.id,
+            "alert_id": item.alert_id,
+            "service_id": item.service_id,
+            "metric_key": item.metric_key,
+            "snapshot_id": item.snapshot_id,
+            "threshold_value": item.threshold_value,
+            "observed_percent": item.observed_percent,
+            "status": item.status,
+            "notify_channel": item.notify_channel,
+            "message": item.message,
+            "created_at": item.created_at.isoformat() if item.created_at else None,
+        }
+        for item in events
+    ]
+    return {
+        "pagination": {
+            "limit": safe_limit,
+            "offset": safe_offset,
+            "returned": len(items),
+            "total": total,
+            "has_more": (safe_offset + len(items)) < total,
+        },
+        "items": items,
+    }
 
 
 @router.delete("/{account_id}")

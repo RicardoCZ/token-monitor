@@ -14,9 +14,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.encryption import decrypt_data
-from models.db_models import Account, Service
+from models.db_models import Account, Service, UsageSnapshot
 from services.minimax_service import MiniMaxService
 from services.xunfei_service import XunFeiService
+from services.alerting_service import evaluate_alert_for_snapshot
 from utils.usage_snapshot_writer import persist_usage_collection
 
 
@@ -62,7 +63,17 @@ async def collect_account_usage(
     for idx in range(attempts):
         try:
             data = await _fetch_usage_data(account, cookies)
-            return await persist_usage_collection(db, account, data)
+            page_info = await persist_usage_collection(db, account, data)
+            latest_snapshot_result = await db.execute(
+                select(UsageSnapshot)
+                .where(UsageSnapshot.account_id == account.id)
+                .order_by(UsageSnapshot.collected_at.desc(), UsageSnapshot.id.desc())
+                .limit(1)
+            )
+            latest_snapshot = latest_snapshot_result.scalar_one_or_none()
+            if latest_snapshot:
+                await evaluate_alert_for_snapshot(db, latest_snapshot)
+            return page_info
         except ValueError as exc:
             last_error = exc
         except Exception as exc:  # noqa: BLE001

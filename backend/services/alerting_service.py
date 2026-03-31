@@ -1,0 +1,195 @@
+"""
+P2-3 告警服务（usage_snapshots 单轨）
+- 基于 account_id + metric_key 规则判定
+- 支持冷却防抖
+- 记录日志通知 + 数据库告警事件
+"""
+
+from __future__ import annotations
+
+import json
+from datetime import datetime, timedelta
+from typing import Any
+
+from sqlalchemy import and_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from core.config import settings
+from models.db_models import Alert, AlertEvent, UsageSnapshot
+
+
+def _extract_percent(snapshot: UsageSnapshot) -> float | None:
+    if snapshot.percent_value is not None:
+        return float(snapshot.percent_value)
+    payload = snapshot.normalized_payload
+    if isinstance(payload, dict):
+        value = payload.get("percent")
+        if value is not None:
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def _normalize_channels(raw: Any) -> list[str]:
+    if not raw:
+        return ["log"]
+    if isinstance(raw, list):
+        channels = [str(item).strip() for item in raw if str(item).strip()]
+        return channels or ["log"]
+    if isinstance(raw, str):
+        text = raw.strip()
+        if not text:
+            return ["log"]
+        if text.startswith("["):
+            try:
+                parsed = json.loads(text)
+                if isinstance(parsed, list):
+                    channels = [str(item).strip() for item in parsed if str(item).strip()]
+                    return channels or ["log"]
+            except json.JSONDecodeError:
+                pass
+        channels = [item.strip() for item in text.split(",") if item.strip()]
+        return channels or ["log"]
+    return ["log"]
+
+
+async def _ensure_rule(
+    db: AsyncSession,
+    *,
+    account_id: int,
+    metric_key: str,
+) -> Alert:
+    result = await db.execute(
+        select(Alert).where(
+            and_(
+                Alert.account_id == account_id,
+                Alert.metric_key == metric_key,
+            )
+        )
+    )
+    rule = result.scalar_one_or_none()
+    if rule:
+        return rule
+
+    rule = Alert(
+        account_id=account_id,
+        metric_key=metric_key,
+        threshold=float(settings.alert_default_threshold),
+        cooldown_seconds=int(settings.alert_default_cooldown_seconds),
+        notify_channels=json.dumps(["log"]),
+        is_enabled=True,
+        is_firing=False,
+    )
+    db.add(rule)
+    await db.commit()
+    await db.refresh(rule)
+    return rule
+
+
+async def _create_event(
+    db: AsyncSession,
+    *,
+    rule: Alert,
+    snapshot: UsageSnapshot,
+    observed_percent: float | None,
+    status: str,
+    message: str,
+    notify_channel: str = "log",
+) -> None:
+    event = AlertEvent(
+        alert_id=rule.id,
+        account_id=rule.account_id,
+        service_id=snapshot.service_id,
+        metric_key=rule.metric_key,
+        snapshot_id=snapshot.id,
+        threshold_value=float(rule.threshold or 0),
+        observed_percent=observed_percent,
+        status=status,
+        notify_channel=notify_channel,
+        message=message,
+    )
+    db.add(event)
+    await db.flush()
+
+
+async def evaluate_alert_for_snapshot(
+    db: AsyncSession,
+    snapshot: UsageSnapshot,
+) -> dict[str, Any]:
+    """
+    对单条最新快照执行告警判定并写事件。
+    返回观测统计。
+    """
+    if not settings.alert_eval_enabled:
+        return {"enabled": False, "status": "disabled"}
+
+    metric_key = str(snapshot.metric_key or "").strip()
+    if not metric_key:
+        return {"enabled": True, "status": "no_metric"}
+
+    rule = await _ensure_rule(db, account_id=int(snapshot.account_id), metric_key=metric_key)
+    if not rule.is_enabled:
+        return {"enabled": True, "status": "rule_disabled", "metric_key": metric_key}
+
+    observed = _extract_percent(snapshot)
+    if observed is None:
+        return {"enabled": True, "status": "no_percent", "metric_key": metric_key}
+
+    now = datetime.utcnow()
+    threshold = float(rule.threshold or 0)
+    cooldown = max(0, int(rule.cooldown_seconds or 0))
+    channels = _normalize_channels(rule.notify_channels)
+    channel = channels[0] if channels else "log"
+
+    if observed >= threshold:
+        should_notify = True
+        if rule.is_firing and rule.last_triggered_at:
+            next_notify_at = rule.last_triggered_at + timedelta(seconds=cooldown)
+            if now < next_notify_at:
+                should_notify = False
+
+        if should_notify:
+            rule.is_firing = True
+            rule.last_triggered_at = now
+            message = (
+                f"[ALERT] account={rule.account_id} service={snapshot.service_id} metric={metric_key} "
+                f"percent={observed:.2f}% threshold={threshold:.2f}%"
+            )
+            print(message)
+            await _create_event(
+                db,
+                rule=rule,
+                snapshot=snapshot,
+                observed_percent=observed,
+                status="triggered",
+                message=message,
+                notify_channel=channel,
+            )
+            await db.commit()
+            return {"enabled": True, "status": "triggered", "metric_key": metric_key}
+
+        return {"enabled": True, "status": "cooldown", "metric_key": metric_key}
+
+    if rule.is_firing:
+        rule.is_firing = False
+        rule.last_recovered_at = now
+        message = (
+            f"[RECOVERED] account={rule.account_id} service={snapshot.service_id} metric={metric_key} "
+            f"percent={observed:.2f}% threshold={threshold:.2f}%"
+        )
+        print(message)
+        await _create_event(
+            db,
+            rule=rule,
+            snapshot=snapshot,
+            observed_percent=observed,
+            status="recovered",
+            message=message,
+            notify_channel=channel,
+        )
+        await db.commit()
+        return {"enabled": True, "status": "recovered", "metric_key": metric_key}
+
+    return {"enabled": True, "status": "ok", "metric_key": metric_key}
