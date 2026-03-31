@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from models.schemas import XunFeiResponse, MessageResponse
+from models.schemas import XunFeiResponse
 from models.database import get_db
 from models.db_models import User, Account
 from services.xunfei_service import XunFeiService
@@ -58,7 +58,7 @@ async def get_xfyun_status(
 
     if record:
         try:
-            await persist_usage_collection(db, account, data, write_history=False)
+            await persist_usage_collection(db, account, data)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
     

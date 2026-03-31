@@ -1,7 +1,6 @@
 """
 T6: 用量采集统一写入工具
 - 支持写 usage_snapshots
-- 可选兼容写 usage_history
 - 统一维护 account 采集状态字段
 """
 
@@ -12,7 +11,7 @@ from typing import Any, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.db_models import Account, UsageHistory, UsageSnapshot
+from models.db_models import Account, UsageSnapshot
 
 
 def _parse_datetime(raw: Any) -> Optional[datetime]:
@@ -91,41 +90,13 @@ def build_usage_snapshots(account: Account, data: dict) -> list[UsageSnapshot]:
     return snapshots
 
 
-def _build_history_row(account_id: int, service_id: str, data: dict) -> UsageHistory:
-    page_info = data.get("page_info", {}) or {}
-    if service_id == "minimax":
-        used = float(page_info.get("used") or 0)
-        total = float(page_info.get("total") or 0)
-        percent = float(page_info.get("percent") or 0)
-    elif service_id == "xfyun":
-        used = float(page_info.get("dailyUsed") or 0)
-        total = float(page_info.get("dailyQuota") or 0)
-        percent = float(data.get("percent") or 0)
-    else:
-        used = 0
-        total = 0
-        percent = 0
-
-    return UsageHistory(
-        account_id=account_id,
-        used=used,
-        total=total,
-        percent=percent,
-        expires_at=str(page_info.get("expiresAt") or ""),
-        reset_hours=int(page_info.get("resetHours") or 0),
-        reset_minutes=int(page_info.get("resetMinutes") or 0),
-    )
-
-
 async def persist_usage_collection(
     db: AsyncSession,
     account: Account,
     data: dict,
-    *,
-    write_history: bool = True,
 ) -> dict:
     """
-    将采集结果持久化到标准快照（可选兼容旧表）
+    将采集结果持久化到标准快照
     返回 page_info；失败时抛 ValueError
     """
     if "error" in data:
@@ -141,9 +112,6 @@ async def persist_usage_collection(
         account.last_collect_error = "采集结果缺少 page_info"
         await db.commit()
         raise ValueError(account.last_collect_error)
-
-    if write_history:
-        db.add(_build_history_row(account.id, account.service_id, data))
 
     snapshots = build_usage_snapshots(account, data)
     if snapshots:

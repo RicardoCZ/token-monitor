@@ -10,9 +10,9 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from models.schemas import MiniMaxResponse, MessageResponse
+from models.schemas import MiniMaxResponse
 from models.database import get_db
-from models.db_models import User, Account, UsageHistory
+from models.db_models import User, Account
 from services.minimax_service import MiniMaxService
 from core.security import get_current_user
 from core.encryption import decrypt_data
@@ -61,7 +61,7 @@ async def get_minimax_status(
 
     if record:
         try:
-            await persist_usage_collection(db, account, data, write_history=False)
+            await persist_usage_collection(db, account, data)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
     

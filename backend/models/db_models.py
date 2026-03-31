@@ -90,27 +90,8 @@ class Account(Base):
     # 关联
     user = relationship("User", back_populates="accounts")
     service = relationship("Service", back_populates="accounts")
-    usage_history = relationship("UsageHistory", back_populates="account", cascade="all, delete-orphan")
     usage_snapshots = relationship("UsageSnapshot", back_populates="account", cascade="all, delete-orphan")
     alerts = relationship("Alert", back_populates="account", cascade="all, delete-orphan")
-
-
-class UsageHistory(Base):
-    """用量历史表"""
-    __tablename__ = "usage_history"
-
-    id = Column(Integer, primary_key=True, index=True)
-    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
-    used = Column(Float)  # 已用
-    total = Column(Float)  # 总量
-    percent = Column(Float)  # 百分比
-    expires_at = Column(String(20))  # 截止日期
-    reset_hours = Column(Integer)
-    reset_minutes = Column(Integer)
-    recorded_at = Column(DateTime, server_default=func.now(), index=True)
-
-    # 关联
-    account = relationship("Account", back_populates="usage_history")
 
 
 class UsageSnapshot(Base):
