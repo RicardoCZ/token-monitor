@@ -14,16 +14,18 @@ Token Monitor Backend - FastAPI 版本 ✨
 运行: uvicorn app:app --reload --host 0.0.0.0 --port 5188
 """
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 # 导入路由
-from api import common, minimax, xfyun, cookie, cdp, auth, accounts
+from api import common, minimax, xfyun, cookie, cdp, auth, accounts, services
 
 # 导入数据库
 from models.database import init_db
+from utils.service_registry_seed import seed_service_registry
 
 
 # ============ 生命周期管理 ============
@@ -35,36 +37,15 @@ async def lifespan(app: FastAPI):
     await init_db()
     print("✅ 数据库初始化完成")
     
-    # 初始化默认服务数据
+    # 初始化默认服务数据（增量幂等）
     from models.database import async_session_maker
-    from models.db_models import Service
-    from sqlalchemy import select
-    
+
     async with async_session_maker() as db:
-        # 检查是否已有服务数据
-        result = await db.execute(select(Service))
-        existing_services = result.scalars().all()
-        if not existing_services:
-            # 添加默认服务
-            services = [
-                Service(
-                    id="minimax",
-                    name="MiniMax",
-                    icon="🍊",
-                    login_url="https://platform.minimaxi.com/user-center/payment/token-plan",
-                    cookie_domains="minimaxi.com,minimax.com"
-                ),
-                Service(
-                    id="xfyun",
-                    name="讯飞星辰",
-                    icon="🔵",
-                    login_url="https://maas.xfyun.cn/packageSubscription",
-                    cookie_domains="xfyun.cn,xfyun.com"
-                )
-            ]
-            db.add_all(services)
-            await db.commit()
-            print("✅ 默认服务数据初始化完成")
+        created, updated = await seed_service_registry(db)
+        if created or updated:
+            print(f"✅ 默认服务数据初始化完成（新增 {created}，补齐 {updated}）")
+        else:
+            print("ℹ️ 默认服务数据已是最新状态（无变更）")
     
     yield
     
@@ -116,6 +97,9 @@ app.include_router(accounts.router)
 # 通用接口
 app.include_router(common.router)
 
+# 服务注册表接口
+app.include_router(services.router)
+
 # 平台专用接口
 app.include_router(minimax.router)
 app.include_router(xfyun.router)
@@ -129,7 +113,6 @@ app.include_router(cdp.router)
 # ============ 静态文件服务 (保留原有功能) ============
 
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 
 BASE_DIR = Path(__file__).parent
 FRONTEND_DIR = BASE_DIR.parent / "frontend"

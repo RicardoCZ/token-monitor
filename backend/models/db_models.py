@@ -3,7 +3,7 @@ Token Monitor - 数据库模型
 定义用户、账号、用量历史等表结构
 """
 
-from sqlalchemy import Column, Integer, String, Boolean, Float, Text, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, Float, Text, DateTime, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from models.database import Base
@@ -58,7 +58,12 @@ class Service(Base):
     icon = Column(String(10))  # 🍊, 🔵
     login_url = Column(String(255))
     cookie_domains = Column(String(255))  # 逗号分隔的域名列表
+    adapter_key = Column(String(100))  # 服务适配器标识
+    capabilities = Column(JSON)  # 服务能力声明
+    metric_defs = Column(JSON)  # 指标定义
+    is_enabled = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     # 关联
     accounts = relationship("Account", back_populates="service", cascade="all, delete-orphan")
@@ -74,8 +79,11 @@ class Account(Base):
     name = Column(String(100))  # 账号别名（如"工作号"）
     cookies_encrypted = Column(Text)  # 加密后的 Cookie
     group_id = Column(String(100))  # MiniMax 专用
+    service_meta = Column(JSON)  # 服务扩展参数（通用）
     is_active = Column(Boolean, default=True)
     last_sync_at = Column(DateTime)  # 最后同步时间
+    last_collect_status = Column(String(32))  # 最近采集状态
+    last_collect_error = Column(Text)  # 最近采集错误
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -83,6 +91,7 @@ class Account(Base):
     user = relationship("User", back_populates="accounts")
     service = relationship("Service", back_populates="accounts")
     usage_history = relationship("UsageHistory", back_populates="account", cascade="all, delete-orphan")
+    usage_snapshots = relationship("UsageSnapshot", back_populates="account", cascade="all, delete-orphan")
     alerts = relationship("Alert", back_populates="account", cascade="all, delete-orphan")
 
 
@@ -102,6 +111,27 @@ class UsageHistory(Base):
 
     # 关联
     account = relationship("Account", back_populates="usage_history")
+
+
+class UsageSnapshot(Base):
+    """标准化用量快照表（注册表重构）"""
+    __tablename__ = "usage_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
+    service_id = Column(String(50), nullable=False, index=True)
+    metric_key = Column(String(64), nullable=False, index=True)
+    used_value = Column(Float)
+    total_value = Column(Float)
+    percent_value = Column(Float)
+    expires_at = Column(DateTime)
+    reset_at = Column(DateTime)
+    raw_payload = Column(JSON)
+    normalized_payload = Column(JSON)
+    collected_at = Column(DateTime, server_default=func.now(), index=True)
+
+    # 关联
+    account = relationship("Account", back_populates="usage_snapshots")
 
 
 class Alert(Base):
