@@ -57,5 +57,12 @@ class Settings(BaseSettings):
     cookie_dir: str = "data"
     cache_ttl: int = 60  # 秒
 
+    # 自动采集（P2-2）
+    auto_collect_enabled: bool = True
+    auto_collect_interval_seconds: int = 300
+    auto_collect_max_concurrency: int = 3
+    auto_collect_retry_attempts: int = 2
+    auto_collect_retry_delay_seconds: float = 1.0
+
 
 settings = Settings()

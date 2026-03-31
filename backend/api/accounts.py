@@ -13,8 +13,8 @@ from sqlalchemy import select, and_, func
 from models.database import get_db
 from models.db_models import User, Account, Service, UsageSnapshot
 from core.security import get_current_user
-from core.encryption import encrypt_data, decrypt_data
-from utils.usage_snapshot_writer import persist_usage_collection
+from core.encryption import encrypt_data
+from services.account_collector import collect_account_usage
 
 router = APIRouter(prefix="/api/accounts", tags=["账号管理"])
 
@@ -443,28 +443,8 @@ async def sync_account_usage(
     if not account:
         raise HTTPException(status_code=404, detail="账号不存在")
     
-    if not account.cookies_encrypted:
-        raise HTTPException(status_code=400, detail="账号未配置 Cookie")
-    
-    # 解密 Cookie
-    cookies = decrypt_data(account.cookies_encrypted)
-    if not cookies:
-        raise HTTPException(status_code=400, detail="Cookie 解密失败")
-    
-    # 根据服务类型调用不同的服务
-    if account.service_id == "minimax":
-        from services.minimax_service import MiniMaxService
-        service = MiniMaxService()
-        data = await service.get_usage(cookies=cookies, group_id=account.group_id)
-    elif account.service_id == "xfyun":
-        from services.xunfei_service import XunFeiService
-        service = XunFeiService()
-        data = await service.get_usage(cookies=cookies)
-    else:
-        raise HTTPException(status_code=400, detail="不支持的服务类型")
-    
     try:
-        page_info = await persist_usage_collection(db, account, data)
+        page_info = await collect_account_usage(db, account)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 

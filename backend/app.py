@@ -25,6 +25,8 @@ from api import common, minimax, xfyun, cookie, cdp, auth, accounts, services
 
 # 导入数据库
 from models.database import init_db
+from core.config import settings
+from services.account_collector import AccountAutoCollector
 from utils.service_registry_seed import seed_service_registry
 
 
@@ -33,6 +35,8 @@ from utils.service_registry_seed import seed_service_registry
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用启动和关闭时的操作"""
+    collector: AccountAutoCollector | None = None
+
     # 启动时：初始化数据库
     await init_db()
     print("✅ 数据库初始化完成")
@@ -46,10 +50,24 @@ async def lifespan(app: FastAPI):
             print(f"✅ 默认服务数据初始化完成（新增 {created}，补齐 {updated}）")
         else:
             print("ℹ️ 默认服务数据已是最新状态（无变更）")
+
+    if settings.auto_collect_enabled:
+        collector = AccountAutoCollector(
+            session_factory=async_session_maker,
+            interval_seconds=settings.auto_collect_interval_seconds,
+            max_concurrency=settings.auto_collect_max_concurrency,
+            retry_attempts=settings.auto_collect_retry_attempts,
+            retry_delay_seconds=settings.auto_collect_retry_delay_seconds,
+        )
+        await collector.start()
+    else:
+        print("ℹ️ 自动采集任务已关闭（AUTO_COLLECT_ENABLED=false）")
     
     yield
     
     # 关闭时的清理操作（如有需要）
+    if collector is not None:
+        await collector.stop()
     print("👋 应用关闭")
 
 
