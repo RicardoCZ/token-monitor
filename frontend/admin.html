@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 - Token Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            color: #e0e0e0;
+        }
+        
+        .header p {
+            font-size: 12px;
+            color: #888;
+            margin-top: 8px;
+        }
+        
+        .nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .nav a {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        
+        .nav a:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .card h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            flex: 1;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #999;
+            font-size: 14px;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+        }
+        
+        .form-group select {
+            background-color: #2a2a4a;
+        }
+        
+        .form-group select option {
+            background-color: #2a2a4a;
+            color: #fff;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn.secondary {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        th {
+            color: #888;
+            font-weight: 500;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        
+        td {
+            font-size: 14px;
+        }
+        
+        .code {
+            font-family: monospace;
+            background: rgba(102, 126, 234, 0.2);
+            padding: 4px 8px;
+            border-radius: 4px;
+            color: #667eea;
+        }
+        
+        .status {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .status.unused {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4CAF50;
+        }
+        
+        .status.used {
+            background: rgba(158, 158, 158, 0.2);
+            color: #9e9e9e;
+        }
+        
+        .status.expired {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+        
+        .empty {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(76, 175, 80, 0.9);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .toast.error {
+            background: rgba(244, 67, 54, 0.9);
+        }
+        
+        .toast.show {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚙️ 管理后台</h1>
+            <p id="user-info"></p>
+        </div>
+        
+        <div class="nav">
+            <a href="api.html">📊 监控面板</a>
+            <a href="setup.html">🔧 设置 Cookie</a>
+            <a href="#" onclick="logout()">🚪 退出登录</a>
+        </div>
+        
+        <!-- 创建邀请码 -->
+        <div class="card">
+            <h2>🎫 创建邀请码</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>使用次数</label>
+                    <select id="max-uses">
+                        <option value="1" selected>1 次</option>
+                        <option value="5">5 次</option>
+                        <option value="10">10 次</option>
+                        <option value="50">50 次</option>
+                        <option value="100">100 次</option>
+                        <option value="0">无限次</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="createInviteCode()">生成邀请码</button>
+            </div>
+        </div>
+        
+        <!-- 邀请码列表 -->
+        <div class="card">
+            <h2>📋 邀请码列表</h2>
+            <div id="codes-list">
+                <div class="empty">加载中...</div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast" class="toast"></div>
+    
+    <script>
+        const API_BASE = window.location.origin;
+        let authToken = localStorage.getItem('token');
+        let currentUser = null;
+        
+        // 检查登录状态和管理员权限
+        async function checkAuth() {
+            if (!authToken) {
+                window.location.href = 'login.html';
+                return false;
+            }
+            
+            try {
+                const resp = await fetch(`${API_BASE}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (resp.ok) {
+                    currentUser = await resp.json();
+                    
+                    if (currentUser.role !== 'admin') {
+                        showToast('需要管理员权限', true);
+                        setTimeout(() => {
+                            window.location.href = 'api.html';
+                        }, 1500);
+                        return false;
+                    }
+                    
+                    document.getElementById('user-info').textContent = 
+                        `👤 ${currentUser.username} (管理员)`;
+                    
+                    return true;
+                } else {
+                    localStorage.removeItem('token');
+                    window.location.href = 'login.html';
+                    return false;
+                }
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+                return false;
+            }
+        }
+        
+        // 创建邀请码
+        async function createInviteCode() {
+            const maxUses = document.getElementById('max-uses').value;
+            const btn = document.querySelector('.btn');
+            
+            btn.disabled = true;
+            btn.textContent = '生成中...';
+            
+            try {
+                const body = {
+                    max_uses: parseInt(maxUses)
+                };
+                
+                const resp = await fetch(`${API_BASE}/auth/invite-codes`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+                
+                const data = await resp.json();
+                
+                if (resp.ok) {
+                    showToast(`邀请码已创建: ${data.code}`);
+                    loadInviteCodes();
+                } else {
+                    showToast(data.detail || '创建失败', true);
+                }
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '生成邀请码';
+            }
+        }
+        
+        // 加载邀请码列表
+        async function loadInviteCodes() {
+            const container = document.getElementById('codes-list');
+            
+            try {
+                const resp = await fetch(`${API_BASE}/auth/invite-codes`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                const codes = await resp.json();
+                
+                if (codes.length === 0) {
+                    container.innerHTML = '<div class="empty">暂无邀请码</div>';
+                    return;
+                }
+                
+                container.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>邀请码</th>
+                                <th>使用次数</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${codes.map(code => {
+                                let statusClass = 'unused';
+                                let statusText = '可用';
+                                
+                                if (code.max_uses > 0 && code.used_count >= code.max_uses) {
+                                    statusClass = 'used';
+                                    statusText = '已用完';
+                                }
+                                
+                                const usesText = code.max_uses === 0 
+                                    ? `${code.used_count} / ∞` 
+                                    : `${code.used_count} / ${code.max_uses}`;
+                                
+                                return `
+                                    <tr>
+                                        <td><span class="code">${code.code}</span></td>
+                                        <td>${usesText}</td>
+                                        <td><span class="status ${statusClass}">${statusText}</span></td>
+                                        <td>${new Date(code.created_at).toLocaleString('zh-CN')}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (e) {
+                container.innerHTML = `<div class="empty">加载失败: ${e.message}</div>`;
+            }
+        }
+        
+        // 显示提示
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast show' + (isError ? ' error' : '');
+            
+            setTimeout(() => {
+                toast.className = 'toast';
+            }, 3000);
+        }
+        
+        // 退出登录
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+        }
+        
+        // 初始化
+        checkAuth().then(ok => {
+            if (ok) {
+                loadInviteCodes();
+            }
+        });
+    </script>
+</body>
+</html>

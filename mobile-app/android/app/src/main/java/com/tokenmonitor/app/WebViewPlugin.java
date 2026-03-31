@@ -40,10 +40,12 @@ public class WebViewPlugin extends Plugin {
         SharedPreferences prefs = getContext().getSharedPreferences("cookies", Context.MODE_PRIVATE);
         String cookies = prefs.getString("extracted_cookies", "");
         String pageData = prefs.getString("page_data", "{}");
+        String groupId = prefs.getString("group_id", "");
         
         JSObject result = new JSObject();
         result.put("cookies", cookies);
         result.put("pageData", pageData);
+        result.put("groupId", groupId);  // 同时返回 groupId
         call.resolve(result);
     }
     

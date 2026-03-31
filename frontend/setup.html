@@ -647,13 +647,40 @@
             </div>
         </div>
         
-        <a href="index.html" class="back-link">← 返回监控页面</a>
+        <a href="api.html" class="back-link">← 返回监控页面</a>
     </div>
     
     <script>
         const API_BASE = window.location.hostname === 'localhost' 
             ? 'http://localhost:5188' 
             : '';
+        
+        // 用户认证
+        let authToken = localStorage.getItem('token');
+        
+        // 检查登录状态
+        async function checkAuth() {
+            if (!authToken) {
+                window.location.href = 'login.html';
+                return false;
+            }
+            
+            try {
+                const resp = await fetch(`${API_BASE}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (!resp.ok) {
+                    localStorage.removeItem('token');
+                    window.location.href = 'login.html';
+                    return false;
+                }
+                return true;
+            } catch (e) {
+                console.error('Auth check failed:', e);
+                return false;
+            }
+        }
         
         let cdpConnected = false;
         let cdpWsUrl = null;
@@ -1079,6 +1106,12 @@
                         </div>
                         
                         <div class="cookie-input">
+                            <label>GroupId <span class="required">*必填</span></label>
+                            <input type="text" id="${service.id}-groupId" placeholder="必填，CDP自动提取或手动填写">
+                            <small style="color:#888;font-size:11px;">从 localStorage.user_detail.groups[0] 获取</small>
+                        </div>
+                        
+                        <div class="cookie-input">
                             <label>_gc_usr_id_cs0_d0_sec0_part0</label>
                             <input type="text" id="${service.id}-_gc_usr_id" placeholder="复制Value粘贴">
                         </div>
@@ -1205,6 +1238,7 @@
             if (serviceId === 'minimax') {
                 return {
                     'HERTZ-SESSION': document.getElementById('minimax-HERTZ-SESSION')?.value || '',
+                    'groupId': document.getElementById('minimax-groupId')?.value || '',
                     '_gc_usr_id': document.getElementById('minimax-_gc_usr_id')?.value || '',
                     '_gc_s_cs0': document.getElementById('minimax-_gc_s_cs0')?.value || '',
                     '_c_WBKFRo': document.getElementById('minimax-_c_WBKFRo')?.value || '',
@@ -1224,6 +1258,7 @@
             if (serviceId === 'minimax') {
                 const mappings = {
                     'HERTZ-SESSION': 'minimax-HERTZ-SESSION',
+                    'groupId': 'minimax-groupId',
                     '_gc_usr_id': 'minimax-_gc_usr_id',
                     '_gc_s_cs0': 'minimax-_gc_s_cs0',
                     '_c_WBKFRo': 'minimax-_c_WBKFRo',
@@ -1233,7 +1268,7 @@
                 };
                 for (const [key, inputId] of Object.entries(mappings)) {
                     const input = document.getElementById(inputId);
-                    if (input && values[key]) {
+                    if (input && values[key] !== undefined && values[key] !== '') {
                         input.value = values[key];
                     }
                 }
@@ -1362,7 +1397,7 @@
                     if (data.success) {
                         // 先收集 cookie，不立即填充（因为 DOM 还没渲染）
                         if (!collectedCookies[service.id]) {
-                            collectedCookies[service.id] = data.cookies;
+                            collectedCookies[service.id] = typeof data.cookies === 'object' ? Object.entries(data.cookies).map(([k,v]) => k + '=' + v).join('; ') : data.cookies;
                         }
                         successCount++;
                         
@@ -1371,7 +1406,7 @@
                             manualServices.push(service.id);
                         }
                         
-                        // 获取页面上的截止日期
+                        // 获取页面上的截止日期和 groupId
                         try {
                             const pageInfoResp = await fetch(`${API_BASE}/api/cdp/get-page-info`, {
                                 method: 'POST',
@@ -1384,6 +1419,14 @@
                             const pageInfoData = await pageInfoResp.json();
                             if (pageInfoData.success && pageInfoData.page_info) {
                                 pendingPageInfo[service.id] = pageInfoData.page_info;
+                                
+                                // 如果是 MiniMax 且有 groupId，自动填充到输入框
+                                if (service.id === 'minimax' && pageInfoData.page_info.groupId) {
+                                    const groupIdInput = document.getElementById('minimax-groupId');
+                                    if (groupIdInput) {
+                                        groupIdInput.value = pageInfoData.page_info.groupId;
+                                    }
+                                }
                             }
                         } catch (e) {
                             console.log('获取页面信息失败:', e);
@@ -1417,6 +1460,7 @@
                             autoFillXfyunCookies(cookieStr);
                         }
                     }
+                    applyPendingMinimaxGroupIdFromPageInfo();
                     
                     // 更新状态显示（变成"已配置"）
                     loadCurrentConfig();
@@ -1435,6 +1479,14 @@
                 btn.textContent = '🍪 获取 Cookie 并自动填充';
                 btn.disabled = false;
             }
+        }
+        
+        /** CDP 返回的 groupId 写入 pendingPageInfo 时，MiniMax 卡片可能尚未 render；须在 render + 填 Cookie 后再写入输入框。 */
+        function applyPendingMinimaxGroupIdFromPageInfo() {
+            const gid = pendingPageInfo['minimax'] && pendingPageInfo['minimax'].groupId;
+            if (!gid) return;
+            const input = document.getElementById('minimax-groupId');
+            if (input) input.value = gid;
         }
         
         function autoFillMinimaxCookies(cookieStr) {
@@ -1510,18 +1562,22 @@
         
         // ============ 页面加载时获取配置 ============
         async function loadCurrentConfig() {
+            if (!authToken) return;
+            
             try {
-                const resp = await fetch(`${API_BASE}/api/current-cookies`);
-                const data = await resp.json();
+                const resp = await fetch(`${API_BASE}/api/accounts`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const accounts = await resp.json();
                 
                 // 更新 manualServices 中每个服务的状态显示（per-card 方式）
                 for (const serviceId of manualServices) {
                     const statusDisplay = document.getElementById(`${serviceId}-status-display`);
                     if (!statusDisplay) continue;
                     
-                    const serviceData = data[serviceId];
-                    if (serviceData && serviceData.has) {
-                        statusDisplay.innerHTML = `<span style="color:#4CAF50;">✅ 已配置</span> - ${serviceData.preview}`;
+                    const account = accounts.find(a => a.service_id === serviceId);
+                    if (account && account.has_cookies) {
+                        statusDisplay.innerHTML = `<span style="color:#4CAF50;">✅ 已配置</span>`;
                     } else {
                         statusDisplay.innerHTML = `<span style="color:#f44336;">❌ 未配置</span>`;
                     }
@@ -1536,16 +1592,20 @@
             const statusDisplay = document.getElementById(`${serviceId}-status-display`);
             if (!statusDisplay) return;
             
+            if (!authToken) return;
+            
             try {
-                const resp = await fetch(`${API_BASE}/api/current-cookies`);
+                const resp = await fetch(`${API_BASE}/api/accounts`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
                 if (!resp.ok) {
                     statusDisplay.innerHTML = `<span style="color:#f44336;">❌ 状态加载失败</span>`;
                     return;
                 }
-                const data = await resp.json();
-                const serviceData = data[serviceId];
-                if (serviceData && serviceData.has) {
-                    statusDisplay.innerHTML = `<span style="color:#4CAF50;">✅ 已配置</span> - ${serviceData.preview}`;
+                const accounts = await resp.json();
+                const account = accounts.find(a => a.service_id === serviceId);
+                if (account && account.has_cookies) {
+                    statusDisplay.innerHTML = `<span style="color:#4CAF50;">✅ 已配置</span>`;
                 } else {
                     statusDisplay.innerHTML = `<span style="color:#f44336;">❌ 未配置</span>`;
                 }
@@ -1555,13 +1615,34 @@
         }
         
         async function saveCookie(service) {
+            // 检查登录状态
+            if (!authToken) {
+                alert('请先登录');
+                window.location.href = 'login.html';
+                return;
+            }
+            
             let cookies;
+            let groupId = null;
             
             if (service === 'minimax') {
                 // 从各个输入框收集
                 const hertz = document.getElementById('minimax-HERTZ-SESSION').value.trim();
                 if (!hertz) {
                     alert('请填写 HERTZ-SESSION 的值（必填）');
+                    return;
+                }
+                
+                // 获取 groupId（优先从输入框，其次从 CDP 提取）
+                groupId = document.getElementById('minimax-groupId').value.trim();
+                if (!groupId && pendingPageInfo['minimax'] && pendingPageInfo['minimax'].groupId) {
+                    groupId = pendingPageInfo['minimax'].groupId;
+                    // 自动填充到输入框
+                    document.getElementById('minimax-groupId').value = groupId;
+                }
+                
+                if (!groupId) {
+                    alert('请填写 GroupId 的值（必填）\n\n获取方式：\n1. 在 MiniMax 页面打开浏览器开发者工具\n2. 进入 Application > Local Storage\n3. 找到 user_detail，复制 groups[0] 的值');
                     return;
                 }
                 
@@ -1594,40 +1675,56 @@
             const status = document.getElementById(service + '-status');
             
             try {
-                const resp = await fetch(`${API_BASE}/api/set-cookie`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        service, 
-                        cookies,
-                        page_info: pendingPageInfo[service] || null
-                    })
+                // 先检查是否已有账号
+                const listResp = await fetch(`${API_BASE}/api/accounts`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
                 });
+                const accounts = await listResp.json();
+                
+                const existingAccount = accounts.find(a => a.service_id === service);
+                
+                let resp;
+                if (existingAccount) {
+                    // 更新现有账号
+                    resp = await fetch(`${API_BASE}/api/accounts/${existingAccount.id}`, {
+                        method: 'PUT',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({ 
+                            cookies,
+                            group_id: groupId
+                        })
+                    });
+                } else {
+                    // 创建新账号
+                    resp = await fetch(`${API_BASE}/api/accounts`, {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({ 
+                            service_id: service,
+                            name: service === 'minimax' ? '我的 MiniMax' : '我的讯飞账号',
+                            cookies,
+                            group_id: groupId
+                        })
+                    });
+                }
                 
                 const data = await resp.json();
                 
-                if (data.success) {
+                if (resp.ok) {
                     status.className = 'status success';
                     status.textContent = '✅ Cookie 保存成功！';
                     loadCurrentConfig();
                     
-                    // 清除输入框
-                    if (service === 'minimax') {
-                        document.getElementById('minimax-HERTZ-SESSION').value = '';
-                        document.getElementById('minimax-_gc_usr_id').value = '';
-                        document.getElementById('minimax-_gc_s_cs0').value = '';
-                        document.getElementById('minimax-_c_WBKFRo').value = '';
-                        document.getElementById('minimax-sajssdk').value = '';
-                        document.getElementById('minimax-sensors1').value = '';
-                        document.getElementById('minimax-sensors2').value = '';
-                    } else {
-                        document.getElementById('xfyun-cookie').value = '';
-                    }
-                    
                     document.getElementById('auto-fill-hint').style.display = 'none';
                 } else {
                     status.className = 'status error';
-                    status.textContent = '❌ 保存失败: ' + (data.error || '未知错误');
+                    status.textContent = '❌ 保存失败: ' + (data.detail || '未知错误');
                 }
             } catch (e) {
                 status.className = 'status error';
@@ -1640,8 +1737,10 @@
             saveCookie('minimax');
         }
         
-        // 页面加载
-        loadCurrentConfig();
+        // 页面加载 - 先检查登录
+        checkAuth().then(() => {
+            loadCurrentConfig();
+        });
         
         // 加载服务列表（页面打开时立即显示）
         loadServices();

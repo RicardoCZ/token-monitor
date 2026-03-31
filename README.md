@@ -2,12 +2,18 @@
 
 > 监控 MiniMax 和讯飞星辰 API 用量
 
+## 部署
+
+**全新环境（生产/测试）**请按 **[DEPLOYMENT.md](./DEPLOYMENT.md)** 操作：推荐 **`backend/init_env.sh`** / **`backend/init_env.ps1`** 一键写入密钥并可选建库，亦可手工按文档执行。  
+配置模板 **`backend/.env.example`**；脚本**不会覆盖**已存在的 `backend/.env`。
+
 ## 项目结构
 
 ```
 ~/share/new/
-├── backend/           # Flask API 服务
-│   └── app.py         # 后端主程序
+├── backend/           # FastAPI 后端
+│   ├── app.py         # 应用入口
+│   └── .env.example   # 环境变量模板（部署见 DEPLOYMENT.md）
 ├── frontend/          # Web 前端静态页面
 │   ├── index.html     # 主页面
 │   ├── api.html       # API 监控页面
@@ -41,7 +47,7 @@
                              ▼
 ┌─────────────┐     ┌─────────────────┐
 │   Nginx     │────►│   Flask API     │
-│  (静态资源) │     │   :5188         │
+│  (静态资源) │     │ FastAPI :5188    │
 └─────────────┘     └────────┬────────┘
                                │
                     ┌──────────┴──────────┐
@@ -49,17 +55,22 @@
             MiniMax API           讯飞 API
 ```
 
-## 快速启动
+## 快速启动（本地开发）
 
-### 后端
+完整步骤与密钥配置见 **[DEPLOYMENT.md](./DEPLOYMENT.md)**。
+
+### 后端（需已配置 `backend/.env` 与 MySQL）
+
 ```bash
 cd backend
+python3 -m venv .venv && source .venv/bin/activate   # Windows 用 .venv\Scripts\activate
 pip install -r requirements.txt
-python3 app.py
+uvicorn app:app --host 0.0.0.0 --port 5188
 ```
 
 ### Web 前端
-直接用浏览器打开 `frontend/index.html`，或者部署到 Nginx。
+
+开发时访问后端挂载的静态页（默认与 backend 同级的 `frontend/`，根路径由 `app.py` 挂载）。也可将 `frontend/` 交给 Nginx 单独托管并反向代理 API。
 
 ### Android 手机端
 ```bash
@@ -134,10 +145,7 @@ curl -X POST http://localhost:5188/api/set-cookie \
 ## 依赖
 
 ### 后端
-```
-Flask>=3.0.0
-requests>=2.31.0
-```
+见 **`backend/requirements.txt`**（FastAPI、SQLAlchemy、MySQL 异步驱动、JWT 等）。
 
 ### 手机端
 ```
@@ -148,10 +156,9 @@ vite: ^8.0.0
 
 ## 安全说明
 
-- Cookie 存储在 `data/` 目录，已被 `.gitignore` 忽略
-- 日志文件 `*.log` 已被 `.gitignore` 忽略
-- 无硬编码的敏感信息（API Key、密码等）
-- 所有敏感数据仅存储在本地
+- Cookie 与加密数据依赖 **`backend/.env`** 中的 `APP_SECRET_KEY` 等，**勿提交** `.env`。
+- 业务 Cookie 加密存库；本地 `data/` 与日志已按 `.gitignore` 忽略（以仓库实际规则为准）。
+- 生产密钥与数据库口令**按环境独立生成**，见 **DEPLOYMENT.md**。
 
 ## 开发规范
 

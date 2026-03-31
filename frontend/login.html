@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - Token Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            margin: 20px;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo h1 {
+            font-size: 28px;
+            color: #333;
+        }
+        
+        .logo p {
+            color: #666;
+            margin-top: 8px;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #eee;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            color: #666;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group input.input-error {
+            border-color: #dc3545;
+        }
+
+        .form-group input.input-error:focus {
+            border-color: #dc3545;
+        }
+
+        .field-error {
+            color: #dc3545;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .register-submit-error {
+            color: #dc3545;
+            font-size: 12px;
+            margin-top: 8px;
+            display: none;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .error {
+            background: #fee;
+            color: #c00;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .success {
+            background: #efe;
+            color: #060;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .form-panel {
+            display: none;
+        }
+        
+        .form-panel.active {
+            display: block;
+        }
+        
+        .info {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .info a {
+            color: #667eea;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="page-gate" class="container" style="text-align:center;color:#666;">
+        <p style="padding:40px 0;">正在加载…</p>
+    </div>
+
+    <!-- 首次启动：创建管理员 -->
+    <div id="setup-flow" class="container" style="display:none;">
+        <div class="logo">
+            <h1>✨ Token Monitor</h1>
+            <p>首次使用 · 创建管理员</p>
+        </div>
+        <p style="color:#666;font-size:14px;text-align:center;margin-bottom:24px;line-height:1.5;">
+            数据库中尚无管理员账号。请设置管理员用户名与密码，用于登录与发放邀请码。
+        </p>
+        <div id="setup-error" class="error" style="display:none;"></div>
+        <div id="setup-success" class="success" style="display:none;"></div>
+        <form id="setup-form">
+            <div class="form-group">
+                <label>管理员用户名</label>
+                <input type="text" id="setup-username" required maxlength="20" autocomplete="username" placeholder="3-20 位，字母开头，含字母数字下划线">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="setup-password" required minlength="8" autocomplete="new-password" placeholder="至少 8 位，含大写、小写、数字">
+            </div>
+            <button type="submit" class="btn" id="setup-submit">创建并进入系统</button>
+        </form>
+    </div>
+
+    <div id="login-flow" style="display:none;">
+    <div class="container">
+        <div class="logo">
+            <h1>✨ Token Monitor</h1>
+            <p>API 额度监控平台</p>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="login">登录</div>
+            <div class="tab" data-tab="register">注册</div>
+        </div>
+        
+        <div id="error" class="error"></div>
+        <div id="success" class="success"></div>
+        
+        <!-- 登录表单 -->
+        <div id="login-panel" class="form-panel active">
+            <form id="login-form">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="login-username" required placeholder="请输入用户名">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="login-password" required placeholder="请输入密码">
+                </div>
+                <button type="submit" class="btn">登录</button>
+            </form>
+        </div>
+        
+        <!-- 注册表单 -->
+        <div id="register-panel" class="form-panel">
+            <form id="register-form">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="reg-username" required maxlength="20" autocomplete="username" placeholder="3-20 位，字母开头，含字母数字下划线" title="3-20 位，字母开头，仅字母数字下划线">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="reg-password" required minlength="8" autocomplete="new-password" placeholder="至少 8 位，含大写、小写、数字" title="至少 8 位，须含大写字母、小写字母、数字">
+                </div>
+                <div class="form-group">
+                    <label>邀请码</label>
+                    <input type="text" id="reg-invite-code" required autocomplete="off" placeholder="请输入邀请码" title="必填">
+                </div>
+                <button type="submit" class="btn">注册</button>
+                <div id="register-submit-error" class="register-submit-error" role="alert"></div>
+            </form>
+        </div>
+        
+        <div class="info">
+            <a href="api.html">返回首页</a>
+        </div>
+    </div>
+    </div>
+    
+    <script>
+        // API 基础地址
+        const API_BASE = window.location.origin;
+        
+        // Tab 切换
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab + '-panel').classList.add('active');
+                
+                hideMessages();
+                clearRegisterFieldErrors();
+            });
+        });
+        
+        // 清除所有输入框的错误高亮（注册表单）
+        function clearRegisterFieldErrors() {
+            document.querySelectorAll('#register-panel .input-error').forEach(el => el.classList.remove('input-error'));
+            document.querySelectorAll('#register-panel .field-error').forEach(el => el.remove());
+            const submitErr = document.getElementById('register-submit-error');
+            if (submitErr) {
+                submitErr.textContent = '';
+                submitErr.style.display = 'none';
+            }
+        }
+
+        // 高亮指定输入框并显示错误
+        function showFieldError(inputId, msg) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            input.classList.add('input-error');
+            const errEl = document.createElement('div');
+            errEl.className = 'field-error';
+            errEl.textContent = msg;
+            input.parentElement.appendChild(errEl);
+        }
+
+        function showRegisterSubmitError(msg) {
+            const el = document.getElementById('register-submit-error');
+            if (!el) return;
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        // 显示错误（用于网络错误等通用错误）
+        function showError(msg) {
+            const el = document.getElementById('error');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+
+        function normalizeDetailMsg(msg) {
+            return String(msg).replace(/^Value error,?\s*/i, '').trim();
+        }
+
+        /** 根据 FastAPI/Pydantic 的 loc 或文案将错误归到注册表单字段 */
+        function fieldIdForRegisterError(loc, messageText) {
+            const locParts = (loc || []).map(String);
+            const locJoined = locParts.join('.');
+            if (locJoined.includes('username')) return 'reg-username';
+            if (locJoined.includes('password')) return 'reg-password';
+            if (locJoined.includes('invite_code')) return 'reg-invite-code';
+            const t = messageText || '';
+            if (t.includes('邀请码')) return 'reg-invite-code';
+            if (t.includes('用户名')) return 'reg-username';
+            if (t.includes('密码')) return 'reg-password';
+            return null;
+        }
+
+        // 处理注册接口返回的错误（对应字段下方小字，不用顶部 error 条）
+        function handleRegisterBackendError(data) {
+            clearRegisterFieldErrors();
+            if (Array.isArray(data.detail)) {
+                data.detail.forEach(err => {
+                    const msg = normalizeDetailMsg(err.msg || err.message || String(err));
+                    const inputId = fieldIdForRegisterError(err.loc, msg);
+                    if (inputId) showFieldError(inputId, msg);
+                    else showRegisterSubmitError(msg);
+                });
+                return;
+            }
+            if (typeof data.detail === 'string') {
+                const msg = normalizeDetailMsg(data.detail);
+                const inputId = fieldIdForRegisterError([], msg);
+                if (inputId) showFieldError(inputId, msg);
+                else showRegisterSubmitError(msg || '注册失败');
+                return;
+            }
+            showRegisterSubmitError('注册失败');
+        }
+        
+        // 显示成功
+        function showSuccess(msg) {
+            const el = document.getElementById('success');
+            el.textContent = msg;
+            el.style.display = 'block';
+        }
+        
+        // 隐藏消息
+        function hideMessages() {
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
+        }
+
+        const REG_USERNAME = /^[a-zA-Z][a-zA-Z0-9_]{2,19}$/;
+        const REG_PASSWORD = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+
+        /** @returns {string|null} 错误文案，合法则 null */
+        function validateRegisterUsername(raw) {
+            const u = String(raw).trim();
+            if (u.length < 3) return '用户名至少3字符';
+            if (u.length > 20) return '用户名最多20字符';
+            if (!/^[a-zA-Z]/.test(u)) return '首字符须为字母';
+            if (!/^[a-zA-Z0-9_]+$/.test(u)) return '用户名只能包含字母数字下划线';
+            if (!REG_USERNAME.test(u)) return '用户名只能包含字母数字下划线';
+            return null;
+        }
+
+        /** @returns {string|null} */
+        function validateRegisterPassword(p) {
+            const s = String(p);
+            if (s.length < 8) return '密码至少8位';
+            if (!/[A-Z]/.test(s)) return '密码须包含大写字母';
+            if (!/[a-z]/.test(s)) return '密码须包含小写字母';
+            if (!/\d/.test(s)) return '密码须包含数字';
+            if (!REG_PASSWORD.test(s)) return '密码格式不正确';
+            return null;
+        }
+
+        /** @returns {{ ok: boolean, code: string, error: string|null }} */
+        function validateRegisterInvite(raw) {
+            const s = String(raw).trim();
+            if (!s) return { ok: false, code: '', error: '邀请码不能为空' };
+            return { ok: true, code: s, error: null };
+        }
+        
+        // 登录
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMessages();
+            
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            
+            try {
+                const resp = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await resp.json();
+                
+                if (resp.ok) {
+                    // 保存 token
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('user', JSON.stringify({
+                        id: data.user_id,
+                        username: data.username,
+                        role: data.role
+                    }));
+                    
+                    showSuccess('登录成功！正在跳转...');
+                    
+                    // 跳转到主页
+                    setTimeout(() => {
+                        window.location.href = 'api.html';
+                    }, 1000);
+                } else {
+                    showError(data.detail || '登录失败');
+                }
+            } catch (err) {
+                showError('网络错误：' + err.message);
+            }
+        });
+        
+        // 注册
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMessages();
+            clearRegisterFieldErrors();
+
+            const username = document.getElementById('reg-username').value;
+            const password = document.getElementById('reg-password').value;
+            const inviteRaw = document.getElementById('reg-invite-code').value;
+
+            const uErr = validateRegisterUsername(username);
+            if (uErr) {
+                showFieldError('reg-username', uErr);
+                return;
+            }
+            const pErr = validateRegisterPassword(password);
+            if (pErr) {
+                showFieldError('reg-password', pErr);
+                return;
+            }
+            const inv = validateRegisterInvite(inviteRaw);
+            if (!inv.ok) {
+                showFieldError('reg-invite-code', inv.error);
+                return;
+            }
+            const invite_code = inv.code;
+
+            try {
+                const resp = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username.trim(), password, invite_code })
+                });
+                
+                const data = await resp.json();
+                
+                if (resp.ok) {
+                    clearRegisterFieldErrors();
+                    // 保存 token
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('user', JSON.stringify({
+                        id: data.user_id,
+                        username: data.username,
+                        role: data.role
+                    }));
+                    
+                    showSuccess('注册成功！正在跳转...');
+                    
+                    // 跳转到主页
+                    setTimeout(() => {
+                        window.location.href = 'api.html';
+                    }, 1000);
+                } else {
+                    handleRegisterBackendError(data);
+                }
+            } catch (err) {
+                showRegisterSubmitError('网络错误：' + err.message);
+            }
+        });
+
+        function showSetupError(msg) {
+            const el = document.getElementById('setup-error');
+            el.textContent = msg;
+            el.style.display = 'block';
+            document.getElementById('setup-success').style.display = 'none';
+        }
+
+        function hideSetupMessages() {
+            document.getElementById('setup-error').style.display = 'none';
+            document.getElementById('setup-success').style.display = 'none';
+        }
+
+        document.getElementById('setup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideSetupMessages();
+            const username = document.getElementById('setup-username').value;
+            const password = document.getElementById('setup-password').value;
+            const uErr = validateRegisterUsername(username);
+            if (uErr) {
+                showSetupError(uErr);
+                return;
+            }
+            const pErr = validateRegisterPassword(password);
+            if (pErr) {
+                showSetupError(pErr);
+                return;
+            }
+            const btn = document.getElementById('setup-submit');
+            btn.disabled = true;
+            try {
+                const resp = await fetch(`${API_BASE}/auth/setup-first`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username.trim(), password })
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    localStorage.setItem('token', data.access_token);
+                    localStorage.setItem('user', JSON.stringify({
+                        id: data.user_id,
+                        username: data.username,
+                        role: data.role
+                    }));
+                    const okEl = document.getElementById('setup-success');
+                    okEl.textContent = '创建成功，正在进入系统…';
+                    okEl.style.display = 'block';
+                    setTimeout(() => { window.location.href = 'api.html'; }, 600);
+                } else {
+                    const detail = data.detail;
+                    const msg = Array.isArray(detail)
+                        ? detail.map(x => normalizeDetailMsg(x.msg || x.message || String(x))).join('；')
+                        : normalizeDetailMsg(typeof detail === 'string' ? detail : '创建失败');
+                    showSetupError(msg || '创建失败');
+                }
+            } catch (err) {
+                showSetupError('网络错误：' + err.message);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        (async function initLoginPage() {
+            const gate = document.getElementById('page-gate');
+            const loginFlow = document.getElementById('login-flow');
+            const setupFlow = document.getElementById('setup-flow');
+
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    const resp = await fetch(`${API_BASE}/auth/me`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (resp.ok) {
+                        window.location.href = 'api.html';
+                        return;
+                    }
+                } catch (err) { /* 继续检测引导 */ }
+            }
+
+            let hasAdmin = true;
+            try {
+                const r = await fetch(`${API_BASE}/auth/setup-status`);
+                if (r.ok) {
+                    const j = await r.json();
+                    hasAdmin = !!j.hasAdmin;
+                }
+            } catch (err) { /* 默认显示登录 */ }
+
+            gate.style.display = 'none';
+            if (!hasAdmin) {
+                setupFlow.style.display = 'block';
+            } else {
+                loginFlow.style.display = 'block';
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -30,6 +30,7 @@
             android:name=".WebViewActivity"
             android:label="登录"
             android:theme="@style/AppTheme"
+            android:hardwareAccelerated="true"
             android:exported="false" />
 
         <provider

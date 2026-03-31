@@ -66,12 +66,34 @@
         .stat-label { color: #999; font-size: 14px; }
         .stat-value { font-weight: 600; font-size: 14px; color: #fff; }
         
+        /* 卡片主体纵向排列，进度条固定在所有文案块之后 */
+        #minimax-content,
+        #xfyun-content {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            width: 100%;
+        }
+        
+        .card-stats-block { flex: 0 0 auto; order: 0; }
+        .card-meta-block { flex: 0 0 auto; order: 1; margin-top: 0; }
+        .card-progress-wrap {
+            flex: 0 0 auto;
+            order: 2;
+            width: 100%;
+            margin-top: 12px;
+        }
+        
+        .meta-row-first {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 10px;
+        }
+        
         .progress-bar {
             width: 100%;
             height: 8px;
             background: rgba(255, 255, 255, 0.1);
             border-radius: 4px;
-            margin-top: 12px;
             overflow: hidden;
         }
         
@@ -106,24 +128,6 @@
             text-align: center;
             padding: 20px;
         }
-        
-        .login-btn {
-            display: inline-block;
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: #fff;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            margin-top: 12px;
-            transition: transform 0.2s;
-        }
-        
-        .login-btn:active { transform: scale(0.98); }
         
         .error-detail {
             font-size: 12px;
@@ -205,12 +209,24 @@
         }
         
         .modal-btn.secondary { background: rgba(255, 255, 255, 0.1); color: #888; }
+
+        /** 监控页顶栏：设置 Cookie / 管理后台 / 退出 同一套文字链风格 */
+        .header-top-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .header-top-link:hover {
+            color: #8b9cff;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>✨ Token Monitor</h1>
         <p>API 额度实时监控</p>
+        <div id="user-info" style="margin-top: 10px; font-size: 12px; color: #888; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 10px;"></div>
     </div>
     
     <div class="cards">
@@ -252,11 +268,63 @@
     </div>
     
     <script>
-        // 当前域名 - 用于判断是否需要代理
-        const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        // API 基础地址
+        const API_BASE = window.location.origin;
         
-        // MiniMax API 代理配置（如果后端开启了代理）
-        const API_BASE = IS_LOCAL ? 'http://localhost:5188' : '';
+        // 用户状态
+        let currentUser = null;
+        let authToken = localStorage.getItem('token');
+        
+        // 检查登录状态
+        async function checkAuth() {
+            const userInfo = document.getElementById('user-info');
+            
+            if (!authToken) {
+                // 未登录，跳转到登录页
+                window.location.href = 'login.html';
+                return false;
+            }
+            
+            try {
+                const resp = await fetch(`${API_BASE}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                
+                if (resp.ok) {
+                    currentUser = await resp.json();
+                    
+                    // 管理员显示管理入口
+                    let adminLink = '';
+                    if (currentUser.role === 'admin') {
+                        adminLink = '<a href="admin.html" class="header-top-link">⚙️ 管理后台</a>';
+                    }
+                    
+                    userInfo.innerHTML = `
+                        <span>👤 ${currentUser.username}</span>
+                        <a href="setup.html" class="header-top-link">🔧 设置 Cookie</a>
+                        ${adminLink}
+                        <span class="header-top-link" style="cursor: pointer;" role="button" tabindex="0" onclick="logout()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout();}">退出</span>
+                    `;
+                    return true;
+                } else {
+                    // Token 无效
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = 'login.html';
+                    return false;
+                }
+            } catch (e) {
+                console.error('Auth check failed:', e);
+                return false;
+            }
+        }
+        
+        // 登出
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+        }
         
         async function refreshAll() {
             const btn = document.getElementById("refresh-btn");
@@ -269,6 +337,42 @@
             
             btn.classList.remove("spinning");
         }
+
+        /** FastAPI HTTPException / 旧版 body.error */
+        function extractApiErrorMessage(data) {
+            if (!data || typeof data !== "object") return "加载失败";
+            if (typeof data.detail === "string") return data.detail;
+            if (Array.isArray(data.detail)) {
+                const parts = data.detail.map(e => (e && (e.msg || e.message)) || "").filter(Boolean);
+                return parts.length ? parts.join(" ") : "请求无效";
+            }
+            if (data.error) return String(data.error);
+            return "";
+        }
+
+        /** 卡片错误：未配置 Cookie 为橙色「未配置」，其余多为需登录或系统错误 */
+        function renderServiceCardError(badge, content, message) {
+            const msg = message || "加载失败";
+            let badgeClass, badgeText;
+            if (/解密失败|Decrypt/i.test(msg)) {
+                badgeClass = "card-badge badge-error";
+                badgeText = "错误";
+            } else if (/请先设置|未配置 Cookie|Cookie 未配置|NO_COOKIE/i.test(msg)) {
+                badgeClass = "card-badge badge-warn";
+                badgeText = "未配置";
+            } else {
+                badgeClass = "card-badge badge-error";
+                badgeText = "需登录";
+            }
+            badge.className = badgeClass;
+            badge.textContent = badgeText;
+            content.innerHTML = `
+                <div class="login-box">
+                    <p style="color: #888; font-size: 13px;">${msg}</p>
+                    <p style="color: #666; font-size: 12px; margin-top: 10px;">请使用页面顶部「🔧 设置 Cookie」进行配置。</p>
+                </div>
+            `;
+        }
         
         async function refreshMinimax() {
             const badge = document.getElementById("minimax-badge");
@@ -276,18 +380,22 @@
             
             try {
                 // 获取存储的页面数据
-                let resp = await fetch("/api/minimax");
+                let resp = await fetch(`${API_BASE}/api/minimax/`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
                 let data = await resp.json();
                 
+                if (!resp.ok) {
+                    renderServiceCardError(
+                        badge,
+                        content,
+                        extractApiErrorMessage(data) || ("请求失败 (" + resp.status + ")")
+                    );
+                    return;
+                }
+
                 if (data.error) {
-                    badge.className = "card-badge badge-error";
-                    badge.textContent = "需登录";
-                    content.innerHTML = `
-                        <div class="login-box">
-                            <p style="color: #888; font-size: 13px; margin-bottom: 12px;">${data.error}</p>
-                            <a class="login-btn" href="setup.html">去设置 Cookie</a>
-                        </div>
-                    `;
+                    renderServiceCardError(badge, content, data.error);
                     return;
                 }
                 
@@ -296,34 +404,54 @@
                 
                 // 使用页面数据
                 const pageInfo = data.page_info || {};
-                const used = pageInfo.used || '-';
-                const total = pageInfo.total || '-';
+                const used = pageInfo.used || 0;
+                const total = pageInfo.total || 0;
+                const remain = total - used;
                 const percent = pageInfo.percent || '0';
                 const expiresAt = pageInfo.expiresAt || '-';
                 const resetMinutes = pageInfo.resetMinutes;
                 const resetHours = pageInfo.resetHours;
                 
                 let resetTime = '-';
-                if (resetMinutes) resetTime = resetMinutes + ' 分钟后';
-                else if (resetHours) resetTime = resetHours + ' 小时后';
+                if (resetHours > 0 || resetMinutes > 0) {
+                    resetTime = (resetHours || 0) + '小时' + (resetMinutes || 0) + '分钟';
+                }
                 
                 const colorClass = percent > 80 ? "red" : percent > 50 ? "orange" : "green";
                 
                 content.innerHTML = `
-                    <div class="stat-row">
-                        <span class="stat-label">使用量</span>
-                        <span class="stat-value">${used}/${total} (${percent}%)</span>
+                    <div class="card-stats-block">
+                        <div class="stat-row">
+                            <span class="stat-label">Token Plan</span>
+                            <span class="stat-value">${total} 次/5小时</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">已使用</span>
+                            <span class="stat-value">${used} 次</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">剩余</span>
+                            <span class="stat-value">${remain} 次</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">使用率</span>
+                            <span class="stat-value">${percent}%</span>
+                        </div>
                     </div>
-                    <div class="stat-row">
-                        <span class="stat-label">截止日期</span>
-                        <span class="stat-value">${expiresAt}</span>
+                    <div class="card-meta-block">
+                        <div class="stat-row meta-row-first">
+                            <span class="stat-label">到期时间</span>
+                            <span class="stat-value">${expiresAt}</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">重置时间</span>
+                            <span class="stat-value">${resetTime}</span>
+                        </div>
                     </div>
-                    <div class="stat-row">
-                        <span class="stat-label">重置时间</span>
-                        <span class="stat-value">${resetTime}</span>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill ${colorClass}" style="width: ${percent}%"></div>
+                    <div class="card-progress-wrap">
+                        <div class="progress-bar">
+                            <div class="progress-fill ${colorClass}" style="width: ${percent}%"></div>
+                        </div>
                     </div>
                 `;
                 
@@ -339,18 +467,22 @@
             const content = document.getElementById("xfyun-content");
             
             try {
-                let resp = await fetch("/api/xfyun");
+                let resp = await fetch(`${API_BASE}/api/xfyun/`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
                 let data = await resp.json();
                 
+                if (!resp.ok) {
+                    renderServiceCardError(
+                        badge,
+                        content,
+                        extractApiErrorMessage(data) || ("请求失败 (" + resp.status + ")")
+                    );
+                    return;
+                }
+
                 if (data.error) {
-                    badge.className = "card-badge badge-error";
-                    badge.textContent = "需登录";
-                    content.innerHTML = `
-                        <div class="login-box">
-                            <p style="color: #888; font-size: 13px; margin-bottom: 12px;">${data.error}</p>
-                            <a class="login-btn" href="setup.html">去设置 Cookie</a>
-                        </div>
-                    `;
+                    renderServiceCardError(badge, content, data.error);
                     return;
                 }
                 
@@ -359,17 +491,43 @@
                 
                 // 使用页面数据
                 const pageInfo = data.page_info || {};
-                const dailyQuota = pageInfo.dailyQuota || '-';
+                const dailyQuota = pageInfo.dailyQuota || 0;
+                const dailyUsed = pageInfo.dailyUsed || 0;
+                const dailyRemain = pageInfo.dailyRemain || 0;
+                const percent = data.percent || (dailyQuota > 0 ? (dailyUsed / dailyQuota * 100).toFixed(1) : 0);
                 const expiresAt = pageInfo.expiresAt || '-';
                 
+                const colorClass = percent > 80 ? "red" : percent > 50 ? "orange" : "green";
+                
                 content.innerHTML = `
-                    <div class="stat-row">
-                        <span class="stat-label">每日额度</span>
-                        <span class="stat-value">${dailyQuota} 万</span>
+                    <div class="card-stats-block">
+                        <div class="stat-row">
+                            <span class="stat-label">日限额</span>
+                            <span class="stat-value">${dailyQuota} 万 tokens</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">已用</span>
+                            <span class="stat-value">${dailyUsed} 万</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">剩余</span>
+                            <span class="stat-value">${dailyRemain} 万</span>
+                        </div>
+                        <div class="stat-row">
+                            <span class="stat-label">使用率</span>
+                            <span class="stat-value">${percent}%</span>
+                        </div>
                     </div>
-                    <div class="stat-row">
-                        <span class="stat-label">到期时间</span>
-                        <span class="stat-value">${expiresAt}</span>
+                    <div class="card-meta-block">
+                        <div class="stat-row meta-row-first">
+                            <span class="stat-label">到期时间</span>
+                            <span class="stat-value">${expiresAt}</span>
+                        </div>
+                    </div>
+                    <div class="card-progress-wrap">
+                        <div class="progress-bar">
+                            <div class="progress-fill ${colorClass}" style="width: ${percent}%"></div>
+                        </div>
                     </div>
                 `;
                 
@@ -403,11 +561,17 @@
             document.getElementById('login-modal').style.display = 'none';
         }
         
-        // 首次加载
-        refreshAll();
+        // 首次加载 - 先检查登录状态
+        checkAuth().then(loggedIn => {
+            if (loggedIn) {
+                refreshAll();
+            }
+        });
         
         // 每60秒自动刷新
-        setInterval(refreshAll, 60000);
+        setInterval(() => {
+            if (authToken) refreshAll();
+        }, 60000);
     </script>
 </body>
 </html>

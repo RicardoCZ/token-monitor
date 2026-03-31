@@ -13,7 +13,7 @@
 | 2 | `cd backend && pip install -r requirements.txt` |
 | 3 | 运行初始化脚本（见下方），生成密钥和 `.env` |
 | 4 | 启动：`uvicorn app:app --host 0.0.0.0 --port 5188` |
-| 5 | 调用 `POST /auth/create-admin` 创建管理员 |
+| 5 | 打开前端 `login.html`（或移动端 App），在**首次引导**中创建管理员账号 |
 
 ---
 
@@ -35,13 +35,9 @@
 
 ### 成功后的操作
 
-1. **加载管理员口令**（必须与启动后端同一个 shell）：
-   - Unix: `source backend/.admin_password.env`
-   - Windows: `. .\backend\.admin_password.env.ps1`
+1. **启动后端**：`uvicorn app:app --host 0.0.0.0 --port 5188`
 
-2. **启动后端**：`uvicorn app:app --host 0.0.0.0 --port 5188`
-
-3. **创建管理员**：`POST /auth/create-admin`（响应不含明文密码）
+2. **创建管理员**：浏览器访问登录页（或 `/first-setup.html`）；空库时会显示引导，调用 `POST /auth/setup-first` 由前端完成。也可用 API 客户端在无用户时直接请求该接口。
 
 ---
 
@@ -72,7 +68,7 @@ FLUSH PRIVILEGES;
 
 ## 安全提醒
 
-- **不要提交** `backend/.env` 和 `backend/.admin_password.env*` 到 Git
+- **不要提交** `backend/.env` 到 Git
 - 生产环境关闭 `DEBUG`，使用 HTTPS
 - 轮换 `JWT_SECRET_KEY` 会使所有已登录用户失效
 

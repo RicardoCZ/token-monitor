@@ -100,6 +100,17 @@ public class WebViewActivity extends Activity {
             "var allText = document.body.innerText;" +
             "var lines = allText.split('\\n');" +
             
+            // 只从 localStorage 提取（groupId 由 Android 端从 CookieManager 提取）
+            "try {" +
+            "    var userDetail = localStorage.getItem('user_detail');" +
+            "    if (userDetail) {" +
+            "        var userData = JSON.parse(userDetail);" +
+            "        if (userData.groups && userData.groups.length > 0) {" +
+            "            result.groupId = userData.groups[0];" +
+            "        }" +
+            "    }" +
+            "} catch(e) {}" +
+            
             // 查找截止日期
             "for (var i = 0; i < lines.length; i++) {" +
             "    var line = lines[i].trim();" +
@@ -136,10 +147,27 @@ public class WebViewActivity extends Activity {
                 // 同时提取 Cookie
                 String cookies = extractCookies();
                 
+                // 优先从 CookieManager 提取 groupId（更可靠）
+                String groupId = data.optString("groupId", "");
+                if (groupId.isEmpty()) {
+                    CookieManager cookieManager = CookieManager.getInstance();
+                    String fullCookies = cookieManager.getCookie("https://platform.minimaxi.com");
+                    if (fullCookies != null) {
+                        // 从 Cookie 中提取 _gc_usr_id_cs0_d0_sec0_part0
+                        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("_gc_usr_id_cs0_d0_sec0_part0=([^;]+)");
+                        java.util.regex.Matcher matcher = pattern.matcher(fullCookies);
+                        if (matcher.find()) {
+                            groupId = matcher.group(1);
+                            Log.d(TAG, "GroupId from CookieManager: " + groupId);
+                        }
+                    }
+                }
+                
                 // 保存所有数据
                 getSharedPreferences("cookies", MODE_PRIVATE)
                     .edit()
                     .putString("extracted_cookies", cookies)
+                    .putString("group_id", groupId)  // 同时保存 groupId 到独立字段
                     .putString("page_data", jsonStr)
                     .apply();
                 
@@ -147,7 +175,10 @@ public class WebViewActivity extends Activity {
                 String msg = hasLogin ? 
                     "✓ 数据已提取（含登录信息）" :
                     "✓ Cookie 已提取";
-                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+                if (!groupId.isEmpty()) {
+                    msg += "\nGroupId: " + groupId;
+                }
+                Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
                 
             } catch (Exception e) {
                 Log.e(TAG, "Parse error", e);

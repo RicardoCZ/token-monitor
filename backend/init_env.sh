@@ -7,7 +7,6 @@ set -euo pipefail
 BACKEND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$BACKEND_DIR/.env"
 EXAMPLE="$BACKEND_DIR/.env.example"
-ADMIN_ENV_BASH="$BACKEND_DIR/.admin_password.env"
 
 show_help() {
   cat <<'EOF'
@@ -15,9 +14,6 @@ show_help() {
 
   从 .env.example 复制生成 backend/.env，并写入随机生成的:
     APP_SECRET_KEY, JWT_SECRET_KEY, DB_PASSWORD (python secrets.token_urlsafe(32))
-
-  另外生成首任管理员环境变量口令文件 backend/.admin_password.env (bash: export ADMIN_PASSWORD=...)，
-  启动服务前请执行:  source backend/.admin_password.env
 
 选项:
   -h, --help          显示本说明并退出
@@ -62,7 +58,6 @@ fi
 python3 <<PY
 import secrets
 import shutil
-import sys
 from pathlib import Path
 
 backend = Path(r"$BACKEND_DIR")
@@ -90,21 +85,6 @@ for line in lines:
         out.append(line)
 target.write_text("\n".join(out) + "\n", encoding="utf-8")
 print(f"已生成: {target}")
-
-admin_pw = secrets.token_urlsafe(32)
-admin_file = backend / ".admin_password.env"
-# 口令仅含 urlsafe 字符，可直接套单引号
-admin_file.write_text(
-    "# 由 init_env.sh 生成，已加入 .gitignore。启动 uvicorn 前执行: source backend/.admin_password.env\n"
-    f"export ADMIN_PASSWORD='{admin_pw}'\n",
-    encoding="utf-8",
-)
-print(f"已生成: {admin_file} (请 source 后首调 POST /auth/create-admin)")
-try:
-    import os
-    os.chmod(admin_file, 0o600)
-except OSError:
-    pass
 PY
 
 # 读取 .env 中的 DB_*（供连接检测）

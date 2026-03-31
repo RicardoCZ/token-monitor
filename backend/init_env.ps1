@@ -19,10 +19,6 @@ function Show-Help {
     APP_SECRET_KEY, JWT_SECRET_KEY, DB_PASSWORD
     (均使用: python -c "import secrets; print(secrets.token_urlsafe(32))")
 
-  另生成 backend\.admin_password.env.ps1，在同一 PowerShell 会话执行:
-    . .\.admin_password.env.ps1
-  再启动应用，以便 ADMIN_PASSWORD 可供 POST /auth/create-admin 使用。
-
 参数:
   -Help          显示本说明
   -SkipMySql     不检测 MySQL、不尝试建库
@@ -88,15 +84,6 @@ for line in lines:
         out.append(line)
 target.write_text("\n".join(out) + "\n", encoding="utf-8")
 print("OK", target)
-
-admin_pw = secrets.token_urlsafe(32)
-admin_file = backend / ".admin_password.env.ps1"
-ps1_line = '$env:ADMIN_PASSWORD = "' + admin_pw + '"' + "\n"
-admin_file.write_text(
-    "# init_env.ps1 生成；同一 shell 执行: . .\\.admin_password.env.ps1\n" + ps1_line,
-    encoding="utf-8",
-)
-print("OK", admin_file)
 '@.Replace('__BDIR__', $bdirPy)
 
 $fillPy | python -

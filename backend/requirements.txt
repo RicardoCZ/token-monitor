@@ -1,2 +1,27 @@
+# Token Monitor Backend Dependencies
+
+# ============ 核心框架 ============
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+httpx>=0.27.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.0
+
+# ============ 数据库 ============
+sqlalchemy>=2.0.0
+aiomysql>=0.2.0
+
+# ============ 认证安全 ============
+passlib>=1.7.4
+# passlib 1.7.4 与 bcrypt 4.1+ 不兼容（初始化时 detect_wrap_bug 触发 72 字节限制异常）
+bcrypt>=4.0.1,<4.1
+python-jose>=3.3.0
+python-multipart>=0.0.9
+
+# ============ 加密 ============
+cryptography>=42.0.0
+
+# ============ 旧依赖 (过渡期保留) ============
 Flask==3.0.0
 requests==2.31.0
