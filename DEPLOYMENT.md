@@ -17,6 +17,19 @@
 
 ---
 
+## 数据库迁移（API Key）
+
+在升级到包含 API Key 鉴权的版本后，请执行一次迁移脚本以创建 `api_keys` 表和相关索引：
+
+```bash
+cd backend
+python -m utils.migrate_api_keys
+```
+
+> 如果你的环境使用 `python3`，请将命令改为 `python3 -m utils.migrate_api_keys`。
+
+---
+
 ## 初始化脚本
 
 > ⚠️ **前提**：先确保 MySQL 管理员账户（如 root）已有密码，脚本需要用它来创建数据库和用户。
@@ -71,6 +84,35 @@ FLUSH PRIVILEGES;
 - **不要提交** `backend/.env` 到 Git
 - 生产环境关闭 `DEBUG`，使用 HTTPS
 - 轮换 `JWT_SECRET_KEY` 会使所有已登录用户失效
+
+---
+
+## API Key 使用
+
+### 1) 在管理后台创建 API Key
+
+1. 管理员登录 `admin.html`
+2. 在「API Key 管理」区域填写名称、Scope、可选过期时间
+3. 点击创建并立即复制明文 Key（只显示一次）
+
+权限说明：普通用户只能管理自己的 Key，管理员可管理全部用户的 Key。
+
+### 2) 程序调用示例
+
+```bash
+# 推荐：X-API-Key 头
+curl "http://localhost:5188/api/current-cookies" \
+  -H "X-API-Key: tmk_xxx"
+
+# 或 Authorization: ApiKey 头
+curl "http://localhost:5188/api/current-cookies" \
+  -H "Authorization: ApiKey tmk_xxx"
+```
+
+常用 Scope：
+
+- `cookie:read`
+- `cookie:write`
 
 ---
 

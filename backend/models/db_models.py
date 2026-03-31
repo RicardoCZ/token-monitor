@@ -24,6 +24,7 @@ class User(Base):
     # 关联
     accounts = relationship("Account", back_populates="user", cascade="all, delete-orphan")
     invite_codes = relationship("InviteCode", back_populates="creator", foreign_keys="InviteCode.created_by")
+    api_keys = relationship("ApiKey", back_populates="user", cascade="all, delete-orphan")
 
 
 class InviteCode(Base):
@@ -117,3 +118,23 @@ class Alert(Base):
 
     # 关联
     account = relationship("Account", back_populates="alerts")
+
+
+class ApiKey(Base):
+    """API Key 表（仅存哈希，不存明文）"""
+    __tablename__ = "api_keys"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    key_prefix = Column(String(32), nullable=False, index=True)
+    key_hash = Column(String(255), nullable=False, unique=True)
+    scopes = Column(Text, nullable=False, default="[]")  # JSON 字符串
+    is_active = Column(Boolean, default=True)
+    expires_at = Column(DateTime)
+    last_used_at = Column(DateTime)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    # 关联
+    user = relationship("User", back_populates="api_keys")

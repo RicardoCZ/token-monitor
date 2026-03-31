@@ -91,6 +91,37 @@ cd android && ./gradlew assembleDebug
 | `/api/xfyun` | GET | 获取讯飞用量 |
 | `/api/set-cookie` | POST | 设置 Cookie |
 | `/api/login/status` | GET | 检查登录状态 |
+| `/auth/api-keys` | POST | 创建 API Key（仅返回一次明文） |
+| `/auth/api-keys` | GET | 列出 API Key（不返回明文） |
+| `/auth/api-keys/{id}` | DELETE | 撤销 API Key |
+| `/auth/api-keys/{id}/rotate` | POST | 轮换 API Key（返回新明文） |
+
+## API Key 鉴权
+
+API 支持两种并行鉴权方式：
+
+- **JWT 用户会话**：适合浏览器端登录态（`Authorization: Bearer <token>`）
+- **API Key 程序调用**：适合脚本、CI、服务间调用（`X-API-Key: tmk_xxx`）
+
+权限说明：普通用户只能管理自己的 Key，管理员可管理全部用户的 Key。
+
+### 使用示例
+
+```bash
+# 使用 API Key 访问受保护接口
+curl "http://localhost:5188/api/current-cookies" \
+  -H "X-API-Key: tmk_xxx"
+
+# 也支持 Authorization: ApiKey 形式
+curl "http://localhost:5188/api/current-cookies" \
+  -H "Authorization: ApiKey tmk_xxx"
+```
+
+### Scope 权限说明
+
+- `cookie:read`：读取 Cookie 相关信息（如 `/api/current-cookies`、`/api/cdp/targets`）
+- `cookie:write`：写入/变更 Cookie 或连接状态（如 `/api/cookie/set`、`/api/clear-cache`、`/api/cdp/connect`）
+- `*`：通配符，表示拥有全部 scope（仅建议在受控场景使用）
 
 ## Cookie 管理
 

@@ -11,6 +11,7 @@ import os
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from models.schemas import StatusResponse, MessageResponse
+from core.security import AuthContext, require_scope
 from services.minimax_service import MiniMaxService
 from services.xunfei_service import XunFeiService
 
@@ -51,13 +52,17 @@ async def health_check():
 
 
 @router.post("/clear-cache")
-async def clear_cache():
+async def clear_cache(
+    auth: AuthContext = Depends(require_scope("cookie:write")),
+):
     """清除缓存（如果实现了缓存的话）"""
     return {"message": "Cache cleared", "success": True}
 
 
 @router.get("/current-cookies")
-async def get_current_cookies():
+async def get_current_cookies(
+    auth: AuthContext = Depends(require_scope("cookie:read")),
+):
     """
     获取所有服务的 Cookie 配置状态
     

@@ -3,12 +3,13 @@ Token Monitor - Cookie 管理 API 路由
 Cookie 的设置、读取、删除等接口
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from core.security import AuthContext, require_scope
 from models.schemas import MessageResponse
 import json
 import os
@@ -39,7 +40,10 @@ def get_cookie_file(service: str) -> str:
 
 
 @router.post("/set", response_model=MessageResponse)
-async def set_cookie(req: SetCookieRequest):
+async def set_cookie(
+    req: SetCookieRequest,
+    auth: AuthContext = Depends(require_scope("cookie:write")),
+):
     """
     设置 Cookie
     
@@ -72,7 +76,10 @@ async def set_cookie(req: SetCookieRequest):
 
 
 @router.get("/get/{service}", response_model=MessageResponse)
-async def get_cookie(service: str):
+async def get_cookie(
+    service: str,
+    auth: AuthContext = Depends(require_scope("cookie:read")),
+):
     """
     获取 Cookie 状态
     
@@ -104,7 +111,10 @@ async def get_cookie(service: str):
 
 
 @router.delete("/{service}", response_model=MessageResponse)
-async def delete_cookie(service: str):
+async def delete_cookie(
+    service: str,
+    auth: AuthContext = Depends(require_scope("cookie:write")),
+):
     """
     删除 Cookie
     

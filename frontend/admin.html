@@ -141,6 +141,16 @@
         .btn.secondary {
             background: rgba(255, 255, 255, 0.1);
         }
+
+        .btn.danger {
+            background: rgba(244, 67, 54, 0.9);
+        }
+
+        .btn.small {
+            padding: 6px 12px;
+            font-size: 12px;
+            margin-right: 6px;
+        }
         
         table {
             width: 100%;
@@ -199,6 +209,27 @@
             padding: 40px;
             color: #666;
         }
+
+        .hint {
+            font-size: 12px;
+            color: #888;
+            margin-top: -8px;
+            margin-bottom: 16px;
+        }
+
+        .key-once {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            background: rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(102, 126, 234, 0.4);
+        }
+
+        .key-once .code {
+            display: inline-block;
+            margin: 8px 0;
+            word-break: break-all;
+        }
         
         .toast {
             position: fixed;
@@ -256,7 +287,7 @@
                         <option value="0">无限次</option>
                     </select>
                 </div>
-                <button class="btn" onclick="createInviteCode()">生成邀请码</button>
+                <button id="invite-btn" class="btn" onclick="createInviteCode()">生成邀请码</button>
             </div>
         </div>
         
@@ -264,6 +295,35 @@
         <div class="card">
             <h2>📋 邀请码列表</h2>
             <div id="codes-list">
+                <div class="empty">加载中...</div>
+            </div>
+        </div>
+
+        <!-- API Key 管理 -->
+        <div class="card">
+            <h2>🔑 API Key 管理</h2>
+            <p class="hint">明文 Key 只会在创建或轮换时展示一次，请立即复制保存。</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>名称</label>
+                    <input id="api-key-name" type="text" placeholder="例如：CI Robot">
+                </div>
+                <div class="form-group">
+                    <label>Scopes（逗号分隔）</label>
+                    <input id="api-key-scopes" type="text" placeholder="cookie:read,cookie:write">
+                </div>
+                <div class="form-group">
+                    <label>过期时间（可选）</label>
+                    <input id="api-key-expires" type="datetime-local">
+                </div>
+                <button id="api-key-create-btn" class="btn" onclick="createApiKey()">创建 Key</button>
+            </div>
+            <div id="api-key-once" class="key-once" style="display:none;"></div>
+        </div>
+
+        <div class="card">
+            <h2>🗂️ API Key 列表</h2>
+            <div id="api-keys-list">
                 <div class="empty">加载中...</div>
             </div>
         </div>
@@ -275,6 +335,23 @@
         const API_BASE = window.location.origin;
         let authToken = localStorage.getItem('token');
         let currentUser = null;
+
+        function getAuthHeaders() {
+            return { 'Authorization': `Bearer ${authToken}` };
+        }
+
+        function getJsonHeaders() {
+            return {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            };
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
         
         // 检查登录状态和管理员权限
         async function checkAuth() {
@@ -285,7 +362,7 @@
             
             try {
                 const resp = await fetch(`${API_BASE}/auth/me`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: getAuthHeaders()
                 });
                 
                 if (resp.ok) {
@@ -317,7 +394,7 @@
         // 创建邀请码
         async function createInviteCode() {
             const maxUses = document.getElementById('max-uses').value;
-            const btn = document.querySelector('.btn');
+            const btn = document.getElementById('invite-btn');
             
             btn.disabled = true;
             btn.textContent = '生成中...';
@@ -329,10 +406,7 @@
                 
                 const resp = await fetch(`${API_BASE}/auth/invite-codes`, {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`,
-                        'Content-Type': 'application/json'
-                    },
+                    headers: getJsonHeaders(),
                     body: JSON.stringify(body)
                 });
                 
@@ -358,7 +432,7 @@
             
             try {
                 const resp = await fetch(`${API_BASE}/auth/invite-codes`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: getAuthHeaders()
                 });
                 
                 const codes = await resp.json();
@@ -408,6 +482,198 @@
                 container.innerHTML = `<div class="empty">加载失败: ${e.message}</div>`;
             }
         }
+
+        function parseScopesInput(text) {
+            return (text || '')
+                .split(',')
+                .map(v => v.trim())
+                .filter(Boolean);
+        }
+
+        function formatDate(value) {
+            if (!value) return '-';
+            return new Date(value).toLocaleString('zh-CN');
+        }
+
+        function formatScopes(scopes) {
+            if (!Array.isArray(scopes) || scopes.length === 0) return '-';
+            return scopes.join(', ');
+        }
+
+        function getApiKeyStatus(item) {
+            if (!item.is_active) {
+                return { className: 'used', text: '已撤销' };
+            }
+            if (item.expires_at && new Date(item.expires_at) <= new Date()) {
+                return { className: 'expired', text: '已过期' };
+            }
+            return { className: 'unused', text: '可用' };
+        }
+
+        async function copyText(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast('已复制到剪贴板');
+            } catch (e) {
+                showToast('复制失败，请手动复制', true);
+            }
+        }
+
+        function showOneTimeApiKey(data, actionText) {
+            const panel = document.getElementById('api-key-once');
+            const rawKey = data.api_key || '';
+            const safeKey = escapeHtml(rawKey);
+            const safeName = escapeHtml(data.name || '');
+            panel.style.display = 'block';
+            panel.innerHTML = `
+                <div><strong>${actionText}成功：</strong>${safeName}</div>
+                <div class="code">${safeKey}</div>
+                <div>
+                    <button class="btn secondary small" onclick='copyText(${JSON.stringify(rawKey)})'>复制 Key</button>
+                    <span class="hint">该明文不会再次显示</span>
+                </div>
+            `;
+        }
+
+        async function createApiKey() {
+            const nameInput = document.getElementById('api-key-name');
+            const scopesInput = document.getElementById('api-key-scopes');
+            const expiresInput = document.getElementById('api-key-expires');
+            const btn = document.getElementById('api-key-create-btn');
+
+            const name = nameInput.value.trim();
+            if (!name) {
+                showToast('请输入 API Key 名称', true);
+                return;
+            }
+
+            const body = {
+                name,
+                scopes: parseScopesInput(scopesInput.value),
+                expires_at: expiresInput.value ? new Date(expiresInput.value).toISOString() : null
+            };
+
+            btn.disabled = true;
+            btn.textContent = '创建中...';
+            try {
+                const resp = await fetch(`${API_BASE}/auth/api-keys`, {
+                    method: 'POST',
+                    headers: getJsonHeaders(),
+                    body: JSON.stringify(body)
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '创建 API Key 失败', true);
+                    return;
+                }
+
+                showOneTimeApiKey(data, '创建');
+                nameInput.value = '';
+                scopesInput.value = '';
+                expiresInput.value = '';
+                showToast('API Key 创建成功');
+                loadApiKeys();
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '创建 Key';
+            }
+        }
+
+        async function loadApiKeys() {
+            const container = document.getElementById('api-keys-list');
+            try {
+                const resp = await fetch(`${API_BASE}/auth/api-keys`, {
+                    headers: getAuthHeaders()
+                });
+                const keys = await resp.json();
+                if (!resp.ok) {
+                    container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(keys.detail || '请求失败')}</div>`;
+                    return;
+                }
+
+                if (!keys.length) {
+                    container.innerHTML = '<div class="empty">暂无 API Key</div>';
+                    return;
+                }
+
+                container.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>名称</th>
+                                <th>前缀</th>
+                                <th>Scopes</th>
+                                <th>状态</th>
+                                <th>最后使用</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${keys.map(item => {
+                                const status = getApiKeyStatus(item);
+                                const scopes = escapeHtml(formatScopes(item.scopes));
+                                return `
+                                    <tr>
+                                        <td>${escapeHtml(item.name)}</td>
+                                        <td><span class="code">${escapeHtml(item.key_prefix)}</span></td>
+                                        <td>${scopes}</td>
+                                        <td><span class="status ${status.className}">${status.text}</span></td>
+                                        <td>${formatDate(item.last_used_at)}</td>
+                                        <td>
+                                            <button class="btn secondary small" onclick="rotateApiKey(${item.id})">轮换</button>
+                                            <button class="btn danger small" onclick="revokeApiKey(${item.id})">撤销</button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (e) {
+                container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        async function revokeApiKey(id) {
+            if (!confirm('确认撤销该 API Key 吗？撤销后无法恢复。')) return;
+            try {
+                const resp = await fetch(`${API_BASE}/auth/api-keys/${id}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '撤销失败', true);
+                    return;
+                }
+                showToast('API Key 已撤销');
+                loadApiKeys();
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            }
+        }
+
+        async function rotateApiKey(id) {
+            if (!confirm('确认轮换该 API Key 吗？旧 Key 会立即失效。')) return;
+            try {
+                const resp = await fetch(`${API_BASE}/auth/api-keys/${id}/rotate`, {
+                    method: 'POST',
+                    headers: getAuthHeaders()
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '轮换失败', true);
+                    return;
+                }
+                showOneTimeApiKey(data, '轮换');
+                showToast('API Key 已轮换');
+                loadApiKeys();
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            }
+        }
         
         // 显示提示
         function showToast(msg, isError = false) {
@@ -431,6 +697,7 @@
         checkAuth().then(ok => {
             if (ok) {
                 loadInviteCodes();
+                loadApiKeys();
             }
         });
     </script>

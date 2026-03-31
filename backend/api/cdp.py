@@ -3,9 +3,9 @@ Token Monitor - CDP API 路由
 通过 Chrome DevTools Protocol 连接浏览器并提取 Cookie
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional, List
+from core.security import AuthContext, require_scope
 from services.cdp_service import cdp_service
 
 router = APIRouter(prefix="/api/cdp", tags=["CDP"])
@@ -17,7 +17,10 @@ class CDPConnectRequest(BaseModel):
 
 
 @router.post("/connect")
-async def cdp_connect(req: CDPConnectRequest):
+async def cdp_connect(
+    req: CDPConnectRequest,
+    auth: AuthContext = Depends(require_scope("cookie:write")),
+):
     """连接到 Chrome 调试浏览器"""
     # 保存连接参数到服务实例
     cdp_service.host = req.host
@@ -41,7 +44,9 @@ async def cdp_connect(req: CDPConnectRequest):
 
 
 @router.get("/targets")
-async def cdp_get_targets():
+async def cdp_get_targets(
+    auth: AuthContext = Depends(require_scope("cookie:read")),
+):
     """获取可用页面列表（使用已保存的连接参数）"""
     targets = cdp_service.get_targets()
     
@@ -60,7 +65,9 @@ async def cdp_get_targets():
 
 
 @router.get("/services")
-async def cdp_get_services():
+async def cdp_get_services(
+    auth: AuthContext = Depends(require_scope("cookie:read")),
+):
     """获取支持自动提取 Cookie 的服务列表"""
     return {
         "success": True,
@@ -86,7 +93,10 @@ async def cdp_get_services():
 
 
 @router.post("/get-cookies")
-async def cdp_get_cookies(body: dict):
+async def cdp_get_cookies(
+    body: dict,
+    auth: AuthContext = Depends(require_scope("cookie:read")),
+):
     """从指定页面获取 Cookie"""
     target_id = body.get("target_id", "")
     domain = body.get("domain", "")
@@ -115,7 +125,10 @@ async def cdp_get_cookies(body: dict):
 
 
 @router.post("/get-page-info")
-async def cdp_get_page_info(body: dict):
+async def cdp_get_page_info(
+    body: dict,
+    auth: AuthContext = Depends(require_scope("cookie:read")),
+):
     """获取页面信息"""
     target_id = body.get("target_id", "")
     service_id = body.get("service_id", "")
@@ -141,7 +154,10 @@ async def cdp_get_page_info(body: dict):
 
 
 @router.post("/extract")
-async def cdp_extract_all(body: dict):
+async def cdp_extract_all(
+    body: dict,
+    auth: AuthContext = Depends(require_scope("cookie:read")),
+):
     """从指定页面提取所有信息（Cookie + 页面数据）"""
     target_id = body.get("target_id", "")
     service_id = body.get("service_id", "")
@@ -183,7 +199,9 @@ async def cdp_extract_all(body: dict):
 
 
 @router.post("/disconnect")
-async def cdp_disconnect():
+async def cdp_disconnect(
+    auth: AuthContext = Depends(require_scope("cookie:write")),
+):
     """断开 CDP 连接"""
     cdp_service.ws_url = None
     return {"success": True, "message": "已断开连接"}

@@ -5,6 +5,7 @@ Token Monitor - 认证 API 路由
 
 import secrets
 import string
+import json
 from datetime import datetime
 from typing import Optional
 
@@ -14,7 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from models.database import get_db
-from models.db_models import User, InviteCode
+from models.db_models import ApiKey, User, InviteCode
+from core.api_keys import generate_api_key, get_api_key_prefix, hash_api_key
+from core.config import settings
 from core.security import (
     verify_password,
     get_password_hash,
@@ -142,6 +145,100 @@ class InviteCodeResponse(BaseModel):
     used_count: int
     remaining: int  # 剩余次数，-1 表示无限
     created_at: datetime
+
+
+class ApiKeyCreateRequest(BaseModel):
+    name: str
+    scopes: list[str] = []
+    expires_at: Optional[datetime] = None
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v):
+        value = (v or "").strip()
+        if not value:
+            raise ValueError("名称不能为空")
+        if len(value) > 100:
+            raise ValueError("名称长度不能超过 100")
+        return value
+
+
+class ApiKeyResponse(BaseModel):
+    id: int
+    name: str
+    key_prefix: str
+    scopes: list[str]
+    is_active: bool
+    expires_at: Optional[datetime]
+    last_used_at: Optional[datetime]
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ApiKeyCreateResponse(ApiKeyResponse):
+    api_key: str
+
+
+def _parse_api_key_scopes(raw_scopes: str) -> list[str]:
+    """解析 API Key scopes（JSON 文本 -> list[str]）"""
+    if not raw_scopes:
+        return []
+    try:
+        parsed = json.loads(raw_scopes)
+        if isinstance(parsed, list):
+            return [str(item) for item in parsed]
+        if isinstance(parsed, str):
+            return [parsed]
+        return []
+    except json.JSONDecodeError:
+        return []
+
+
+def _normalize_scopes(scopes: list[str]) -> list[str]:
+    """清洗 scopes，去重并保持稳定顺序"""
+    normalized = []
+    seen = set()
+    for scope in scopes:
+        item = (scope or "").strip()
+        if not item or item in seen:
+            continue
+        seen.add(item)
+        normalized.append(item)
+    return normalized
+
+
+def _to_api_key_response(row: ApiKey) -> ApiKeyResponse:
+    return ApiKeyResponse(
+        id=row.id,
+        name=row.name,
+        key_prefix=row.key_prefix,
+        scopes=_parse_api_key_scopes(row.scopes),
+        is_active=row.is_active,
+        expires_at=row.expires_at,
+        last_used_at=row.last_used_at,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+async def _get_visible_api_key(
+    api_key_id: int,
+    current_user: User,
+    db: AsyncSession,
+) -> ApiKey:
+    """获取当前用户可访问的 API Key（管理员可访问全部）"""
+    result = await db.execute(select(ApiKey).where(ApiKey.id == api_key_id))
+    api_key = result.scalar_one_or_none()
+    if not api_key:
+        raise HTTPException(status_code=404, detail="API Key 不存在")
+
+    if current_user.role != "admin" and api_key.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="无权操作该 API Key")
+
+    return api_key
 
 
 # ============ API 路由 ============
@@ -351,3 +448,101 @@ async def list_invite_codes(
         )
         for c in codes
     ]
+
+
+@router.post("/api-keys", response_model=ApiKeyCreateResponse)
+async def create_api_key(
+    req: ApiKeyCreateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """创建 API Key（明文仅本次返回）"""
+    scopes = _normalize_scopes(req.scopes)
+
+    # 极小概率哈希冲突时重试
+    for _ in range(3):
+        plain_key = generate_api_key()
+        key_hash = hash_api_key(plain_key, pepper=settings.app_secret_key)
+        key_prefix = get_api_key_prefix(plain_key)
+
+        row = ApiKey(
+            user_id=current_user.id,
+            name=req.name,
+            key_prefix=key_prefix,
+            key_hash=key_hash,
+            scopes=json.dumps(scopes, ensure_ascii=False),
+            is_active=True,
+            expires_at=req.expires_at,
+        )
+        db.add(row)
+
+        try:
+            await db.commit()
+            await db.refresh(row)
+            data = _to_api_key_response(row).model_dump()
+            data["api_key"] = plain_key
+            return ApiKeyCreateResponse(**data)
+        except Exception:
+            await db.rollback()
+
+    raise HTTPException(status_code=500, detail="创建 API Key 失败，请重试")
+
+
+@router.get("/api-keys", response_model=list[ApiKeyResponse])
+async def list_api_keys(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """列出 API Key（不返回明文）"""
+    query = select(ApiKey)
+    if current_user.role != "admin":
+        query = query.where(ApiKey.user_id == current_user.id)
+    query = query.order_by(ApiKey.created_at.desc())
+
+    result = await db.execute(query)
+    rows = result.scalars().all()
+    return [_to_api_key_response(row) for row in rows]
+
+
+@router.delete("/api-keys/{api_key_id}")
+async def revoke_api_key(
+    api_key_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """撤销 API Key（软删除：置为 inactive）"""
+    row = await _get_visible_api_key(api_key_id, current_user, db)
+    row.is_active = False
+    await db.commit()
+    return {"message": "API Key 已撤销", "success": True}
+
+
+@router.post("/api-keys/{api_key_id}/rotate", response_model=ApiKeyCreateResponse)
+async def rotate_api_key(
+    api_key_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """轮换 API Key（返回新明文；旧明文立即失效）"""
+    row = await _get_visible_api_key(api_key_id, current_user, db)
+
+    for _ in range(3):
+        plain_key = generate_api_key()
+        key_hash = hash_api_key(plain_key, pepper=settings.app_secret_key)
+        key_prefix = get_api_key_prefix(plain_key)
+
+        row.key_hash = key_hash
+        row.key_prefix = key_prefix
+        row.is_active = True
+        row.last_used_at = None
+
+        try:
+            await db.commit()
+            await db.refresh(row)
+            data = _to_api_key_response(row).model_dump()
+            data["api_key"] = plain_key
+            return ApiKeyCreateResponse(**data)
+        except Exception:
+            await db.rollback()
+
+    raise HTTPException(status_code=500, detail="轮换 API Key 失败，请重试")
