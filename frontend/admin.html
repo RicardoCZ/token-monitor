@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理后台 - Token Monitor</title>
+    <title>管理后台 - 令牌监控</title>
     <style>
         * {
             margin: 0;
@@ -303,8 +303,8 @@
         </div>
         
         <div class="nav">
-            <a href="api.html">📊 监控面板</a>
-            <a href="setup.html">🔧 设置 Cookie</a>
+            <a href="api.html">📊 实时监控</a>
+            <a href="setup.html">🔧 设置凭证</a>
             <a href="#" onclick="logout()">🚪 退出登录</a>
         </div>
         
@@ -335,30 +335,30 @@
             </div>
         </div>
 
-        <!-- API Key 管理 -->
+        <!-- 接口密钥管理 -->
         <div class="card">
-            <h2>🔑 API Key 管理</h2>
-            <p class="hint">明文 Key 只会在创建或轮换时展示一次，请立即复制保存。</p>
+            <h2>🔑 接口密钥管理</h2>
+            <p class="hint">明文密钥只会在创建或轮换时展示一次，请立即复制保存。</p>
             <div class="form-row">
                 <div class="form-group">
                     <label>名称</label>
-                    <input id="api-key-name" type="text" placeholder="例如：CI Robot">
+                    <input id="api-key-name" type="text" placeholder="例如：运维脚本密钥">
                 </div>
                 <div class="form-group">
-                    <label>Scopes（逗号分隔）</label>
+                    <label>权限范围（逗号分隔）</label>
                     <input id="api-key-scopes" type="text" placeholder="cookie:read,cookie:write">
                 </div>
                 <div class="form-group">
                     <label>过期时间（可选）</label>
                     <input id="api-key-expires" type="datetime-local">
                 </div>
-                <button id="api-key-create-btn" class="btn" onclick="createApiKey()">创建 Key</button>
+                <button id="api-key-create-btn" class="btn" onclick="createApiKey()">创建密钥</button>
             </div>
             <div id="api-key-once" class="key-once" style="display:none;"></div>
         </div>
 
         <div class="card">
-            <h2>🗂️ API Key 列表</h2>
+            <h2>🗂️ 接口密钥列表</h2>
             <div id="api-keys-list">
                 <div class="empty">加载中...</div>
             </div>
@@ -366,7 +366,7 @@
 
         <div class="card">
             <h2>🚨 告警规则管理（最小版）</h2>
-            <p class="sub-title">查看规则/事件，并按 metric_key 更新阈值与冷却参数</p>
+            <p class="sub-title">查看规则和事件，并按指标键更新阈值与冷却参数</p>
             <div class="form-row">
                 <div class="form-group">
                     <label>选择账号</label>
@@ -378,22 +378,22 @@
 
             <div class="inline-fields">
                 <div class="form-group">
-                    <label>metric_key</label>
-                    <input id="alert-metric-key" type="text" placeholder="例如 quota">
+                    <label>指标键</label>
+                    <input id="alert-metric-key" type="text" placeholder="例如：配额使用率">
                 </div>
                 <div class="form-group">
-                    <label>threshold (%)</label>
+                    <label>阈值（%）</label>
                     <input id="alert-threshold" type="number" step="0.1" value="80">
                 </div>
                 <div class="form-group">
-                    <label>cooldown_seconds</label>
+                    <label>冷却时间（秒）</label>
                     <input id="alert-cooldown" type="number" value="1800">
                 </div>
                 <div class="form-group">
-                    <label>is_enabled</label>
+                    <label>启用状态</label>
                     <select id="alert-enabled">
-                        <option value="true" selected>true</option>
-                        <option value="false">false</option>
+                        <option value="true" selected>启用</option>
+                        <option value="false">停用</option>
                     </select>
                 </div>
             </div>
@@ -608,7 +608,7 @@
                 <div><strong>${actionText}成功：</strong>${safeName}</div>
                 <div class="code">${safeKey}</div>
                 <div>
-                    <button class="btn secondary small" onclick='copyText(${JSON.stringify(rawKey)})'>复制 Key</button>
+                    <button class="btn secondary small" onclick='copyText(${JSON.stringify(rawKey)})'>复制密钥</button>
                     <span class="hint">该明文不会再次显示</span>
                 </div>
             `;
@@ -622,7 +622,7 @@
 
             const name = nameInput.value.trim();
             if (!name) {
-                showToast('请输入 API Key 名称', true);
+                showToast('请输入接口密钥名称', true);
                 return;
             }
 
@@ -642,7 +642,7 @@
                 });
                 const data = await resp.json();
                 if (!resp.ok) {
-                    showToast(data.detail || '创建 API Key 失败', true);
+                    showToast(data.detail || '创建接口密钥失败', true);
                     return;
                 }
 
@@ -650,13 +650,13 @@
                 nameInput.value = '';
                 scopesInput.value = '';
                 expiresInput.value = '';
-                showToast('API Key 创建成功');
+                showToast('接口密钥创建成功');
                 loadApiKeys();
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);
             } finally {
                 btn.disabled = false;
-                btn.textContent = '创建 Key';
+                btn.textContent = '创建密钥';
             }
         }
 
@@ -673,7 +673,7 @@
                 }
 
                 if (!keys.length) {
-                    container.innerHTML = '<div class="empty">暂无 API Key</div>';
+                    container.innerHTML = '<div class="empty">暂无接口密钥</div>';
                     return;
                 }
 
@@ -683,7 +683,7 @@
                             <tr>
                                 <th>名称</th>
                                 <th>前缀</th>
-                                <th>Scopes</th>
+                                <th>权限范围</th>
                                 <th>状态</th>
                                 <th>最后使用</th>
                                 <th>操作</th>
@@ -734,7 +734,7 @@
             select.innerHTML = alertAccounts
                 .map(item => `<option value="${item.id}">${escapeHtml(item.service_icon || "🧩")} ${escapeHtml(item.name || item.service_name || item.service_id)} (ID:${item.id})</option>`)
                 .join("");
-            if (hint) hint.textContent = "支持按 account_id + metric_key 维度管理规则";
+            if (hint) hint.textContent = "支持按账号 ID + 指标键维度管理规则";
         }
 
         async function loadAlertAccounts() {
@@ -773,11 +773,11 @@
                     <table class="mini-table">
                         <thead>
                             <tr>
-                                <th>metric_key</th>
-                                <th>threshold</th>
-                                <th>cooldown</th>
-                                <th>is_enabled</th>
-                                <th>is_firing</th>
+                                <th>指标键</th>
+                                <th>阈值</th>
+                                <th>冷却秒数</th>
+                                <th>已启用</th>
+                                <th>告警中</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -821,10 +821,10 @@
                         <thead>
                             <tr>
                                 <th>时间</th>
-                                <th>metric</th>
-                                <th>status</th>
-                                <th>percent</th>
-                                <th>message</th>
+                                <th>指标</th>
+                                <th>状态</th>
+                                <th>使用率</th>
+                                <th>消息</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -862,15 +862,15 @@
                 return;
             }
             if (!metricKey) {
-                showToast("请输入 metric_key", true);
+                showToast("请输入指标键", true);
                 return;
             }
             if (!Number.isFinite(threshold) || threshold < 0) {
-                showToast("threshold 无效", true);
+                showToast("阈值无效", true);
                 return;
             }
             if (!Number.isFinite(cooldown) || cooldown < 0) {
-                showToast("cooldown_seconds 无效", true);
+                showToast("冷却时间无效", true);
                 return;
             }
 
@@ -898,7 +898,7 @@
         }
 
         async function revokeApiKey(id) {
-            if (!confirm('确认撤销该 API Key 吗？撤销后无法恢复。')) return;
+            if (!confirm('确认撤销该接口密钥吗？撤销后无法恢复。')) return;
             try {
                 const resp = await fetch(`${API_BASE}/auth/api-keys/${id}`, {
                     method: 'DELETE',
@@ -909,7 +909,7 @@
                     showToast(data.detail || '撤销失败', true);
                     return;
                 }
-                showToast('API Key 已撤销');
+                showToast('接口密钥已撤销');
                 loadApiKeys();
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);
@@ -917,7 +917,7 @@
         }
 
         async function rotateApiKey(id) {
-            if (!confirm('确认轮换该 API Key 吗？旧 Key 会立即失效。')) return;
+            if (!confirm('确认轮换该接口密钥吗？旧密钥会立即失效。')) return;
             try {
                 const resp = await fetch(`${API_BASE}/auth/api-keys/${id}/rotate`, {
                     method: 'POST',
@@ -929,7 +929,7 @@
                     return;
                 }
                 showOneTimeApiKey(data, '轮换');
-                showToast('API Key 已轮换');
+                showToast('接口密钥已轮换');
                 loadApiKeys();
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);

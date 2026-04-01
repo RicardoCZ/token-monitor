@@ -5,49 +5,16 @@ MiniMax 平台的用量查询业务逻辑
 
 import json
 import os
-from pathlib import Path
 from typing import Optional
-
-import anyio
-from dotenv import dotenv_values
 
 from .base_service import BaseHTTPService
 
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 def _log(msg):
     """带时间戳的日志输出"""
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
-
-
-def _cdp_host_port() -> tuple[str, int]:
-    """
-    读取 CDP 调试地址：优先使用 backend/.env 中非空项，再读 os.environ（避免空串占位导致 getenv 拿不到默认值）。
-    """
-    env_path = Path(__file__).resolve().parent.parent / ".env"
-    file_vals: dict = {}
-    if env_path.is_file():
-        file_vals = dotenv_values(env_path) or {}
-
-    def _nonempty(v) -> Optional[str]:
-        if v is None:
-            return None
-        s = str(v).strip()
-        return s if s else None
-
-    host = _nonempty(file_vals.get("CDP_HOST"))
-    if not host:
-        host = _nonempty(os.environ.get("CDP_HOST")) or "127.0.0.1"
-
-    port_raw = _nonempty(file_vals.get("CDP_PORT"))
-    if not port_raw:
-        port_raw = _nonempty(os.environ.get("CDP_PORT")) or "9223"
-    try:
-        port = int(port_raw)
-    except ValueError:
-        port = 9223
-    return host, port
 
 
 class MiniMaxService(BaseHTTPService):
@@ -110,63 +77,14 @@ class MiniMaxService(BaseHTTPService):
             data = json.loads(resp)
             parsed = self._parse_response(data)
             if "error" not in parsed and isinstance(parsed.get("page_info"), dict):
-                try:
-                    # anyio 线程池与 uvicorn/async 主机兼容性优于 asyncio.to_thread（后者在部分环境下与子线程 CDP 行为不一致）
-                    expires = await anyio.to_thread.run_sync(self.get_subscription_info)
+                expires = (parsed["page_info"].get("expiresAt") or "").strip()
+                if not expires:
+                    expires = self._fetch_subscription_expires_from_api(cookies, group_id)
                     if expires:
-                        parsed["page_info"]["expiresAt"] = str(expires).strip()
-                except Exception as ex:
-                    _log(f"[MiniMax] CDP 订阅日期抓取跳过: {ex}")
+                        parsed["page_info"]["expiresAt"] = expires
             return parsed
         except Exception as e:
             return {"error": str(e), "code": "API_ERROR"}
-
-    def get_subscription_info(self) -> str:
-        """
-        通过已连接的 Chrome CDP，在 MiniMax Token Plan 等页面提取「截止日期」，返回 YYYY-MM-DD；无法提取时返回 ""。
-        """
-        from services.cdp_service import cdp_service
-
-        host, port = _cdp_host_port()
-        try:
-            targets = cdp_service.get_targets(host=host, port=port)
-        except Exception as e:
-            _log(f"[MiniMax] CDP get_targets 失败: {e}")
-            return ""
-
-        ws_url = self._pick_minimax_cdp_target(targets)
-        if not ws_url:
-            _log("[MiniMax] 未找到 MiniMax 相关调试页，跳过订阅截止日期")
-            return ""
-
-        try:
-            return cdp_service.extract_minimax_subscription_expires(ws_url)
-        except Exception as e:
-            _log(f"[MiniMax] extract_minimax_subscription_expires: {e}")
-            return ""
-
-    def _pick_minimax_cdp_target(self, targets: list) -> Optional[str]:
-        """选取最可能展示 Token Plan / 截止日期的 MiniMax 页面 WebSocket URL。"""
-        path_hints = ("token-plan", "payment", "user-center", "minimaxi.com", "minimax.com")
-        scored: list[tuple[int, str]] = []
-        for t in targets:
-            url = (t.get("url") or "").lower()
-            ws = t.get("websocketUrl") or ""
-            if not ws:
-                continue
-            if "minimaxi.com" not in url and "minimax.com" not in url:
-                continue
-            score = 0
-            if "token-plan" in url or "/payment/" in url:
-                score += 10
-            for h in path_hints:
-                if h in url:
-                    score += 1
-            scored.append((score, ws))
-        if not scored:
-            return None
-        scored.sort(key=lambda x: -x[0])
-        return scored[0][1]
     
     def _parse_response(self, data: dict) -> dict:
         """解析 API 响应"""
@@ -207,6 +125,7 @@ class MiniMaxService(BaseHTTPService):
                     "used": used,
                     "total": total,
                     "percent": percent,
+                    # remains 接口中的 end_time 是额度窗口结束时间，不是订阅到期时间
                     "expiresAt": "",
                     "resetHours": reset_hours,
                     "resetMinutes": reset_minutes
@@ -215,6 +134,158 @@ class MiniMaxService(BaseHTTPService):
             }
         except Exception as e:
             return {"error": f"Parse error: {str(e)}", "code": "PARSE_ERROR"}
+
+    def _normalize_expires_value(self, value) -> Optional[str]:
+        """将多种日期/时间戳格式标准化为 'YYYY-MM-DD HH:MM:SS'。"""
+        if value is None:
+            return None
+
+        if isinstance(value, (int, float)):
+            ts = float(value)
+            # 毫秒级时间戳
+            if ts > 10_000_000_000:
+                ts = ts / 1000.0
+            try:
+                return datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            except Exception:
+                return None
+
+        if not isinstance(value, str):
+            return None
+
+        text = value.strip()
+        if not text:
+            return None
+
+        # 纯时间戳字符串
+        if text.isdigit() and len(text) in (10, 13):
+            return self._normalize_expires_value(int(text))
+
+        # ISO8601 / 兼容格式
+        try:
+            dt = datetime.fromisoformat(text.replace("Z", "+00:00"))
+            if dt.tzinfo is not None:
+                dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            pass
+
+        # 常见日期字符串：YYYY-MM-DD 或 YYYY-MM-DD HH:MM[:SS]
+        normalized = text.replace("/", "-")
+        for fmt in (
+            "%Y-%m-%d",
+            "%Y-%m-%d %H:%M",
+            "%Y-%m-%d %H:%M:%S",
+            "%m-%d-%Y",
+            "%m-%d-%Y %H:%M",
+            "%m-%d-%Y %H:%M:%S",
+        ):
+            try:
+                dt = datetime.strptime(normalized, fmt)
+                if fmt in ("%Y-%m-%d", "%m-%d-%Y"):
+                    return dt.strftime("%Y-%m-%d")
+                return dt.strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                continue
+
+        return None
+
+    def _find_expires_in_payload(self, payload) -> Optional[str]:
+        """在嵌套 JSON 中递归查找订阅到期相关字段。"""
+        candidate_keys = {
+            "expiresat",
+            "expires_at",
+            "expireat",
+            "expire_at",
+            "expiredat",
+            "expired_at",
+            "endtime",
+            "end_time",
+            "validuntil",
+            "valid_until",
+            "validto",
+            "valid_to",
+            "subscribe_end_time",
+            "subscription_end_time",
+            "current_subscribe_end_time",
+            "current_credit_reload_time",
+        }
+
+        if isinstance(payload, dict):
+            # 先检查当前层的候选字段
+            for key, value in payload.items():
+                key_normalized = str(key).strip().lower()
+                if key_normalized in candidate_keys:
+                    normalized = self._normalize_expires_value(value)
+                    if normalized:
+                        return normalized
+            # 再递归检查子结构
+            for value in payload.values():
+                found = self._find_expires_in_payload(value)
+                if found:
+                    return found
+            return None
+
+        if isinstance(payload, list):
+            for item in payload:
+                found = self._find_expires_in_payload(item)
+                if found:
+                    return found
+            return None
+
+        return None
+
+    def _extract_expires_from_remains_payload(self, data: dict, main_model: dict) -> Optional[str]:
+        """优先从 remains 接口响应中提取到期时间。"""
+        # 优先模型级字段
+        expires = self._find_expires_in_payload(main_model)
+        if expires:
+            return expires
+
+        # 兜底：全量 payload 递归查找
+        return self._find_expires_in_payload(data)
+
+    def _fetch_subscription_expires_from_api(self, cookies: str, group_id: str) -> str:
+        """
+        通过已确认接口获取 MiniMax 订阅到期时间。
+        仅依赖 Cookie + GroupId，不依赖页面/CDP。
+        """
+        import httpx
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Accept": "application/json, text/plain, */*",
+            "Cookie": cookies,
+            "Referer": "https://platform.minimaxi.com/user-center/basic-info/interface-key"
+        }
+
+        try:
+            combo_url = "https://www.minimaxi.com/v1/api/openplatform/charge/combo/cycle_audio_resource_package"
+            resp = httpx.get(
+                combo_url,
+                headers=headers,
+                params={
+                    "biz_line": 2,
+                    "cycle_type": 3,
+                    "resource_package_type": 7,
+                    "GroupId": group_id,
+                },
+                timeout=10,
+            )
+            if resp.status_code != 200:
+                return ""
+
+            payload = resp.json()
+            current_subscribe = payload.get("current_subscribe", {})
+            if not isinstance(current_subscribe, dict):
+                return ""
+
+            raw_end_time = current_subscribe.get("current_subscribe_end_time")
+            normalized = self._normalize_expires_value(raw_end_time)
+            return normalized or ""
+        except Exception as e:
+            _log(f"[MiniMax] 订阅到期时间获取失败: {e}")
+            return ""
     
     def _get_group_id(self, cookies: str = None) -> Optional[str]:
         """获取 GroupId，优先从文件读取，否则自动从 API 获取"""

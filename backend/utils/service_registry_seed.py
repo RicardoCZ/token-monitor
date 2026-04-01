@@ -32,17 +32,17 @@ DEFAULT_SERVICE_REGISTRY: list[dict[str, Any]] = [
         },
         "metric_defs": [
             {
-                "key": "quota_used",
+                "key": "used",
                 "label": "已用额度",
                 "unit": "count",
             },
             {
-                "key": "quota_total",
+                "key": "total",
                 "label": "总额度",
                 "unit": "count",
             },
             {
-                "key": "usage_percent",
+                "key": "percent",
                 "label": "使用率",
                 "unit": "percent",
             },
@@ -102,21 +102,6 @@ def _merge_capabilities(existing: Any, default: Mapping[str, Any]) -> dict[str, 
     return merged
 
 
-def _merge_metric_defs(existing: Any, default: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    if not isinstance(existing, list):
-        return list(default)
-
-    merged = [item for item in existing if isinstance(item, dict)]
-    existing_keys = {str(item.get("key")) for item in merged if item.get("key")}
-
-    for item in default:
-        key = str(item.get("key") or "").strip()
-        if key and key not in existing_keys:
-            merged.append(item)
-            existing_keys.add(key)
-    return merged
-
-
 async def seed_service_registry(db: AsyncSession) -> tuple[int, int]:
     """
     增量幂等 seed：
@@ -151,9 +136,10 @@ async def seed_service_registry(db: AsyncSession) -> tuple[int, int]:
             service.capabilities = merged_capabilities
             changed = True
 
-        merged_metric_defs = _merge_metric_defs(service.metric_defs, payload["metric_defs"])
-        if merged_metric_defs != service.metric_defs:
-            service.metric_defs = merged_metric_defs
+        # metric_defs 采用“替换”策略，避免历史 key 叠加导致前端重复渲染
+        default_metric_defs = list(payload["metric_defs"])
+        if service.metric_defs != default_metric_defs:
+            service.metric_defs = default_metric_defs
             changed = True
 
         if service.is_enabled is None:

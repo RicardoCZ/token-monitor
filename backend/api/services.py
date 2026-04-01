@@ -16,6 +16,12 @@ from models.db_models import Service
 
 router = APIRouter(prefix="/api/services", tags=["服务注册表"])
 
+METRIC_KEY_ALIAS_MAP = {
+    "quota_used": "used",
+    "quota_total": "total",
+    "usage_percent": "percent",
+}
+
 
 def _normalize_cookie_domains(raw: Any) -> list[str]:
     if not raw:
@@ -55,6 +61,25 @@ def _normalize_json_field(raw: Any, default: Any) -> Any:
 
 
 def _serialize_service(item: Service) -> dict[str, Any]:
+    raw_metric_defs = _normalize_json_field(item.metric_defs, [])
+    normalized_metric_defs: list[dict[str, Any]] = []
+    seen_metric_keys: set[str] = set()
+    if isinstance(raw_metric_defs, list):
+        for metric in raw_metric_defs:
+            if not isinstance(metric, dict):
+                continue
+            raw_key = str(metric.get("key") or "").strip()
+            key = METRIC_KEY_ALIAS_MAP.get(raw_key, raw_key)
+            if not key or key in seen_metric_keys:
+                continue
+            seen_metric_keys.add(key)
+            normalized_metric_defs.append(
+                {
+                    **metric,
+                    "key": key,
+                }
+            )
+
     return {
         "id": item.id,
         "name": item.name,
@@ -72,7 +97,7 @@ def _serialize_service(item: Service) -> dict[str, Any]:
                 "supports_alert": True,
             },
         ),
-        "metric_defs": _normalize_json_field(item.metric_defs, []),
+        "metric_defs": normalized_metric_defs,
         "is_enabled": bool(item.is_enabled),
     }
 

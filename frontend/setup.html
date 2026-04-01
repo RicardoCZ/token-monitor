@@ -510,6 +510,11 @@
             border-radius: 4px;
             color: #4CAF50;
         }
+
+        .collapsed-actions {
+            display: none;
+            margin-top: 8px;
+        }
     </style>
 </head>
 <body>
@@ -524,53 +529,57 @@
         
         <!-- CDP 连接模式 -->
         <div id="tab-cdp" class="tab-content active">
-            <div class="card">
+            <div class="card" id="cdp-connect-card">
                 <h2>🤖 CDP 自动获取 Cookie</h2>
-                
-                <div id="cdp-status" class="cdp-status disconnected">
-                    <div class="cdp-status-row">
-                        <span><span class="status-dot red"></span>未连接</span>
-                        <span id="cdp-port-display">-</span>
+
+                <div id="cdp-connect-config">
+                    <div id="cdp-status" class="cdp-status disconnected">
+                        <div class="cdp-status-row">
+                            <span><span class="status-dot red"></span>未连接</span>
+                            <span id="cdp-port-display">-</span>
+                        </div>
                     </div>
+
+                    <div class="step">
+                        <span class="step-num">1</span>
+                        <strong>创建浏览器调试快捷方式</strong>：
+                        <br>① 找到你电脑上的 Chrome 或 Edge 快捷方式（开始菜单或桌面）
+                        <br>② 右键 → <strong>属性</strong> → 复制「目标」里的路径
+                        <br>③ 桌面右键 → 新建 → 快捷方式 → 粘贴刚才复制的路径
+                        <br>④ 在路径最后加上参数：
+                        <br><code style="color:#667eea;"> --remote-debugging-port=9223 --remote-allow-origins=* --user-data-dir="C:\ChromeDebug"</code>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">2</span>
+                        <strong>双击这个快捷方式启动浏览器</strong>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">3</span>
+                        在地址栏输入 <code style="color:#667eea;">chrome://inspect/#remote-debugging</code> 并回车
+                        <br>✅ 勾选 <strong>Allow remote debugging for this browser instance</strong>
+                        <br>✅ 确认看到 <code>Server running at: 127.0.0.1:9223</code>（端口号可能不同）
+                        <br><button class="btn" style="padding:8px 16px;font-size:13px;margin-top:8px;" onclick="showChromeInspectGuide()">📸 查看示例截图</button>
+                    </div>
+                    <div class="step">
+                        <span class="step-num">4</span>
+                        回到本页面，填入端口号，点击连接
+                    </div>
+
+                    <select id="browser-type">
+                        <option value="chrome">Chrome</option>
+                        <option value="edge">Edge</option>
+                    </select>
+
+                    <input type="text" id="cdp-host" placeholder="IP地址，默认 127.0.0.1" value="127.0.0.1" style="margin-bottom:10px;">
+                    <input type="number" id="cdp-port" placeholder="端口号，如 9223 或 61917" value="9223">
+
+                    <button class="btn btn-success" id="btn-connect" onclick="connectBrowser()">🔗 连接浏览器</button>
+                    <div id="cdp-message" class="status"></div>
                 </div>
-                
-                <div class="step">
-                    <span class="step-num">1</span>
-                    <strong>创建浏览器调试快捷方式</strong>：
-                    <br>① 找到你电脑上的 Chrome 或 Edge 快捷方式（开始菜单或桌面）
-                    <br>② 右键 → <strong>属性</strong> → 复制「目标」里的路径
-                    <br>③ 桌面右键 → 新建 → 快捷方式 → 粘贴刚才复制的路径
-                    <br>④ 在路径最后加上参数：
-                    <br><code style="color:#667eea;"> --remote-debugging-port=9223 --remote-allow-origins=* --user-data-dir="C:\ChromeDebug"</code>
+
+                <div id="cdp-collapsed-actions" class="collapsed-actions">
+                    <button class="btn btn-secondary" id="btn-disconnect" onclick="disconnectBrowser()">断开连接</button>
                 </div>
-                <div class="step">
-                    <span class="step-num">2</span>
-                    <strong>双击这个快捷方式启动浏览器</strong>
-                </div>
-                <div class="step">
-                    <span class="step-num">3</span>
-                    在地址栏输入 <code style="color:#667eea;">chrome://inspect/#remote-debugging</code> 并回车
-                    <br>✅ 勾选 <strong>Allow remote debugging for this browser instance</strong>
-                    <br>✅ 确认看到 <code>Server running at: 127.0.0.1:9223</code>（端口号可能不同）
-                    <br><button class="btn" style="padding:8px 16px;font-size:13px;margin-top:8px;" onclick="showChromeInspectGuide()">📸 查看示例截图</button>
-                </div>
-                <div class="step">
-                    <span class="step-num">4</span>
-                    回到本页面，填入端口号，点击连接
-                </div>
-                
-                <select id="browser-type">
-                    <option value="chrome">Chrome</option>
-                    <option value="edge">Edge</option>
-                </select>
-                
-                <input type="text" id="cdp-host" placeholder="IP地址，默认 127.0.0.1" value="127.0.0.1" style="margin-bottom:10px;">
-                <input type="number" id="cdp-port" placeholder="端口号，如 9223 或 61917" value="9223">
-                
-                <button class="btn btn-success" id="btn-connect" onclick="connectBrowser()">🔗 连接浏览器</button>
-                <button class="btn btn-secondary" id="btn-disconnect" onclick="disconnectBrowser()" style="display:none;">断开连接</button>
-                
-                <div id="cdp-message" class="status"></div>
             </div>
             
             <div class="card" id="cdp-login-section" style="display:none;">
@@ -657,6 +666,17 @@
         
         // 用户认证
         let authToken = localStorage.getItem('token');
+
+        function getAuthHeaders() {
+            return { 'Authorization': `Bearer ${authToken}` };
+        }
+
+        function getJsonAuthHeaders() {
+            return {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            };
+        }
         
         // 检查登录状态
         async function checkAuth() {
@@ -716,7 +736,7 @@
             try {
                 const resp = await fetch(`${API_BASE}/api/cdp/connect`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getJsonAuthHeaders(),
                     body: JSON.stringify({ 
                         host: host, 
                         port: parseInt(port) 
@@ -743,9 +763,10 @@
                         </div>
                     `;
                     
-                    document.getElementById('btn-connect').style.display = 'none';
-                    document.getElementById('btn-disconnect').style.display = 'block';
+                    document.getElementById('cdp-connect-config').style.display = 'none';
+                    document.getElementById('cdp-collapsed-actions').style.display = 'block';
                     document.getElementById('cdp-login-section').style.display = 'block';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
                     
                     // 显示刷新按钮
                     document.getElementById('btn-refresh-targets').style.display = 'inline-block';
@@ -787,7 +808,10 @@
         
         async function disconnectBrowser() {
             try {
-                await fetch(`${API_BASE}/api/cdp/disconnect`, { method: 'POST' });
+                await fetch(`${API_BASE}/api/cdp/disconnect`, {
+                    method: 'POST',
+                    headers: getAuthHeaders()
+                });
             } catch (e) {}
             
             cdpConnected = false;
@@ -803,8 +827,8 @@
                 </div>
             `;
             
-            document.getElementById('btn-connect').style.display = 'block';
-            document.getElementById('btn-disconnect').style.display = 'none';
+            document.getElementById('cdp-connect-config').style.display = 'block';
+            document.getElementById('cdp-collapsed-actions').style.display = 'none';
             document.getElementById('cdp-login-section').style.display = 'none';
             document.getElementById('btn-refresh-targets').style.display = 'none';
             document.getElementById('targets-list').innerHTML = '<div class="loading">点击「连接浏览器」后显示可用页面</div>';
@@ -853,7 +877,9 @@
             btn.disabled = true;
             
             try {
-                const resp = await fetch(`${API_BASE}/api/cdp/targets`);
+                const resp = await fetch(`${API_BASE}/api/cdp/targets`, {
+                    headers: getAuthHeaders()
+                });
                 const data = await resp.json();
                 
                 if (data.success) {
@@ -902,7 +928,9 @@
         
         async function loadServices() {
             try {
-                const resp = await fetch(`${API_BASE}/api/cdp/services`);
+                const resp = await fetch(`${API_BASE}/api/cdp/services`, {
+                    headers: getAuthHeaders()
+                });
                 const data = await resp.json();
                 
                 if (data.success) {
@@ -1353,7 +1381,9 @@
             
             try {
                 // 先刷新标签页列表，确保有最新的数据
-                const targetsResp = await fetch(`${API_BASE}/api/cdp/targets`);
+                const targetsResp = await fetch(`${API_BASE}/api/cdp/targets`, {
+                    headers: getAuthHeaders()
+                });
                 const targetsData = await targetsResp.json();
                 
                 if (!targetsData.success) {
@@ -1385,7 +1415,7 @@
                     // 从匹配的标签页获取 cookie
                     const resp = await fetch(`${API_BASE}/api/cdp/get-cookies`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: getJsonAuthHeaders(),
                         body: JSON.stringify({ 
                             target_id: matchedTarget.id,
                             domain: service.domain
@@ -1410,7 +1440,7 @@
                         try {
                             const pageInfoResp = await fetch(`${API_BASE}/api/cdp/get-page-info`, {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
+                                headers: getJsonAuthHeaders(),
                                 body: JSON.stringify({
                                     target_id: matchedTarget.id,
                                     service_id: service.id
