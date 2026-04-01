@@ -113,7 +113,7 @@ if ($SkipMySql) {
 }
 
 if (-not (Get-Command mysql -ErrorAction SilentlyContinue)) {
-    Write-Warning "未找到 mysql.exe，跳过连接检测。请安装客户端或手工执行 DEPLOYMENT.md 第 4 节。"
+    Write-Warning "未找到 mysql.exe，跳过连接检测。请安装客户端，参见 docs/MIGRATION_GUIDE.md（2. 迁移脚本说明）与 docs/CONFIG_MANUAL.md（2. 配置项总览）手工处理。"
     exit 0
 }
 
@@ -180,7 +180,7 @@ print("FLUSH PRIVILEGES;")
     }
     Write-Host "已尝试创建数据库 '$dbName' 与用户 '$dbUser'@'localhost'（需 MySQL 8+）。"
 } else {
-    Write-Host "未设置 INIT_MYSQL_ADMIN_PASSWORD，跳过自动建库。请见 DEPLOYMENT.md 第 4 节手工执行。"
+    Write-Host "未设置 INIT_MYSQL_ADMIN_PASSWORD，跳过自动建库。请参见 docs/MIGRATION_GUIDE.md（2. 迁移脚本说明）与 docs/CONFIG_MANUAL.md（2. 配置项总览）手工执行。"
 }
 
 if (Test-MysqlConn -User $dbUser -Password $dbPass -Host $dbHost -Port $dbPort) {

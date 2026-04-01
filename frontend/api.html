@@ -67,8 +67,7 @@
         .stat-value { font-weight: 600; font-size: 14px; color: #fff; }
         
         /* 卡片主体纵向排列，进度条固定在所有文案块之后 */
-        #minimax-content,
-        #xfyun-content {
+        .service-card-content {
             display: flex;
             flex-direction: column;
             align-items: stretch;
@@ -299,8 +298,6 @@
             <label for="history-metric-key">metric_key</label>
             <select id="history-metric-key">
                 <option value="">全部</option>
-                <option value="quota">quota（MiniMax）</option>
-                <option value="daily_quota">daily_quota（讯飞）</option>
             </select>
         </div>
         <div class="field">
@@ -327,26 +324,14 @@
         </div>
     </div>
     
-    <div class="cards">
-        <!-- MiniMax Card -->
-        <div class="card" id="minimax-card">
+    <div class="cards" id="services-cards">
+        <div class="card">
             <div class="card-header">
-                <span class="card-title">🟠 MiniMax</span>
-                <span class="card-badge badge-ok" id="minimax-badge">加载中</span>
+                <span class="card-title">服务加载中</span>
+                <span class="card-badge badge-ok">初始化</span>
             </div>
-            <div id="minimax-content">
-                <div class="loading">正在查询MiniMax额度</div>
-            </div>
-        </div>
-        
-        <!-- 讯飞 Card -->
-        <div class="card" id="xfyun-card">
-            <div class="card-header">
-                <span class="card-title">🔵 讯飞星辰 MaaS</span>
-                <span class="card-badge badge-ok" id="xfyun-badge">加载中</span>
-            </div>
-            <div id="xfyun-content">
-                <div class="loading">正在查询讯飞额度</div>
+            <div class="service-card-content">
+                <div class="loading">正在加载服务注册表</div>
             </div>
         </div>
     </div>
@@ -372,6 +357,7 @@
         // 用户状态
         let currentUser = null;
         let authToken = localStorage.getItem('token');
+        let serviceRegistry = [];
         let historyFilters = {
             metric_key: "",
             start_at: "",
@@ -434,17 +420,15 @@
         async function refreshAll() {
             const btn = document.getElementById("refresh-btn");
             btn.classList.add("spinning");
-
-            const accountsByService = await loadAccountMapByService();
-            await Promise.all([
-                refreshMinimax(accountsByService),
-                refreshXfyun(accountsByService),
-            ]);
-            
-            document.getElementById("last-update").textContent = 
-                "最后更新: " + new Date().toLocaleTimeString("zh-CN");
-            
-            btn.classList.remove("spinning");
+            try {
+                await syncServiceRegistry();
+                const accountsByService = await loadAccountMapByService();
+                await Promise.all(serviceRegistry.map((service) => refreshServiceCard(service, accountsByService)));
+                document.getElementById("last-update").textContent =
+                    "最后更新: " + new Date().toLocaleTimeString("zh-CN");
+            } finally {
+                btn.classList.remove("spinning");
+            }
         }
 
         function toUtcIsoOrEmpty(localValue) {
@@ -556,6 +540,107 @@
             updateHistoryFilterStatus();
         }
 
+        function escapeHtml(text) {
+            const div = document.createElement("div");
+            div.textContent = text == null ? "" : String(text);
+            return div.innerHTML;
+        }
+
+        function formatUnit(unit) {
+            const key = String(unit || "").toLowerCase();
+            if (!key) return "";
+            if (key === "percent") return "%";
+            if (key === "count") return "次";
+            if (key === "w") return "万";
+            return unit;
+        }
+
+        function normalizeMetricDefs(metricDefs) {
+            if (!Array.isArray(metricDefs)) return [];
+            return metricDefs
+                .filter(item => item && typeof item === "object")
+                .map(item => ({
+                    key: String(item.key || "").trim(),
+                    label: String(item.label || item.key || "").trim(),
+                    unit: String(item.unit || "").trim(),
+                }))
+                .filter(item => item.key);
+        }
+
+        function patchHistoryMetricOptionsFromServices() {
+            const metricEl = document.getElementById("history-metric-key");
+            if (!metricEl) return;
+            const currentValue = metricEl.value;
+            const allDefs = serviceRegistry.flatMap(item => normalizeMetricDefs(item.metric_defs));
+            const options = [{ key: "", label: "全部" }];
+            const used = new Set([""]);
+            for (const def of allDefs) {
+                if (used.has(def.key)) continue;
+                const unitSuffix = formatUnit(def.unit);
+                const source = serviceRegistry.find(item =>
+                    normalizeMetricDefs(item.metric_defs).some(m => m.key === def.key)
+                );
+                const suffix = source ? `（${source.name}）` : "";
+                options.push({
+                    key: def.key,
+                    label: `${def.key}${def.label ? ` - ${def.label}` : ""}${unitSuffix ? ` [${unitSuffix}]` : ""}${suffix}`,
+                });
+                used.add(def.key);
+            }
+            metricEl.innerHTML = options
+                .map(item => `<option value="${escapeHtml(item.key)}">${escapeHtml(item.label)}</option>`)
+                .join("");
+            metricEl.value = options.some(item => item.key === currentValue) ? currentValue : "";
+        }
+
+        function renderServiceCardsSkeleton() {
+            const container = document.getElementById("services-cards");
+            if (!container) return;
+            if (!serviceRegistry.length) {
+                container.innerHTML = `
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">暂无可用服务</span>
+                            <span class="card-badge badge-warn">空</span>
+                        </div>
+                        <div class="service-card-content">
+                            <div class="loading">服务注册表为空</div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = serviceRegistry.map(service => `
+                <div class="card" id="service-card-${escapeHtml(service.id)}">
+                    <div class="card-header">
+                        <span class="card-title">${escapeHtml(service.icon || "🧩")} ${escapeHtml(service.name || service.id)}</span>
+                        <span class="card-badge badge-ok" id="service-badge-${escapeHtml(service.id)}">加载中</span>
+                    </div>
+                    <div class="service-card-content" id="service-content-${escapeHtml(service.id)}">
+                        <div class="loading">正在查询 ${escapeHtml(service.name || service.id)} 额度</div>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        async function syncServiceRegistry() {
+            const resp = await fetch(`${API_BASE}/api/services`, {
+                headers: { "Authorization": `Bearer ${authToken}` }
+            });
+            if (!resp.ok) {
+                throw new Error(`服务注册表加载失败 (${resp.status})`);
+            }
+            const data = await resp.json();
+            const latest = Array.isArray(data) ? data : [];
+            const changed = JSON.stringify(latest.map(item => item.id)) !== JSON.stringify(serviceRegistry.map(item => item.id));
+            serviceRegistry = latest;
+            if (changed || !document.getElementById("service-content-" + (serviceRegistry[0]?.id || ""))) {
+                renderServiceCardsSkeleton();
+            }
+            patchHistoryMetricOptionsFromServices();
+        }
+
         async function loadAccountMapByService() {
             try {
                 const resp = await fetch(`${API_BASE}/api/accounts`, {
@@ -582,14 +667,12 @@
             return dt.toLocaleString("zh-CN", { hour12: false });
         }
 
-        async function fetchLatestHistory(accountId, defaultMetricKey, filters) {
+        async function fetchLatestHistory(accountId, filters) {
             const search = new URLSearchParams({
                 limit: String(filters?.limit || 1),
                 offset: String(filters?.offset || 0),
             });
-            const metricFromUi = filters?.metric_key || "";
-            const metricToUse = metricFromUi || defaultMetricKey;
-            if (metricToUse) search.set("metric_key", metricToUse);
+            if (filters?.metric_key) search.set("metric_key", filters.metric_key);
             if (filters?.start_at) search.set("start_at", filters.start_at);
             if (filters?.end_at) search.set("end_at", filters.end_at);
 
@@ -647,213 +730,158 @@
             `;
         }
         
-        async function refreshMinimax(accountsByService = {}) {
-            const badge = document.getElementById("minimax-badge");
-            const content = document.getElementById("minimax-content");
-            
-            try {
-                // 获取存储的页面数据
-                let resp = await fetch(`${API_BASE}/api/minimax/`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                let data = await resp.json();
-                
-                if (!resp.ok) {
-                    renderServiceCardError(
-                        badge,
-                        content,
-                        extractApiErrorMessage(data) || ("请求失败 (" + resp.status + ")")
-                    );
-                    return;
-                }
-
-                if (data.error) {
-                    renderServiceCardError(badge, content, data.error);
-                    return;
-                }
-                
-                badge.className = "card-badge badge-ok";
-                badge.textContent = "正常";
-                
-                // 使用页面数据
-                const pageInfo = data.page_info || {};
-                const used = pageInfo.used || 0;
-                const total = pageInfo.total || 0;
-                const remain = total - used;
-                const percent = pageInfo.percent || '0';
-                const expiresAt = pageInfo.expiresAt || '-';
-                const resetMinutes = pageInfo.resetMinutes;
-                const resetHours = pageInfo.resetHours;
-                
-                let resetTime = '-';
-                if (resetHours > 0 || resetMinutes > 0) {
-                    resetTime = (resetHours || 0) + '小时' + (resetMinutes || 0) + '分钟';
-                }
-                
-                const colorClass = percent > 80 ? "red" : percent > 50 ? "orange" : "green";
-                let historyInfo = { collectedAt: "-", metricKey: "-" };
-                const account = accountsByService["minimax"];
-                if (account?.id) {
-                    try {
-                        const history = await fetchLatestHistory(account.id, "quota", historyFilters);
-                        if (history.item) {
-                            historyInfo = {
-                                collectedAt: formatHistoryTime(history.item.collected_at),
-                                metricKey: history.item.metric_key || "quota",
-                            };
-                        }
-                    } catch {
-                        // 历史查询失败不影响主流程展示
-                    }
-                }
-                
-                content.innerHTML = `
-                    <div class="card-stats-block">
-                        <div class="stat-row">
-                            <span class="stat-label">Token Plan</span>
-                            <span class="stat-value">${total} 次/5小时</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">已使用</span>
-                            <span class="stat-value">${used} 次</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">剩余</span>
-                            <span class="stat-value">${remain} 次</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">使用率</span>
-                            <span class="stat-value">${percent}%</span>
-                        </div>
-                    </div>
-                    <div class="card-meta-block">
-                        <div class="stat-row meta-row-first">
-                            <span class="stat-label">到期时间</span>
-                            <span class="stat-value">${expiresAt}</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">重置时间</span>
-                            <span class="stat-value">${resetTime}</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">最近采集</span>
-                            <span class="stat-value">${historyInfo.collectedAt}</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">历史指标</span>
-                            <span class="stat-value">${historyInfo.metricKey}</span>
-                        </div>
-                    </div>
-                    <div class="card-progress-wrap">
-                        <div class="progress-bar">
-                            <div class="progress-fill ${colorClass}" style="width: ${percent}%"></div>
-                        </div>
-                    </div>
-                `;
-                
-            } catch (e) {
-                badge.className = "card-badge badge-error";
-                badge.textContent = "错误";
-                content.innerHTML = `<div class="error-detail">${e.message}</div>`;
-            }
+        function getNumberValue(value) {
+            const n = Number(value);
+            return Number.isFinite(n) ? n : 0;
         }
-        
-        async function refreshXfyun(accountsByService = {}) {
-            const badge = document.getElementById("xfyun-badge");
-            const content = document.getElementById("xfyun-content");
-            
-            try {
-                let resp = await fetch(`${API_BASE}/api/xfyun/`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+
+        function buildUsageNumbers(data) {
+            const pageInfo = data?.page_info || {};
+            const used = getNumberValue(pageInfo.used ?? pageInfo.dailyUsed);
+            const total = getNumberValue(pageInfo.total ?? pageInfo.dailyQuota);
+            const remainFromPage = pageInfo.dailyRemain ?? pageInfo.remain;
+            const remain = remainFromPage != null ? getNumberValue(remainFromPage) : Math.max(0, total - used);
+            const percentRaw = pageInfo.percent ?? data?.percent;
+            const percent = percentRaw != null ? getNumberValue(percentRaw) : (total > 0 ? (used / total) * 100 : 0);
+            return {
+                used,
+                total,
+                remain,
+                percent,
+                expiresAt: pageInfo.expiresAt || "-",
+                resetHours: getNumberValue(pageInfo.resetHours),
+                resetMinutes: getNumberValue(pageInfo.resetMinutes),
+                raw: pageInfo,
+            };
+        }
+
+        function pickMetricValue(metricKey, usage) {
+            const key = String(metricKey || "").toLowerCase();
+            if (!key) return null;
+            if (key.includes("percent")) return usage.percent;
+            if (key.includes("remain") || key.includes("left")) return usage.remain;
+            if (key.includes("total") || key.includes("quota")) return usage.total;
+            if (key.includes("used")) return usage.used;
+            return null;
+        }
+
+        function formatMetricValue(value, unit, metricKey) {
+            const numeric = getNumberValue(value);
+            if (String(unit || "").toLowerCase() === "percent" || String(metricKey || "").toLowerCase().includes("percent")) {
+                return `${numeric.toFixed(1)}%`;
+            }
+            const unitText = formatUnit(unit);
+            if (!unitText) return `${numeric}`;
+            return `${numeric} ${unitText}`.trim();
+        }
+
+        function buildMetricRows(service, data) {
+            const usage = buildUsageNumbers(data);
+            const defs = normalizeMetricDefs(service.metric_defs);
+            const rows = [];
+            for (const def of defs) {
+                const value = pickMetricValue(def.key, usage);
+                if (value == null) continue;
+                rows.push({
+                    label: def.label || def.key,
+                    value: formatMetricValue(value, def.unit, def.key),
                 });
-                let data = await resp.json();
-                
+            }
+            if (!rows.length) {
+                rows.push({ label: "已用", value: `${usage.used}` });
+                rows.push({ label: "总量", value: `${usage.total}` });
+                rows.push({ label: "剩余", value: `${usage.remain}` });
+                rows.push({ label: "使用率", value: `${usage.percent.toFixed(1)}%` });
+            }
+            return { rows, usage };
+        }
+
+        function formatResetTime(resetHours, resetMinutes) {
+            if (resetHours > 0 || resetMinutes > 0) {
+                return `${resetHours || 0}小时${resetMinutes || 0}分钟`;
+            }
+            return "-";
+        }
+
+        async function refreshServiceCard(service, accountsByService = {}) {
+            const badge = document.getElementById(`service-badge-${service.id}`);
+            const content = document.getElementById(`service-content-${service.id}`);
+            if (!badge || !content) return;
+
+            try {
+                const resp = await fetch(`${API_BASE}/api/${service.id}/`, {
+                    headers: { "Authorization": `Bearer ${authToken}` }
+                });
+                const data = await resp.json();
                 if (!resp.ok) {
                     renderServiceCardError(
                         badge,
                         content,
-                        extractApiErrorMessage(data) || ("请求失败 (" + resp.status + ")")
+                        extractApiErrorMessage(data) || (`请求失败 (${resp.status})`)
                     );
                     return;
                 }
-
                 if (data.error) {
                     renderServiceCardError(badge, content, data.error);
                     return;
                 }
-                
+
                 badge.className = "card-badge badge-ok";
                 badge.textContent = "正常";
-                
-                // 使用页面数据
-                const pageInfo = data.page_info || {};
-                const dailyQuota = pageInfo.dailyQuota || 0;
-                const dailyUsed = pageInfo.dailyUsed || 0;
-                const dailyRemain = pageInfo.dailyRemain || 0;
-                const percent = data.percent || (dailyQuota > 0 ? (dailyUsed / dailyQuota * 100).toFixed(1) : 0);
-                const expiresAt = pageInfo.expiresAt || '-';
-                
+
+                const { rows, usage } = buildMetricRows(service, data);
+                const percent = getNumberValue(usage.percent);
                 const colorClass = percent > 80 ? "red" : percent > 50 ? "orange" : "green";
+                const account = accountsByService[service.id];
                 let historyInfo = { collectedAt: "-", metricKey: "-" };
-                const account = accountsByService["xfyun"];
                 if (account?.id) {
                     try {
-                        const history = await fetchLatestHistory(account.id, "daily_quota", historyFilters);
+                        const history = await fetchLatestHistory(account.id, historyFilters);
                         if (history.item) {
                             historyInfo = {
                                 collectedAt: formatHistoryTime(history.item.collected_at),
-                                metricKey: history.item.metric_key || "daily_quota",
+                                metricKey: history.item.metric_key || "-",
                             };
                         }
                     } catch {
                         // 历史查询失败不影响主流程展示
                     }
                 }
-                
+
+                const metaRows = [
+                    { label: "到期时间", value: usage.expiresAt || "-" },
+                    { label: "重置时间", value: formatResetTime(usage.resetHours, usage.resetMinutes) },
+                    { label: "最近采集", value: historyInfo.collectedAt },
+                    { label: "历史指标", value: historyInfo.metricKey },
+                ];
+
                 content.innerHTML = `
                     <div class="card-stats-block">
-                        <div class="stat-row">
-                            <span class="stat-label">日限额</span>
-                            <span class="stat-value">${dailyQuota} 万 tokens</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">已用</span>
-                            <span class="stat-value">${dailyUsed} 万</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">剩余</span>
-                            <span class="stat-value">${dailyRemain} 万</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">使用率</span>
-                            <span class="stat-value">${percent}%</span>
-                        </div>
+                        ${rows.map(row => `
+                            <div class="stat-row">
+                                <span class="stat-label">${escapeHtml(row.label)}</span>
+                                <span class="stat-value">${escapeHtml(row.value)}</span>
+                            </div>
+                        `).join("")}
                     </div>
                     <div class="card-meta-block">
-                        <div class="stat-row meta-row-first">
-                            <span class="stat-label">到期时间</span>
-                            <span class="stat-value">${expiresAt}</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">最近采集</span>
-                            <span class="stat-value">${historyInfo.collectedAt}</span>
-                        </div>
-                        <div class="stat-row">
-                            <span class="stat-label">历史指标</span>
-                            <span class="stat-value">${historyInfo.metricKey}</span>
-                        </div>
+                        ${metaRows.map((row, idx) => `
+                            <div class="stat-row ${idx === 0 ? "meta-row-first" : ""}">
+                                <span class="stat-label">${escapeHtml(row.label)}</span>
+                                <span class="stat-value">${escapeHtml(row.value)}</span>
+                            </div>
+                        `).join("")}
                     </div>
                     <div class="card-progress-wrap">
                         <div class="progress-bar">
-                            <div class="progress-fill ${colorClass}" style="width: ${percent}%"></div>
+                            <div class="progress-fill ${colorClass}" style="width: ${Math.max(0, Math.min(100, percent))}%"></div>
                         </div>
                     </div>
                 `;
-                
             } catch (e) {
                 badge.className = "card-badge badge-error";
                 badge.textContent = "错误";
-                content.innerHTML = `<div class="error-detail">${e.message}</div>`;
+                content.innerHTML = `<div class="error-detail">${escapeHtml(e.message || "加载失败")}</div>`;
             }
         }
         

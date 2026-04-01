@@ -4,7 +4,39 @@
 
 ---
 
-## 快速开始（5 步完成）
+## 🚀 快速启动（一键部署）
+
+**前提**：Python 3.10+ 已安装、**MySQL 8.0+ 已安装且服务已启动**。
+
+### Windows（PowerShell）
+
+```powershell
+cd backend
+# 初始化（生成密钥 + 自动建库，需 MySQL 管理员密码）
+$env:INIT_MYSQL_ADMIN_PASSWORD = '你的MySQL密码'; .\init_env.ps1
+# 启动
+.\start.bat
+```
+
+### Linux / WSL / macOS
+
+```bash
+cd backend
+# 初始化（生成密钥 + 自动建库，需 MySQL 管理员密码）
+INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
+# 启动
+./start.sh
+```
+
+> 启动成功后打开浏览器访问 **http://localhost:5188**，首次打开会自动引导创建管理员账号。
+
+---
+
+*下面各章节为详细说明，无需立即阅读。*
+
+---
+
+## 📋 快速开始（5 步完成）
 
 | 步骤 | 操作 |
 |------|------|
@@ -12,51 +44,66 @@
 | 1 | 安装 Python 3.10+ 和 MySQL 5.7+（推荐 8.0+），MySQL 已启动 |
 | 2 | `cd backend && pip install -r requirements.txt` |
 | 3 | 运行初始化脚本（见下方），生成密钥和 `.env` |
-| 4 | 启动：`uvicorn app:app --host 0.0.0.0 --port 5188` |
-| 5 | 打开前端 `login.html`（或移动端 App），在**首次引导**中创建管理员账号 |
+| 4 | 启动：`./start.sh`（Unix）或 `.\start.bat`（Windows） |
+| 5 | 打开浏览器访问 `http://localhost:5188`，首次引导创建管理员账号 |
 
 ---
 
 ## 数据库迁移（API Key）
 
-在升级到包含 API Key 鉴权的版本后，请执行一次迁移脚本以创建 `api_keys` 表和相关索引：
+在升级到包含 API Key 鉴权的版本后，请执行一次迁移脚本：
 
 ```bash
 cd backend
-python -m utils.migrate_api_keys
+python3 -m utils.migrate_api_keys
 ```
-
-> 如果你的环境使用 `python3`，请将命令改为 `python3 -m utils.migrate_api_keys`。
 
 ---
 
-## 初始化脚本
+## 迁移脚本说明
 
-> ⚠️ **前提**：先确保 MySQL 管理员账户（如 root）已有密码，脚本需要用它来创建数据库和用户。
+当前版本常用迁移脚本（建议在 `backend/` 目录按顺序执行）：
+
+```bash
+cd backend
+python3 -m utils.migrate_service_registry
+python3 -m utils.migrate_alerting_p2_3
+python3 -m utils.migrate_api_keys
+```
+
+- `migrate_service_registry`：服务注册表扩展 + `usage_snapshots` 表与索引
+- `migrate_alerting_p2_3`：告警字段扩展 + `alert_events` 表与索引
+- `migrate_api_keys`：`api_keys` 表与索引
+
+> 上述脚本按可重复执行设计，重复运行不会破坏现有结构。
+
+---
+
+## 配置项总览
+
+完整字段以 `backend/.env.example` 为准，发布前至少确认：
+
+- 安全密钥：`JWT_SECRET_KEY`、`APP_SECRET_KEY`
+- 数据库连接：`DB_HOST`、`DB_PORT`、`DB_NAME`、`DB_USER`、`DB_PASSWORD`
+- 服务启动：`HOST`、`PORT`、`DEBUG`
+- 自动采集：`AUTO_COLLECT_ENABLED`、`AUTO_COLLECT_INTERVAL_SECONDS`、`AUTO_COLLECT_MAX_CONCURRENCY`、`AUTO_COLLECT_RETRY_ATTEMPTS`、`AUTO_COLLECT_RETRY_DELAY_SECONDS`
+- 告警评估：`ALERT_EVAL_ENABLED`、`ALERT_DEFAULT_THRESHOLD`、`ALERT_DEFAULT_COOLDOWN_SECONDS`
+
+---
+
+## 初始化脚本详解
+
+> ⚠️ **前提**：MySQL 管理员账户（如 root）已有密码。
 
 **脚本不会覆盖已存在的 `.env`。**
 
-### 命令对比
-
-| 操作 | Unix (WSL/macOS) | Windows (PowerShell) |
-|------|------------------|---------------------|
+| 操作 | Unix | Windows |
+|------|------|---------|
 | 查看帮助 | `./init_env.sh --help` | `.\init_env.ps1 -Help` |
-| 生成密钥（不连 MySQL） | `./init_env.sh --skip-mysql` | `.\init_env.ps1 -SkipMySql` |
-| 生成密钥 + 自动建库 | `export INIT_MYSQL_ADMIN_USER='root' INIT_MYSQL_ADMIN_PASSWORD='MySQL管理员密码' && ./init_env.sh` | `$env:INIT_MYSQL_ADMIN_USER = "root"; $env:INIT_MYSQL_ADMIN_PASSWORD = "MySQL管理员密码"; .\init_env.ps1` |
+| 仅生成密钥（不建库） | `./init_env.sh --skip-mysql` | `.\init_env.ps1 -SkipMySql` |
+| 生成密钥 + 自动建库 | `INIT_MYSQL_ADMIN_PASSWORD='密码' ./init_env.sh` | `$env:INIT_MYSQL_ADMIN_PASSWORD = "密码"; .\init_env.ps1` |
 
-> 用户名默认 `root`；密码必填（MySQL 管理员密码）才能自动建库。可选参数：`INIT_MYSQL_HOST`、`INIT_MYSQL_PORT`、`INIT_MYSQL_ADMIN_USER`。
-
-### 成功后的操作
-
-1. **启动后端**：`uvicorn app:app --host 0.0.0.0 --port 5188`
-
-2. **创建管理员**：浏览器访问登录页（或 `/first-setup.html`）；空库时会显示引导，调用 `POST /auth/setup-first` 由前端完成。也可用 API 客户端在无用户时直接请求该接口。
-
----
-
-## 手工建库（不用脚本时）
-
-用 MySQL 管理账号执行：
+### 手工建库（不用脚本时）
 
 ```sql
 CREATE DATABASE IF NOT EXISTS token_monitor CHARACTER SET utf8mb4;
@@ -71,11 +118,11 @@ FLUSH PRIVILEGES;
 
 | 问题 | 解决 |
 |------|------|
-| `.env 已存在` | 脚本保护机制；删掉 `backend/.env` 重来，或手动编辑 |
-| `ValidationError` | 检查 `.env` 必填项是否完整（见 `.env.example`）|
-| `Access denied` | 确认 MySQL 用户密码与 `.env` 中 `DB_PASSWORD` 一致 |
+| `.env 已存在` | 脚本保护；删掉 `backend/.env` 重来，或手动编辑 |
+| `ValidationError` | 检查 `.env` 必填项是否完整 |
+| `Access denied` | 确认 MySQL 密码与 `DB_PASSWORD` 一致 |
 | `Can't connect` | 检查 MySQL 服务、`DB_HOST`、`DB_PORT` |
-| 端口占用 | 改 `.env` 中 `PORT`，或结束占用进程 |
+| 端口占用 | 改 `.env` 中 `PORT`，或 `kill $(lsof -ti:5188)` |
 
 ---
 
@@ -89,30 +136,23 @@ FLUSH PRIVILEGES;
 
 ## API Key 使用
 
-### 1) 在管理后台创建 API Key
+### 管理后台创建
 
 1. 管理员登录 `admin.html`
-2. 在「API Key 管理」区域填写名称、Scope、可选过期时间
-3. 点击创建并立即复制明文 Key（只显示一次）
+2. 「API Key 管理」区域填写名称、Scope、可选过期时间
+3. 点击创建并**立即复制明文**（只显示一次）
 
-权限说明：普通用户只能管理自己的 Key，管理员可管理全部用户的 Key。
-
-### 2) 程序调用示例
+### 程序调用
 
 ```bash
-# 推荐：X-API-Key 头
-curl "http://localhost:5188/api/current-cookies" \
-  -H "X-API-Key: tmk_xxx"
+# 方式一：X-API-Key 头（推荐）
+curl "http://localhost:5188/api/current-cookies" -H "X-API-Key: tmk_xxx"
 
-# 或 Authorization: ApiKey 头
-curl "http://localhost:5188/api/current-cookies" \
-  -H "Authorization: ApiKey tmk_xxx"
+# 方式二：Authorization: ApiKey 头
+curl "http://localhost:5188/api/current-cookies" -H "Authorization: ApiKey tmk_xxx"
 ```
 
-常用 Scope：
-
-- `cookie:read`
-- `cookie:write`
+常用 Scope：`cookie:read`（读取）、`cookie:write`（写入/变更）
 
 ---
 

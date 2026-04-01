@@ -230,6 +230,42 @@
             margin: 8px 0;
             word-break: break-all;
         }
+
+        .sub-title {
+            color: #a8b0d3;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        .inline-fields {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .inline-fields .form-group {
+            min-width: 0;
+        }
+
+        .small-note {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 10px;
+        }
+
+        .mini-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+
+        .mini-table th,
+        .mini-table td {
+            padding: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 12px;
+        }
         
         .toast {
             position: fixed;
@@ -327,6 +363,48 @@
                 <div class="empty">加载中...</div>
             </div>
         </div>
+
+        <div class="card">
+            <h2>🚨 告警规则管理（最小版）</h2>
+            <p class="sub-title">查看规则/事件，并按 metric_key 更新阈值与冷却参数</p>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>选择账号</label>
+                    <select id="alert-account-select"></select>
+                </div>
+                <button class="btn secondary" onclick="reloadAlertData()">刷新规则与事件</button>
+            </div>
+            <div class="small-note" id="alert-account-hint">请选择账号</div>
+
+            <div class="inline-fields">
+                <div class="form-group">
+                    <label>metric_key</label>
+                    <input id="alert-metric-key" type="text" placeholder="例如 quota">
+                </div>
+                <div class="form-group">
+                    <label>threshold (%)</label>
+                    <input id="alert-threshold" type="number" step="0.1" value="80">
+                </div>
+                <div class="form-group">
+                    <label>cooldown_seconds</label>
+                    <input id="alert-cooldown" type="number" value="1800">
+                </div>
+                <div class="form-group">
+                    <label>is_enabled</label>
+                    <select id="alert-enabled">
+                        <option value="true" selected>true</option>
+                        <option value="false">false</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn" onclick="saveAlertRule()">保存规则</button>
+
+            <h2 style="margin-top:18px;">📋 当前规则</h2>
+            <div id="alert-rules-list"><div class="empty">加载中...</div></div>
+
+            <h2 style="margin-top:18px;">🧾 最近事件</h2>
+            <div id="alert-events-list"><div class="empty">加载中...</div></div>
+        </div>
     </div>
     
     <div id="toast" class="toast"></div>
@@ -335,6 +413,7 @@
         const API_BASE = window.location.origin;
         let authToken = localStorage.getItem('token');
         let currentUser = null;
+        let alertAccounts = [];
 
         function getAuthHeaders() {
             return { 'Authorization': `Bearer ${authToken}` };
@@ -636,6 +715,188 @@
             }
         }
 
+        function getSelectedAlertAccountId() {
+            const el = document.getElementById("alert-account-select");
+            return el ? Number(el.value || 0) : 0;
+        }
+
+        function renderAlertAccountOptions() {
+            const select = document.getElementById("alert-account-select");
+            const hint = document.getElementById("alert-account-hint");
+            if (!select) return;
+
+            if (!alertAccounts.length) {
+                select.innerHTML = '<option value="">无可用账号</option>';
+                if (hint) hint.textContent = "当前无账号，请先在监控页配置服务账号";
+                return;
+            }
+
+            select.innerHTML = alertAccounts
+                .map(item => `<option value="${item.id}">${escapeHtml(item.service_icon || "🧩")} ${escapeHtml(item.name || item.service_name || item.service_id)} (ID:${item.id})</option>`)
+                .join("");
+            if (hint) hint.textContent = "支持按 account_id + metric_key 维度管理规则";
+        }
+
+        async function loadAlertAccounts() {
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.detail || "加载账号失败");
+                alertAccounts = Array.isArray(data) ? data : [];
+                renderAlertAccountOptions();
+                await reloadAlertData();
+            } catch (e) {
+                showToast("加载告警账号失败: " + e.message, true);
+            }
+        }
+
+        async function loadAlertRules(accountId) {
+            const container = document.getElementById("alert-rules-list");
+            if (!container) return;
+            if (!accountId) {
+                container.innerHTML = '<div class="empty">请先选择账号</div>';
+                return;
+            }
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts/${accountId}/alerts`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.detail || "加载规则失败");
+                if (!data.length) {
+                    container.innerHTML = '<div class="empty">暂无规则（保存后自动创建）</div>';
+                    return;
+                }
+                container.innerHTML = `
+                    <table class="mini-table">
+                        <thead>
+                            <tr>
+                                <th>metric_key</th>
+                                <th>threshold</th>
+                                <th>cooldown</th>
+                                <th>is_enabled</th>
+                                <th>is_firing</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map(item => `
+                                <tr>
+                                    <td>${escapeHtml(item.metric_key)}</td>
+                                    <td>${item.threshold}</td>
+                                    <td>${item.cooldown_seconds}</td>
+                                    <td>${item.is_enabled}</td>
+                                    <td>${item.is_firing}</td>
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                `;
+            } catch (e) {
+                container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        async function loadAlertEvents(accountId) {
+            const container = document.getElementById("alert-events-list");
+            if (!container) return;
+            if (!accountId) {
+                container.innerHTML = '<div class="empty">请先选择账号</div>';
+                return;
+            }
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts/${accountId}/alerts/events?limit=20&offset=0`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await resp.json();
+                if (!resp.ok) throw new Error(data.detail || "加载事件失败");
+                const items = Array.isArray(data.items) ? data.items : [];
+                if (!items.length) {
+                    container.innerHTML = '<div class="empty">暂无事件</div>';
+                    return;
+                }
+                container.innerHTML = `
+                    <table class="mini-table">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>metric</th>
+                                <th>status</th>
+                                <th>percent</th>
+                                <th>message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${items.map(item => `
+                                <tr>
+                                    <td>${formatDate(item.created_at)}</td>
+                                    <td>${escapeHtml(item.metric_key || "-")}</td>
+                                    <td>${escapeHtml(item.status || "-")}</td>
+                                    <td>${item.observed_percent == null ? "-" : item.observed_percent}</td>
+                                    <td>${escapeHtml(item.message || "-")}</td>
+                                </tr>
+                            `).join("")}
+                        </tbody>
+                    </table>
+                `;
+            } catch (e) {
+                container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        async function reloadAlertData() {
+            const accountId = getSelectedAlertAccountId();
+            await Promise.all([loadAlertRules(accountId), loadAlertEvents(accountId)]);
+        }
+
+        async function saveAlertRule() {
+            const accountId = getSelectedAlertAccountId();
+            const metricKey = (document.getElementById("alert-metric-key").value || "").trim();
+            const threshold = Number(document.getElementById("alert-threshold").value || "80");
+            const cooldown = Number(document.getElementById("alert-cooldown").value || "1800");
+            const enabled = (document.getElementById("alert-enabled").value || "true") === "true";
+
+            if (!accountId) {
+                showToast("请先选择账号", true);
+                return;
+            }
+            if (!metricKey) {
+                showToast("请输入 metric_key", true);
+                return;
+            }
+            if (!Number.isFinite(threshold) || threshold < 0) {
+                showToast("threshold 无效", true);
+                return;
+            }
+            if (!Number.isFinite(cooldown) || cooldown < 0) {
+                showToast("cooldown_seconds 无效", true);
+                return;
+            }
+
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts/${accountId}/alerts/${encodeURIComponent(metricKey)}`, {
+                    method: "PUT",
+                    headers: getJsonHeaders(),
+                    body: JSON.stringify({
+                        threshold,
+                        cooldown_seconds: Math.floor(cooldown),
+                        is_enabled: enabled,
+                        notify_channels: ["log"]
+                    })
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || "保存规则失败", true);
+                    return;
+                }
+                showToast("规则已保存");
+                await reloadAlertData();
+            } catch (e) {
+                showToast("网络错误: " + e.message, true);
+            }
+        }
+
         async function revokeApiKey(id) {
             if (!confirm('确认撤销该 API Key 吗？撤销后无法恢复。')) return;
             try {
@@ -698,6 +959,8 @@
             if (ok) {
                 loadInviteCodes();
                 loadApiKeys();
+                loadAlertAccounts();
+                document.getElementById("alert-account-select")?.addEventListener("change", reloadAlertData);
             }
         });
     </script>

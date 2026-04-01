@@ -2,10 +2,27 @@
 
 > 监控 MiniMax 和讯飞星辰 API 用量
 
-## 部署
+## 🚀 快速启动
 
-**全新环境（生产/测试）**请按 **[DEPLOYMENT.md](./DEPLOYMENT.md)** 操作：推荐 **`backend/init_env.sh`** / **`backend/init_env.ps1`** 一键写入密钥并可选建库，亦可手工按文档执行。  
-配置模板 **`backend/.env.example`**；脚本**不会覆盖**已存在的 `backend/.env`。
+**前提**：Python 3.10+ 已安装、**MySQL 8.0+ 已安装且服务已启动**。
+
+**Windows (PowerShell)**：
+```powershell
+cd backend
+$env:INIT_MYSQL_ADMIN_PASSWORD = '你的MySQL密码'; .\init_env.ps1
+.\start.bat
+```
+
+**Linux / WSL / macOS**：
+```bash
+cd backend
+INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
+./start.sh
+```
+
+启动后打开 **http://localhost:5188** 即可。
+
+详细步骤见 **[DEPLOYMENT.md](./DEPLOYMENT.md)**。
 
 ## 项目结构
 
@@ -46,13 +63,14 @@
                              │ HTTP
                              ▼
 ┌─────────────┐     ┌─────────────────┐
-│   Nginx     │────►│   Flask API     │
-│  (静态资源) │     │ FastAPI :5188    │
+│   Nginx     │────►│   FastAPI API   │
+│  (静态资源) │     │     :5188       │
 └─────────────┘     └────────┬────────┘
                                │
-                    ┌──────────┴──────────┐
-                    ▼                     ▼
-            MiniMax API           讯飞 API
+              ┌───────────────┴───────────────┐
+              ▼                               ▼
+      MiniMax API                    更多 AI 服务商...
+      讯飞 API                    （通过服务注册表动态接入）
 ```
 
 ## 快速启动（本地开发）
