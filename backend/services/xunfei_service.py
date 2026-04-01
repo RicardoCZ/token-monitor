@@ -79,29 +79,24 @@ class XunFeiService(BaseHTTPService):
             main_record = rows[0]
             usage_dto = main_record.get("codingPlanUsageDTO", {})
             
-            daily_limit = usage_dto.get("dailyLimit", 0)  # 分
-            daily_usage = usage_dto.get("dailyUsage", 0)  # 分
+            raw_limit = usage_dto.get("dailyLimit", 0)  # 分
+            raw_usage = usage_dto.get("dailyUsage", 0)  # 分
             
             # 计算（转换为人 民币分 to 万 tokens，假设比例是 1:1）
-            daily_quota = daily_limit / 10000  # 转换为万
-            daily_used = daily_usage / 10000
-            daily_remain = max(0, daily_quota - daily_used)
-            percent = (daily_used / daily_quota * 100) if daily_quota > 0 else 0
+            total = raw_limit / 10000  # 转换为万
+            used = raw_usage / 10000
+            remain = max(0, total - used)
+            percent = (used / total * 100) if total > 0 else 0
             
             # 到期时间
             expires_at = main_record.get("expiresAt", "")
             
             return {
                 "page_info": {
-                    # 统一标准 key（used/total/percent）
-                    "used": round(daily_used, 2),
-                    "total": round(daily_quota, 2),
-                    "remain": round(daily_remain, 2),
+                    "used": round(used, 2),
+                    "total": round(total, 2),
+                    "remain": round(remain, 2),
                     "percent": round(min(percent, 100), 1),
-                    # 兼容字段（后续可移除）
-                    "dailyQuota": round(daily_quota, 2),
-                    "dailyUsed": round(daily_used, 2),
-                    "dailyRemain": round(daily_remain, 2),
                     "expiresAt": expires_at
                 },
                 "percent": round(min(percent, 100), 1)

@@ -504,19 +504,18 @@ async function loadServices() {
     
     if (xfyunResp.status === 200 && xfyunResp.data && !xfyunResp.data.error) {
       const pageInfo = xfyunResp.data.page_info || {}
-      const dailyQuota = pageInfo.dailyQuota || 0
-      const dailyUsed = pageInfo.dailyUsed || 0
-      const dailyRemain = pageInfo.dailyRemain || 0
+      const total = pageInfo.total || 0
+      const used = pageInfo.used || 0
+      const remain = pageInfo.remain || 0
       const expiresAt = pageInfo.expiresAt || '-'
-      
-      const percent = dailyQuota > 0 
-        ? ((dailyUsed / dailyQuota) * 100).toFixed(1) 
-        : '0'
+      const percent = pageInfo.percent != null
+        ? String(pageInfo.percent)
+        : (total > 0 ? ((used / total) * 100).toFixed(1) : '0')
       
       cards.push(createCard('xfyun', '🔵 讯飞星辰 MaaS', 'ok', '正常', [
-        { label: '日限额', value: `${dailyQuota} 万 tokens` },
-        { label: '已用', value: `${dailyUsed} 万` },
-        { label: '剩余', value: `${dailyRemain} 万` },
+        { label: '总量', value: `${total} 万 tokens` },
+        { label: '已用', value: `${used} 万` },
+        { label: '剩余', value: `${remain} 万` },
         { label: '使用率', value: `${percent}%` },
         { label: '到期时间', value: expiresAt }
       ], percent))
@@ -608,8 +607,8 @@ async function loadLatestHistoryByService(token: string | null): Promise<Record<
 
     const requests: Array<Promise<void>> = []
     const specs = [
-      { sid: 'minimax', metric: 'quota' },
-      { sid: 'xfyun', metric: 'daily_quota' }
+      { sid: 'minimax', metric: 'percent' },
+      { sid: 'xfyun', metric: 'percent' }
     ]
     for (const spec of specs) {
       const account = byService[spec.sid]

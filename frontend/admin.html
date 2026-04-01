@@ -91,10 +91,16 @@
             border-radius: 8px;
             color: #fff;
             font-size: 14px;
+            box-shadow: none;
+            transition: none;
         }
         
         .form-group select {
-            background-color: #2a2a4a;
+            background-color: rgba(255, 255, 255, 0.1);
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            -webkit-tap-highlight-color: transparent;
         }
         
         .form-group select option {
@@ -105,6 +111,80 @@
         .form-group input:focus, .form-group select:focus {
             outline: none;
             border-color: #667eea;
+            box-shadow: none;
+        }
+
+        .form-group select:active {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: none;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .custom-select {
+            position: relative;
+            width: 100%;
+            user-select: none;
+        }
+        .custom-select-trigger {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            position: relative;
+        }
+        .custom-select-trigger::after {
+            content: "▾";
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #a8b0d3;
+            font-size: 12px;
+        }
+        .custom-select.open .custom-select-trigger {
+            border-color: #667eea;
+        }
+        .custom-select-options {
+            list-style: none;
+            margin: 6px 0 0 0;
+            padding: 6px;
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 100%;
+            z-index: 20;
+            border-radius: 10px;
+            background: rgba(30, 34, 58, 0.98);
+            border: 1px solid rgba(102, 126, 234, 0.35);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+            display: none;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .custom-select.open .custom-select-options {
+            display: block;
+        }
+        .custom-select-options li {
+            padding: 10px 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #dbe3ff;
+            cursor: pointer;
+        }
+        .custom-select-options li:hover {
+            background: rgba(102, 126, 234, 0.22);
+        }
+        .custom-select-options li.active {
+            background: rgba(102, 126, 234, 0.35);
+            color: #fff;
+        }
+        .native-select-hidden {
+            display: none !important;
         }
         
         .btn {
@@ -299,14 +379,18 @@
             <div class="form-row">
                 <div class="form-group">
                     <label>使用次数</label>
-                    <select id="max-uses">
-                        <option value="1" selected>1 次</option>
-                        <option value="5">5 次</option>
-                        <option value="10">10 次</option>
-                        <option value="50">50 次</option>
-                        <option value="100">100 次</option>
-                        <option value="0">无限次</option>
-                    </select>
+                    <input id="max-uses" type="hidden" value="1">
+                    <div class="custom-select" id="custom-max-uses">
+                        <div class="custom-select-trigger" id="custom-max-uses-trigger">1 次</div>
+                        <ul class="custom-select-options" id="custom-max-uses-options">
+                            <li data-value="1" class="active">1 次</li>
+                            <li data-value="5">5 次</li>
+                            <li data-value="10">10 次</li>
+                            <li data-value="50">50 次</li>
+                            <li data-value="100">100 次</li>
+                            <li data-value="0">无限次</li>
+                        </ul>
+                    </div>
                 </div>
                 <button id="invite-btn" class="btn" onclick="createInviteCode()">生成邀请码</button>
             </div>
@@ -315,9 +399,21 @@
         <!-- 邀请码列表 -->
         <div class="card">
             <h2>📋 邀请码列表</h2>
+            <div class="form-row" style="margin-bottom: 10px;">
+                <div class="form-group" style="max-width: 180px;">
+                    <label>状态筛选</label>
+                    <select id="invite-status-filter" onchange="changeInviteFilter(this.value)">
+                        <option value="all">全部</option>
+                        <option value="available">可用</option>
+                        <option value="used">已用完</option>
+                    </select>
+                </div>
+                <div style="flex: 1;"></div>
+            </div>
             <div id="codes-list">
                 <div class="empty">加载中...</div>
             </div>
+            <div id="codes-pagination" class="small-note" style="margin-top: 8px;"></div>
         </div>
 
         <!-- 接口密钥管理 -->
@@ -358,6 +454,10 @@
         const CURRENT_PAGE = (window.location.pathname.split('/').pop() || 'admin.html').toLowerCase();
         let authToken = localStorage.getItem('token');
         let currentUser = null;
+        let inviteCodesCache = [];
+        let inviteStatusFilter = 'all';
+        let inviteCurrentPage = 1;
+        const INVITE_PAGE_SIZE = 5;
 
         function getAuthHeaders() {
             return { 'Authorization': `Bearer ${authToken}` };
@@ -464,6 +564,110 @@
                 btn.textContent = '生成邀请码';
             }
         }
+
+        function initCustomMaxUsesSelect() {
+            const root = document.getElementById('custom-max-uses');
+            const trigger = document.getElementById('custom-max-uses-trigger');
+            const options = document.getElementById('custom-max-uses-options');
+            const hidden = document.getElementById('max-uses');
+            if (!root || !trigger || !options || !hidden) return;
+
+            const close = () => root.classList.remove('open');
+            const open = () => root.classList.add('open');
+            const toggle = () => root.classList.toggle('open');
+
+            const setValue = (value, text) => {
+                hidden.value = String(value || '1');
+                trigger.textContent = text || '1 次';
+                options.querySelectorAll('li').forEach(li => {
+                    li.classList.toggle('active', li.getAttribute('data-value') === hidden.value);
+                });
+            };
+
+            trigger.addEventListener('click', (event) => {
+                event.stopPropagation();
+                toggle();
+            });
+
+            options.querySelectorAll('li').forEach(li => {
+                li.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    setValue(li.getAttribute('data-value') || '1', li.textContent || '1 次');
+                    close();
+                });
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!root.contains(event.target)) close();
+            });
+
+            const initial = hidden.value || '1';
+            const initialItem = options.querySelector(`li[data-value="${initial}"]`);
+            if (initialItem) {
+                setValue(initial, initialItem.textContent || '1 次');
+            } else {
+                setValue('1', '1 次');
+            }
+        }
+
+        function initCustomInviteStatusFilterSelect() {
+            const select = document.getElementById('invite-status-filter');
+            if (!select || select.tagName !== 'SELECT') return;
+            if (select.dataset.customized === '1') return;
+
+            const customId = 'custom-invite-status-filter';
+            const root = document.createElement('div');
+            root.className = 'custom-select';
+            root.id = customId;
+            root.innerHTML = `
+                <div class="custom-select-trigger"></div>
+                <ul class="custom-select-options"></ul>
+            `;
+            select.insertAdjacentElement('afterend', root);
+            select.classList.add('native-select-hidden');
+            select.dataset.customized = '1';
+
+            const trigger = root.querySelector('.custom-select-trigger');
+            const optionsEl = root.querySelector('.custom-select-options');
+            if (!trigger || !optionsEl) return;
+
+            const render = () => {
+                const currentValue = String(select.value || '');
+                optionsEl.innerHTML = Array.from(select.options).map(opt => {
+                    const value = String(opt.value || '');
+                    const text = String(opt.textContent || '').trim();
+                    const active = value === currentValue ? 'active' : '';
+                    return `<li data-value="${escapeHtml(value)}" class="${active}">${escapeHtml(text)}</li>`;
+                }).join('');
+                const currentOption = select.options[select.selectedIndex] || select.options[0];
+                trigger.textContent = currentOption ? String(currentOption.textContent || '').trim() : '全部';
+            };
+
+            render();
+
+            trigger.addEventListener('click', (event) => {
+                event.stopPropagation();
+                root.classList.toggle('open');
+            });
+
+            optionsEl.addEventListener('click', (event) => {
+                const target = event.target;
+                if (!(target instanceof HTMLElement)) return;
+                const item = target.closest('li[data-value]');
+                if (!item) return;
+                const value = item.getAttribute('data-value') || 'all';
+                if (select.value !== value) {
+                    select.value = value;
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                render();
+                root.classList.remove('open');
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!root.contains(event.target)) root.classList.remove('open');
+            });
+        }
         
         // 加载邀请码列表
         async function loadInviteCodes() {
@@ -475,13 +679,69 @@
                 });
                 
                 const codes = await resp.json();
-                
-                if (codes.length === 0) {
-                    container.innerHTML = '<div class="empty">暂无邀请码</div>';
-                    return;
-                }
-                
-                container.innerHTML = `
+                inviteCodesCache = Array.isArray(codes) ? codes : [];
+                renderInviteCodes();
+            } catch (e) {
+                container.innerHTML = `<div class="empty">加载失败: ${e.message}</div>`;
+                const pagination = document.getElementById('codes-pagination');
+                if (pagination) pagination.innerHTML = '';
+            }
+        }
+
+        function getInviteCodeStatus(code) {
+            if (code.max_uses > 0 && code.used_count >= code.max_uses) {
+                return { className: 'used', text: '已用完', key: 'used' };
+            }
+            return { className: 'unused', text: '可用', key: 'available' };
+        }
+
+        function getFilteredInviteCodes() {
+            if (inviteStatusFilter === 'all') return inviteCodesCache.slice();
+            return inviteCodesCache.filter(code => getInviteCodeStatus(code).key === inviteStatusFilter);
+        }
+
+        function renderInvitePagination(total, page) {
+            const container = document.getElementById('codes-pagination');
+            if (!container) return;
+            const totalPages = Math.max(1, Math.ceil((total || 0) / INVITE_PAGE_SIZE));
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            const prevDisabled = page <= 1 ? 'disabled' : '';
+            const nextDisabled = page >= totalPages ? 'disabled' : '';
+            const pageItems = [];
+            for (let p = 1; p <= totalPages; p++) {
+                const activeStyle = p === page
+                    ? 'background: rgba(102,126,234,0.45); border-color: rgba(102,126,234,0.8);'
+                    : '';
+                pageItems.push(
+                    `<button class="btn secondary small" style="margin-right:4px;${activeStyle}" onclick="changeInvitePage(${p})">${p}</button>`
+                );
+            }
+            container.innerHTML = `
+                <button class="btn secondary small" ${prevDisabled} onclick="changeInvitePage(${page - 1})">上一页</button>
+                ${pageItems.join('')}
+                <button class="btn secondary small" ${nextDisabled} onclick="changeInvitePage(${page + 1})">下一页</button>
+            `;
+        }
+
+        function renderInviteCodes() {
+            const container = document.getElementById('codes-list');
+            if (!container) return;
+            const filtered = getFilteredInviteCodes();
+            if (!filtered.length) {
+                container.innerHTML = '<div class="empty">暂无邀请码</div>';
+                const pagination = document.getElementById('codes-pagination');
+                if (pagination) pagination.innerHTML = '';
+                return;
+            }
+            const totalPages = Math.max(1, Math.ceil(filtered.length / INVITE_PAGE_SIZE));
+            inviteCurrentPage = Math.min(Math.max(1, inviteCurrentPage), totalPages);
+            const start = (inviteCurrentPage - 1) * INVITE_PAGE_SIZE;
+            const pageItems = filtered.slice(start, start + INVITE_PAGE_SIZE);
+
+            container.innerHTML = `
                     <table>
                         <thead>
                             <tr>
@@ -489,18 +749,12 @@
                                 <th>使用次数</th>
                                 <th>状态</th>
                                 <th>创建时间</th>
+                                <th>操作</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${codes.map(code => {
-                                let statusClass = 'unused';
-                                let statusText = '可用';
-                                
-                                if (code.max_uses > 0 && code.used_count >= code.max_uses) {
-                                    statusClass = 'used';
-                                    statusText = '已用完';
-                                }
-                                
+                            ${pageItems.map(code => {
+                                const status = getInviteCodeStatus(code);
                                 const usesText = code.max_uses === 0 
                                     ? `${code.used_count} / ∞` 
                                     : `${code.used_count} / ${code.max_uses}`;
@@ -509,16 +763,61 @@
                                     <tr>
                                         <td><span class="code">${code.code}</span></td>
                                         <td>${usesText}</td>
-                                        <td><span class="status ${statusClass}">${statusText}</span></td>
+                                        <td><span class="status ${status.className}">${status.text}</span></td>
                                         <td>${new Date(code.created_at).toLocaleString('zh-CN')}</td>
+                                        <td>
+                                            <button class="btn danger small" onclick='deleteInviteCode(${JSON.stringify(code.code)})'>删除</button>
+                                        </td>
                                     </tr>
                                 `;
                             }).join('')}
                         </tbody>
                     </table>
                 `;
+            renderInvitePagination(filtered.length, inviteCurrentPage);
+        }
+
+        function changeInviteFilter(value) {
+            inviteStatusFilter = String(value || 'all');
+            inviteCurrentPage = 1;
+            renderInviteCodes();
+        }
+
+        function changeInvitePage(page) {
+            inviteCurrentPage = Math.max(1, Number(page) || 1);
+            renderInviteCodes();
+        }
+
+        async function deleteInviteCode(code) {
+            const normalized = String(code || '').trim();
+            if (!normalized) {
+                showToast('邀请码无效', true);
+                return;
+            }
+            if (!confirm(`确认删除邀请码 ${normalized} 吗？删除后不可恢复。`)) return;
+
+            try {
+                let resp = await fetch(`${API_BASE}/auth/invite-codes/${encodeURIComponent(normalized)}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                if (resp.status === 405) {
+                    // 兼容某些环境限制 DELETE 的情况
+                    resp = await fetch(`${API_BASE}/auth/invite-codes/${encodeURIComponent(normalized)}/delete`, {
+                        method: 'POST',
+                        headers: getAuthHeaders()
+                    });
+                }
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '删除邀请码失败', true);
+                    return;
+                }
+                showToast('邀请码已删除');
+                inviteCurrentPage = 1;
+                loadInviteCodes();
             } catch (e) {
-                container.innerHTML = `<div class="empty">加载失败: ${e.message}</div>`;
+                showToast('网络错误: ' + e.message, true);
             }
         }
 
@@ -735,6 +1034,8 @@
         // 初始化
         checkAuth().then(ok => {
             if (ok) {
+                initCustomMaxUsesSelect();
+                initCustomInviteStatusFilterSelect();
                 loadInviteCodes();
                 loadApiKeys();
             }

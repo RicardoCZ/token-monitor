@@ -450,6 +450,57 @@ async def list_invite_codes(
     ]
 
 
+@router.delete("/invite-codes/{code}")
+async def delete_invite_code(
+    code: str,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    删除邀请码（仅管理员）
+    删除后该邀请码立即失效且不可恢复。
+    """
+    normalized_code = (code or "").strip()
+    if not normalized_code:
+        raise HTTPException(status_code=400, detail="邀请码不能为空")
+
+    result = await db.execute(
+        select(InviteCode).where(InviteCode.code == normalized_code)
+    )
+    invite = result.scalar_one_or_none()
+    if not invite:
+        raise HTTPException(status_code=404, detail="邀请码不存在")
+
+    await db.delete(invite)
+    await db.commit()
+    return {"success": True, "message": "邀请码已删除"}
+
+
+@router.post("/invite-codes/{code}/delete")
+async def delete_invite_code_compat(
+    code: str,
+    current_user: User = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    兼容删除入口（某些环境可能限制 DELETE 方法）。
+    """
+    normalized_code = (code or "").strip()
+    if not normalized_code:
+        raise HTTPException(status_code=400, detail="邀请码不能为空")
+
+    result = await db.execute(
+        select(InviteCode).where(InviteCode.code == normalized_code)
+    )
+    invite = result.scalar_one_or_none()
+    if not invite:
+        raise HTTPException(status_code=404, detail="邀请码不存在")
+
+    await db.delete(invite)
+    await db.commit()
+    return {"success": True, "message": "邀请码已删除"}
+
+
 @router.post("/api-keys", response_model=ApiKeyCreateResponse)
 async def create_api_key(
     req: ApiKeyCreateRequest,

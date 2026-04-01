@@ -151,6 +151,70 @@
             font-size: 14px;
             margin-bottom: 10px;
         }
+        .native-select-hidden {
+            display: none !important;
+        }
+        .custom-select {
+            position: relative;
+            width: 100%;
+            user-select: none;
+            margin-bottom: 10px;
+        }
+        .custom-select-trigger {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            cursor: pointer;
+            position: relative;
+        }
+        .custom-select-trigger::after {
+            content: "▾";
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #a8b0d3;
+            font-size: 12px;
+        }
+        .custom-select.open .custom-select-trigger {
+            border-color: #667eea;
+        }
+        .custom-select-options {
+            list-style: none;
+            margin: 6px 0 0 0;
+            padding: 6px;
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 100%;
+            z-index: 40;
+            border-radius: 10px;
+            background: rgba(30, 34, 58, 0.98);
+            border: 1px solid rgba(102, 126, 234, 0.35);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+            display: none;
+        }
+        .custom-select.open .custom-select-options {
+            display: block;
+        }
+        .custom-select-options li {
+            padding: 9px 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #dbe3ff;
+            cursor: pointer;
+        }
+        .custom-select-options li:hover {
+            background: rgba(102, 126, 234, 0.22);
+        }
+        .custom-select-options li.active {
+            background: rgba(102, 126, 234, 0.35);
+            color: #fff;
+        }
         
         input::placeholder { color: #666; }
         
@@ -708,6 +772,64 @@
                 .filter(item => item.path.toLowerCase() !== CURRENT_PAGE)
                 .map(item => `<a href="${item.path}" class="header-top-link">${item.label}</a>`)
                 .join('');
+        }
+
+        function initCustomBrowserTypeSelect() {
+            const select = document.getElementById('browser-type');
+            if (!select || select.tagName !== 'SELECT') return;
+            if (select.dataset.customized === '1') return;
+
+            const root = document.createElement('div');
+            root.className = 'custom-select';
+            root.id = 'custom-browser-type';
+            root.innerHTML = `
+                <div class="custom-select-trigger"></div>
+                <ul class="custom-select-options"></ul>
+            `;
+            select.insertAdjacentElement('afterend', root);
+            select.classList.add('native-select-hidden');
+            select.dataset.customized = '1';
+
+            const trigger = root.querySelector('.custom-select-trigger');
+            const optionsEl = root.querySelector('.custom-select-options');
+            if (!trigger || !optionsEl) return;
+
+            const render = () => {
+                const currentValue = String(select.value || '');
+                optionsEl.innerHTML = Array.from(select.options).map(opt => {
+                    const value = String(opt.value || '');
+                    const text = String(opt.textContent || '').trim();
+                    const active = value === currentValue ? 'active' : '';
+                    return `<li data-value="${escapeHtml(value)}" class="${active}">${escapeHtml(text)}</li>`;
+                }).join('');
+                const currentOption = select.options[select.selectedIndex] || select.options[0];
+                trigger.textContent = currentOption ? String(currentOption.textContent || '').trim() : '请选择浏览器';
+            };
+
+            render();
+
+            trigger.addEventListener('click', (event) => {
+                event.stopPropagation();
+                root.classList.toggle('open');
+            });
+
+            optionsEl.addEventListener('click', (event) => {
+                const target = event.target;
+                if (!(target instanceof HTMLElement)) return;
+                const item = target.closest('li[data-value]');
+                if (!item) return;
+                const value = item.getAttribute('data-value') || 'chrome';
+                if (select.value !== value) {
+                    select.value = value;
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                render();
+                root.classList.remove('open');
+            });
+
+            document.addEventListener('click', (event) => {
+                if (!root.contains(event.target)) root.classList.remove('open');
+            });
         }
         
         // 检查登录状态
@@ -1863,6 +1985,7 @@
         }
         
         // 页面加载 - 先检查登录
+        initCustomBrowserTypeSelect();
         checkAuth().then(() => {
             loadCurrentConfig();
         });

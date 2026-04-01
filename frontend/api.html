@@ -155,6 +155,7 @@
         
         .refresh-btn:active { transform: scale(0.95); }
         .refresh-btn.spinning { animation: spin 1s linear infinite; }
+        .refresh-btn:disabled { opacity: 0.6; cursor: not-allowed; }
         
         @keyframes spin {
             from { transform: rotate(0deg); }
@@ -167,6 +168,14 @@
             color: #666;
             margin-top: 20px;
         }
+        .refresh-feedback {
+            text-align: center;
+            font-size: 12px;
+            color: #9aa3c7;
+            min-height: 18px;
+            margin-top: 6px;
+        }
+        .refresh-feedback.error { color: #ff9aa2; }
         
         .modal {
             position: fixed;
@@ -242,6 +251,7 @@
     </div>
     
     <div class="last-update" id="last-update"></div>
+    <div class="refresh-feedback" id="refresh-feedback"></div>
     
     <button class="refresh-btn" id="refresh-btn" onclick="refreshAll()">↻</button>
     
@@ -264,6 +274,9 @@
         let currentUser = null;
         let authToken = localStorage.getItem('token');
         let serviceRegistry = [];
+        let serviceDataCache = {};
+        let isRefreshing = false;
+        const DASHBOARD_CACHE_KEY = "token-monitor:api-dashboard-cache:v1";
 
         function buildTopNavLinks(isAdmin) {
             const links = [
@@ -321,19 +334,86 @@
         function logout() {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            sessionStorage.removeItem(DASHBOARD_CACHE_KEY);
             window.location.href = 'login.html';
         }
         
-        async function refreshAll() {
+        function setRefreshFeedback(text, isError = false) {
+            const el = document.getElementById("refresh-feedback");
+            if (!el) return;
+            el.textContent = text || "";
+            el.className = "refresh-feedback" + (isError ? " error" : "");
+        }
+
+        function updateLastUpdateText(timestamp, suffix = "") {
+            const el = document.getElementById("last-update");
+            if (!el) return;
+            const dt = new Date(Number(timestamp) || Date.now());
+            el.textContent = `最后更新: ${dt.toLocaleTimeString("zh-CN")}${suffix}`;
+        }
+
+        function saveDashboardCache(updatedAt = Date.now()) {
+            try {
+                const payload = {
+                    updatedAt,
+                    registry: Array.isArray(serviceRegistry) ? serviceRegistry : [],
+                    dataByService: serviceDataCache || {},
+                };
+                sessionStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify(payload));
+            } catch (e) {
+                // ignore storage failures
+            }
+        }
+
+        function loadDashboardCache() {
+            try {
+                const raw = sessionStorage.getItem(DASHBOARD_CACHE_KEY);
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                if (!parsed || typeof parsed !== "object") return null;
+                if (!Array.isArray(parsed.registry) || typeof parsed.dataByService !== "object") return null;
+                return parsed;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function refreshAll(trigger = "manual") {
+            if (isRefreshing) {
+                if (trigger === "manual") {
+                    setRefreshFeedback("正在刷新中，请稍候...");
+                }
+                return;
+            }
             const btn = document.getElementById("refresh-btn");
-            btn.classList.add("spinning");
+            isRefreshing = true;
+            if (btn) {
+                btn.disabled = true;
+                btn.title = "刷新中...";
+                btn.classList.add("spinning");
+            }
+            setRefreshFeedback("刷新中...");
             try {
                 await syncServiceRegistry();
-                await Promise.all(serviceRegistry.map((service) => refreshServiceCard(service)));
-                document.getElementById("last-update").textContent =
-                    "最后更新: " + new Date().toLocaleTimeString("zh-CN");
+                const results = await Promise.all(serviceRegistry.map((service) => refreshServiceCard(service)));
+                if (results.some(Boolean)) {
+                    const now = Date.now();
+                    saveDashboardCache(now);
+                    updateLastUpdateText(now);
+                } else {
+                    updateLastUpdateText(Date.now());
+                }
+                setRefreshFeedback("刷新完成");
+            } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e || "未知错误");
+                setRefreshFeedback(`刷新失败：${msg}`, true);
             } finally {
-                btn.classList.remove("spinning");
+                isRefreshing = false;
+                if (btn) {
+                    btn.classList.remove("spinning");
+                    btn.disabled = false;
+                    btn.title = "刷新";
+                }
             }
         }
 
@@ -463,10 +543,9 @@
 
         function buildUsageNumbers(data) {
             const pageInfo = data?.page_info || {};
-            // 标准 key 优先；兼容旧 key 作为兜底
-            const used = getNumberValue(pageInfo.used ?? pageInfo.dailyUsed);
-            const total = getNumberValue(pageInfo.total ?? pageInfo.dailyQuota);
-            const remainFromPage = pageInfo.remain ?? pageInfo.dailyRemain;
+            const used = getNumberValue(pageInfo.used);
+            const total = getNumberValue(pageInfo.total);
+            const remainFromPage = pageInfo.remain;
             const remain = remainFromPage != null ? getNumberValue(remainFromPage) : Math.max(0, total - used);
             const percentRaw = pageInfo.percent ?? data?.percent;
             const percent = percentRaw != null ? getNumberValue(percentRaw) : (total > 0 ? (used / total) * 100 : 0);
@@ -512,12 +591,24 @@
             const usage = buildUsageNumbers(data);
             const defs = normalizeMetricDefs(service.metric_defs);
             const rows = [];
+            const renderedKeys = new Set();
             for (const def of defs) {
                 const value = pickMetricValue(def.key, usage);
                 if (value == null) continue;
+                renderedKeys.add(String(def.key || "").trim().toLowerCase());
                 rows.push({
                     label: def.label || def.key,
                     value: formatMetricValue(value, def.unit, def.key),
+                });
+            }
+            // 兜底：若服务注册表未声明 remain，也要展示剩余额度
+            if (!renderedKeys.has("remain")) {
+                const totalDef = defs.find(def => String(def.key || "").trim().toLowerCase() === "total");
+                const usedDef = defs.find(def => String(def.key || "").trim().toLowerCase() === "used");
+                const remainUnit = (totalDef && totalDef.unit) || (usedDef && usedDef.unit) || "";
+                rows.push({
+                    label: "剩余",
+                    value: formatMetricValue(usage.remain, remainUnit, "remain"),
                 });
             }
             if (!rows.length) {
@@ -536,10 +627,70 @@
             return "-";
         }
 
-        async function refreshServiceCard(service) {
+        function renderServiceCardSuccess(service, data) {
             const badge = document.getElementById(`service-badge-${service.id}`);
             const content = document.getElementById(`service-content-${service.id}`);
             if (!badge || !content) return;
+            badge.className = "card-badge badge-ok";
+            badge.textContent = "正常";
+
+            const { rows, usage } = buildMetricRows(service, data);
+            const percent = getNumberValue(usage.percent);
+            const colorClass = percent > 80 ? "red" : percent > 50 ? "orange" : "green";
+
+            const metaRows = [{ label: "到期时间", value: usage.expiresAt || "-" }];
+            if (service.id !== "xfyun") {
+                metaRows.push({
+                    label: "重置时间",
+                    value: formatResetTime(usage.resetHours, usage.resetMinutes),
+                });
+            }
+
+            content.innerHTML = `
+                <div class="card-stats-block">
+                    ${rows.map(row => `
+                        <div class="stat-row">
+                            <span class="stat-label">${escapeHtml(row.label)}</span>
+                            <span class="stat-value">${escapeHtml(row.value)}</span>
+                        </div>
+                    `).join("")}
+                </div>
+                <div class="card-meta-block">
+                    ${metaRows.map((row, idx) => `
+                        <div class="stat-row ${idx === 0 ? "meta-row-first" : ""}">
+                            <span class="stat-label">${escapeHtml(row.label)}</span>
+                            <span class="stat-value">${escapeHtml(row.value)}</span>
+                        </div>
+                    `).join("")}
+                </div>
+                <div class="card-progress-wrap">
+                    <div class="progress-bar">
+                        <div class="progress-fill ${colorClass}" style="width: ${Math.max(0, Math.min(100, percent))}%"></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFromCachedDashboard() {
+            const cache = loadDashboardCache();
+            if (!cache) return false;
+            serviceRegistry = cache.registry;
+            serviceDataCache = cache.dataByService || {};
+            renderServiceCardsSkeleton();
+            for (const service of serviceRegistry) {
+                const cachedData = serviceDataCache[service.id];
+                if (!cachedData) continue;
+                renderServiceCardSuccess(service, cachedData);
+            }
+            updateLastUpdateText(cache.updatedAt || Date.now(), "（缓存）");
+            setRefreshFeedback("已显示缓存数据，正在刷新最新数据...");
+            return true;
+        }
+
+        async function refreshServiceCard(service) {
+            const badge = document.getElementById(`service-badge-${service.id}`);
+            const content = document.getElementById(`service-content-${service.id}`);
+            if (!badge || !content) return false;
 
             try {
                 const resp = await fetch(`${API_BASE}/api/${service.id}/`, {
@@ -552,55 +703,20 @@
                         content,
                         extractApiErrorMessage(data) || (`请求失败 (${resp.status})`)
                     );
-                    return;
+                    return false;
                 }
                 if (data.error) {
                     renderServiceCardError(badge, content, data.error);
-                    return;
+                    return false;
                 }
-
-                badge.className = "card-badge badge-ok";
-                badge.textContent = "正常";
-
-                const { rows, usage } = buildMetricRows(service, data);
-                const percent = getNumberValue(usage.percent);
-                const colorClass = percent > 80 ? "red" : percent > 50 ? "orange" : "green";
-
-                const metaRows = [{ label: "到期时间", value: usage.expiresAt || "-" }];
-                if (service.id !== "xfyun") {
-                    metaRows.push({
-                        label: "重置时间",
-                        value: formatResetTime(usage.resetHours, usage.resetMinutes),
-                    });
-                }
-
-                content.innerHTML = `
-                    <div class="card-stats-block">
-                        ${rows.map(row => `
-                            <div class="stat-row">
-                                <span class="stat-label">${escapeHtml(row.label)}</span>
-                                <span class="stat-value">${escapeHtml(row.value)}</span>
-                            </div>
-                        `).join("")}
-                    </div>
-                    <div class="card-meta-block">
-                        ${metaRows.map((row, idx) => `
-                            <div class="stat-row ${idx === 0 ? "meta-row-first" : ""}">
-                                <span class="stat-label">${escapeHtml(row.label)}</span>
-                                <span class="stat-value">${escapeHtml(row.value)}</span>
-                            </div>
-                        `).join("")}
-                    </div>
-                    <div class="card-progress-wrap">
-                        <div class="progress-bar">
-                            <div class="progress-fill ${colorClass}" style="width: ${Math.max(0, Math.min(100, percent))}%"></div>
-                        </div>
-                    </div>
-                `;
+                serviceDataCache[service.id] = data;
+                renderServiceCardSuccess(service, data);
+                return true;
             } catch (e) {
                 badge.className = "card-badge badge-error";
                 badge.textContent = "错误";
                 content.innerHTML = `<div class="error-detail">${escapeHtml(e.message || "加载失败")}</div>`;
+                return false;
             }
         }
         
@@ -630,13 +746,14 @@
         // 首次加载 - 先检查登录状态
         checkAuth().then(loggedIn => {
             if (loggedIn) {
-                refreshAll();
+                renderFromCachedDashboard();
+                refreshAll("init");
             }
         });
         
         // 每60秒自动刷新
         setInterval(() => {
-            if (authToken) refreshAll();
+            if (authToken) refreshAll("auto");
         }, 60000);
     </script>
 </body>

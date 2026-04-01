@@ -199,7 +199,7 @@ public class WebViewActivity extends Activity {
             
             // 查找额度
             "var quotaMatch = allText.match(/(\\d+\\.?\\d*)\\s*万/);" +
-            "if (quotaMatch) result.dailyQuota = quotaMatch[1];" +
+            "if (quotaMatch) result.total = quotaMatch[1];" +
             
             "return JSON.stringify(result);" +
         "})();";

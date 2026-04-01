@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>账号管理 - 令牌监控</title>
+    <title>Token Monitor - 账号管理</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -57,6 +57,10 @@
             font-weight: 600;
             cursor: pointer;
         }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
         .btn.secondary { background: rgba(255, 255, 255, 0.1); }
         .btn.danger { background: rgba(244, 67, 54, 0.9); }
         .btn.small { padding: 6px 12px; font-size: 12px; margin-right: 6px; }
@@ -70,6 +74,35 @@
         .account-status-tag.ok { color: #4CAF50; background: rgba(76, 175, 80, 0.2); }
         .account-status-tag.warn { color: #FF9800; background: rgba(255, 152, 0, 0.2); }
         .account-status-tag.off { color: #9e9e9e; background: rgba(158, 158, 158, 0.2); }
+        .account-name-cell {
+            min-width: 150px;
+        }
+        .account-name-display {
+            display: inline-block;
+            max-width: 220px;
+            padding: 2px 4px;
+            border-radius: 6px;
+            cursor: text;
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            color: #dbe3ff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .account-name-display:hover {
+            border-color: rgba(102, 126, 234, 0.7);
+            background: rgba(102, 126, 234, 0.12);
+        }
+        .account-name-input {
+            display: none;
+            width: 220px;
+            padding: 6px 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.7);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 13px;
+        }
         .account-detail-box {
             margin-top: 12px;
             padding: 12px;
@@ -108,9 +141,15 @@
         .inline-fields {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 10px;
+            gap: 12px;
             margin-bottom: 12px;
             margin-top: 12px;
+            align-items: end;
+        }
+        .inline-fields .form-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
         }
         .form-group label {
             display: block;
@@ -118,14 +157,128 @@
             color: #999;
             font-size: 13px;
         }
+        .inline-fields .form-group label {
+            height: 20px;
+            line-height: 20px;
+            margin-bottom: 8px;
+        }
         .form-group input, .form-group select {
             width: 100%;
-            padding: 10px 12px;
+            height: 40px;
+            padding: 0 12px;
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 8px;
             color: #fff;
             font-size: 13px;
+        }
+        .native-select-hidden {
+            display: none !important;
+        }
+        .custom-select {
+            position: relative;
+            width: 100%;
+            user-select: none;
+        }
+        .custom-select-trigger {
+            width: 100%;
+            height: 40px;
+            padding: 0 12px;
+            line-height: 38px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 13px;
+            cursor: pointer;
+            position: relative;
+        }
+        .custom-select-trigger::after {
+            content: "▾";
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #a8b0d3;
+            font-size: 11px;
+        }
+        .custom-select.open .custom-select-trigger {
+            border-color: #667eea;
+        }
+        .save-rule-btn {
+            width: 100%;
+            height: 40px;
+            padding: 0 14px;
+            margin-bottom: 0 !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+        }
+        .custom-select-options {
+            list-style: none;
+            margin: 6px 0 0 0;
+            padding: 6px;
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 100%;
+            z-index: 30;
+            border-radius: 10px;
+            background: rgba(30, 34, 58, 0.98);
+            border: 1px solid rgba(102, 126, 234, 0.35);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+            display: none;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .custom-select.open .custom-select-options {
+            display: block;
+        }
+        .custom-select-options li {
+            padding: 9px 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #dbe3ff;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .custom-select-options li:hover {
+            background: rgba(102, 126, 234, 0.22);
+        }
+        .custom-select-options li.active {
+            background: rgba(102, 126, 234, 0.35);
+            color: #fff;
+        }
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 22px;
+            background: #555;
+            border-radius: 11px;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .toggle-switch.active {
+            background: #4CAF50;
+        }
+        .toggle-switch::after {
+            content: "";
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+        }
+        .toggle-switch.active::after {
+            transform: translateX(22px);
         }
         .form-group select option {
             background-color: #2a2a4a;
@@ -136,6 +289,18 @@
             color: #888;
             margin-bottom: 10px;
         }
+        .list-section {
+            margin-top: 16px;
+        }
+        .list-section-title {
+            margin-bottom: 10px;
+        }
+        .list-content {
+            margin-top: 0;
+        }
+        .list-pagination {
+            margin-top: 8px;
+        }
         .mini-table {
             width: 100%;
             border-collapse: collapse;
@@ -145,6 +310,30 @@
             padding: 8px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             font-size: 12px;
+        }
+        .rule-inline-input {
+            width: 110px;
+            padding: 7px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            background: rgba(255, 255, 255, 0.08);
+            color: #f3f6ff;
+            font-size: 12px;
+            outline: none;
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+        .rule-inline-input:focus {
+            border-color: rgba(102, 126, 234, 0.9);
+            background: rgba(102, 126, 234, 0.12);
+        }
+        .rule-inline-input::-webkit-outer-spin-button,
+        .rule-inline-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .rule-inline-input[type="number"] {
+            appearance: textfield;
+            -moz-appearance: textfield;
         }
         .alert-events-table {
             table-layout: fixed;
@@ -194,7 +383,7 @@
 
         <div class="card">
             <h2>账号列表</h2>
-            <p class="sub-title">支持查看详情、手动同步、删除账号、编辑配置名称</p>
+            <p class="sub-title">支持查看详情、手动同步、删除账号，点击配置名称可原地编辑</p>
             <div id="accounts-list"><div class="empty">加载中...</div></div>
             <div id="account-detail-panel" class="account-detail-box" style="display:none;"></div>
         </div>
@@ -206,7 +395,7 @@
                 <label>选择账号</label>
                 <select id="alert-account-select"></select>
             </div>
-            <div class="small-note" id="alert-account-hint">请从下拉框选择账号查看告警规则</div>
+            <div class="small-note" id="alert-account-hint"></div>
             <button class="btn secondary small" onclick="reloadAlertData()">刷新规则与事件</button>
 
             <div class="inline-fields">
@@ -218,30 +407,30 @@
                 </div>
                 <div class="form-group">
                     <label>阈值（%）</label>
-                    <input id="alert-threshold" type="number" step="0.1" value="80">
+                    <input id="alert-threshold" type="number" step="0.1" value="80" min="0" max="100" required>
                 </div>
                 <div class="form-group">
                     <label>冷却时间（分钟，最低30）</label>
                     <input id="alert-cooldown" type="number" value="30" min="30" step="1">
                 </div>
                 <div class="form-group">
-                    <label>启用状态</label>
-                    <select id="alert-enabled">
-                        <option value="true" selected>启用</option>
-                        <option value="false">停用</option>
-                    </select>
+                    <label>&nbsp;</label>
+                    <button class="btn save-rule-btn" onclick="saveAlertRule()">保存规则</button>
                 </div>
             </div>
-            <button class="btn" onclick="saveAlertRule()">保存规则</button>
 
-            <h2 style="margin-top:16px;">📋 当前规则</h2>
-            <div id="alert-rules-list"><div class="empty">加载中...</div></div>
+            <div class="list-section">
+                <h2 class="list-section-title">📋 当前规则</h2>
+                <div id="alert-rules-list" class="list-content"><div class="empty">加载中...</div></div>
+            </div>
 
-            <h2 style="margin-top:16px;">🧾 最近事件</h2>
-            <div id="alert-events-list"><div class="empty">加载中...</div></div>
-            <div id="alert-events-pagination" class="small-note" style="margin-top: 8px;"></div>
-            <div class="small-note" style="margin-top: 8px;">
-                状态说明：红色=告警中，绿色=已恢复，橙色=冷却中，灰色=规则停用或无有效指标。
+            <div class="list-section">
+                <h2 class="list-section-title">🧾 最近事件</h2>
+                <div id="alert-events-list" class="list-content"><div class="empty">加载中...</div></div>
+                <div id="alert-events-pagination" class="small-note list-pagination"></div>
+                <div class="small-note list-pagination">
+                    提示：仅展示最近告警事件；红色=告警中，绿色=已恢复，橙色=冷却中，灰色=规则停用或无有效指标。
+                </div>
             </div>
         </div>
     </div>
@@ -255,11 +444,17 @@
         let currentUser = null;
         let accountsCache = [];
         let currentAlertAccountId = 0;
+        let currentViewingAccountId = 0;
         const accountDetailCache = new Map();
         let alertReloadSeq = 0;
         let alertEventsReloadSeq = 0;
         let alertEventsPage = 1;
         const ALERT_EVENTS_PAGE_SIZE = 5;
+        const savingAccountNameIds = new Set();
+        const SYNC_COOLDOWN_MS = 3000;
+        const syncCooldownUntilByAccount = new Map();
+        const customSelectRegistry = new Map();
+        let customSelectGlobalCloseBound = false;
 
         function getAuthHeaders() {
             return { 'Authorization': `Bearer ${authToken}` };
@@ -278,9 +473,107 @@
             return div.innerHTML;
         }
 
+        function ensureCustomSelectGlobalCloseHandler() {
+            if (customSelectGlobalCloseBound) return;
+            document.addEventListener('click', (event) => {
+                document.querySelectorAll('.custom-select.open').forEach(root => {
+                    if (!root.contains(event.target)) root.classList.remove('open');
+                });
+            });
+            customSelectGlobalCloseBound = true;
+        }
+
+        function bindCustomSelectById(selectId, options = {}) {
+            const select = document.getElementById(selectId);
+            if (!select || select.tagName !== 'SELECT') return;
+            bindCustomSelectElement(select, { ...options, selectId });
+        }
+
+        function bindCustomSelectElement(select, options = {}) {
+            if (!select || select.tagName !== 'SELECT') return;
+            ensureCustomSelectGlobalCloseHandler();
+            const selectId = options.selectId || select.id || '';
+            let root = null;
+            const existingId = select.dataset.customSelectId || '';
+            if (existingId) root = document.getElementById(existingId);
+
+            if (!root) {
+                const suffix = selectId || `inline-${Math.random().toString(36).slice(2, 8)}`;
+                const customId = `custom-${suffix}`;
+                root = document.createElement('div');
+                root.className = 'custom-select';
+                root.id = customId;
+                root.innerHTML = `
+                    <div class="custom-select-trigger"></div>
+                    <ul class="custom-select-options"></ul>
+                `;
+                select.insertAdjacentElement('afterend', root);
+                select.classList.add('native-select-hidden');
+                select.dataset.customSelectId = customId;
+                root.querySelector('.custom-select-trigger')?.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    root.classList.toggle('open');
+                });
+                root.querySelector('.custom-select-options')?.addEventListener('click', (event) => {
+                    const target = event.target;
+                    if (!(target instanceof HTMLElement)) return;
+                    const item = target.closest('li[data-value]');
+                    if (!item) return;
+                    const nextValue = item.getAttribute('data-value') || '';
+                    if (select.value !== nextValue) {
+                        select.value = nextValue;
+                        select.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    root.classList.remove('open');
+                });
+            }
+
+            const trigger = root.querySelector('.custom-select-trigger');
+            const list = root.querySelector('.custom-select-options');
+            if (!trigger || !list) return;
+
+            const currentValue = String(select.value ?? '');
+            const optionItems = Array.from(select.options).map(opt => {
+                const val = String(opt.value ?? '');
+                const text = String(opt.textContent ?? '').trim();
+                const activeClass = val === currentValue ? 'active' : '';
+                return `<li data-value="${escapeHtml(val)}" class="${activeClass}">${escapeHtml(text)}</li>`;
+            });
+            list.innerHTML = optionItems.join('');
+
+            const activeOption = select.options[select.selectedIndex] || select.options[0] || null;
+            trigger.textContent = activeOption ? String(activeOption.textContent || '').trim() : '请选择';
+
+            if (selectId) customSelectRegistry.set(selectId, root.id);
+        }
+
+        function refreshCustomSelect(selectId) {
+            bindCustomSelectById(selectId);
+        }
+
+        function toggleRuleEnabled(idx) {
+            const hidden = document.getElementById(`rule-enabled-${idx}`);
+            const toggle = document.getElementById(`rule-enabled-toggle-${idx}`);
+            if (!hidden || !toggle) return;
+            const isEnabled = String(hidden.value || 'true') === 'true';
+            const next = !isEnabled;
+            hidden.value = next ? 'true' : 'false';
+            toggle.classList.toggle('active', next);
+            toggle.setAttribute('aria-checked', next ? 'true' : 'false');
+            toggle.title = next ? '当前：启用，点击可停用' : '当前：停用，点击可启用';
+        }
+
         function formatDate(value) {
             if (!value) return '-';
-            return new Date(value).toLocaleString('zh-CN');
+            const text = String(value).trim();
+            if (!text) return '-';
+            // 后端常返回无时区的 UTC 字符串，这里按 UTC 解析再显示本地时间
+            const candidate = /[zZ]|[+\-]\d{2}:\d{2}$/.test(text)
+                ? text
+                : `${text.replace(' ', 'T')}Z`;
+            const dt = new Date(candidate);
+            if (Number.isNaN(dt.getTime())) return text;
+            return dt.toLocaleString('zh-CN');
         }
 
         function validateConfigName(name) {
@@ -297,6 +590,11 @@
             if (!item.is_active) return { className: 'off', text: '已停用' };
             if (!item.has_cookies) return { className: 'warn', text: '缺少凭证' };
             return { className: 'ok', text: '正常' };
+        }
+
+        function updatePageTitle(detailName = '') {
+            const base = 'Token Monitor - 账号管理';
+            document.title = detailName ? `${base} - ${detailName}` : base;
         }
 
         function renderAccountDetailPanel(title, rows) {
@@ -320,6 +618,8 @@
         function hideAccountDetailPanel() {
             const panel = document.getElementById('account-detail-panel');
             if (panel) panel.style.display = 'none';
+            currentViewingAccountId = 0;
+            updatePageTitle();
         }
 
         function showToast(msg, isError = false) {
@@ -348,12 +648,11 @@
             currentAlertAccountId = Number(account?.id || 0);
             const hint = document.getElementById('alert-account-hint');
             if (!hint) return;
-            hint.textContent = currentAlertAccountId
-                ? `当前账号：${account.service_name || account.service_id} / ${account.name || '-'}（ID:${account.id}）`
-                : '请从下拉框选择账号查看告警规则';
+            hint.textContent = currentAlertAccountId ? '' : '请先选择账号';
             const select = document.getElementById('alert-account-select');
             if (select && currentAlertAccountId) {
                 select.value = String(currentAlertAccountId);
+                refreshCustomSelect('alert-account-select');
             }
         }
 
@@ -366,11 +665,11 @@
                 if (hint) hint.textContent = '当前无账号，请先在设置凭证页面完成账号配置';
                 currentAlertAccountId = 0;
                 setAlertMetricOptions([]);
+                refreshCustomSelect('alert-account-select');
                 return;
             }
             const previous = currentAlertAccountId;
             select.innerHTML = `
-                <option value="">请选择账号</option>
                 ${accountsCache.map(item => {
                     const label = `${item.service_icon || '🧩'} ${item.service_name || item.service_id} - ${item.name || '-'}`;
                     return `<option value="${item.id}">${escapeHtml(label)}</option>`;
@@ -391,8 +690,9 @@
                 }
             }
             if (hint && !currentAlertAccountId) {
-                hint.textContent = '请从下拉框选择账号查看告警规则';
+                hint.textContent = '请先选择账号';
             }
+            refreshCustomSelect('alert-account-select');
         }
 
         function normalizeMetricDefs(rawMetricDefs) {
@@ -418,6 +718,7 @@
             const defs = normalizeMetricDefs(metricDefs);
             if (!defs.length) {
                 select.innerHTML = '<option value="">该账号暂无可用指标</option>';
+                refreshCustomSelect('alert-metric-key');
                 return;
             }
             const prev = select.value;
@@ -427,6 +728,7 @@
             if (prev && defs.some(item => item.key === prev)) {
                 select.value = prev;
             }
+            refreshCustomSelect('alert-metric-key');
         }
 
         function renderAlertEmptyState(ruleText, eventText) {
@@ -566,13 +868,23 @@
                                 return `
                                     <tr data-account-id="${item.id}">
                                         <td>${escapeHtml(serviceName)}</td>
-                                        <td>${escapeHtml(item.name || '-')}</td>
+                                        <td class="account-name-cell" onclick="event.stopPropagation(); startInlineAccountNameEdit(${item.id});">
+                                            <span id="account-name-display-${item.id}" class="account-name-display">${escapeHtml(item.name || '-')}</span>
+                                            <input
+                                                id="account-name-input-${item.id}"
+                                                class="account-name-input"
+                                                type="text"
+                                                value="${escapeHtml(item.name || '')}"
+                                                data-original="${escapeHtml(item.name || '')}"
+                                                onkeydown="handleInlineAccountNameKeydown(event, ${item.id})"
+                                                onblur="finishInlineAccountNameEdit(${item.id}, true)"
+                                            >
+                                        </td>
                                         <td><span class="account-status-tag ${status.className}">${status.text}</span></td>
                                         <td>${escapeHtml(formatDate(item.last_sync_at))}</td>
                                         <td>
-                                            <button class="btn secondary small" onclick="event.stopPropagation(); syncAccount(${item.id})">同步</button>
+                                            <button id="sync-btn-${item.id}" class="btn secondary small" onclick="event.stopPropagation(); syncAccount(${item.id})">同步</button>
                                             <button class="btn secondary small" onclick="event.stopPropagation(); viewAccountDetail(${item.id})">详情</button>
-                                            <button class="btn secondary small" onclick='event.stopPropagation(); editAccountName(${item.id}, ${JSON.stringify(item.name || "")})'>编辑</button>
                                             <button class="btn danger small" onclick="event.stopPropagation(); deleteAccount(${item.id})">删除</button>
                                         </td>
                                     </tr>
@@ -581,12 +893,6 @@
                         </tbody>
                     </table>
                 `;
-                container.querySelectorAll('tbody tr[data-account-id]').forEach(row => {
-                    row.addEventListener('click', () => {
-                        const accountId = Number(row.getAttribute('data-account-id') || 0);
-                        if (accountId) viewAccountDetail(accountId);
-                    });
-                });
                 renderAlertAccountOptions();
                 await reloadAlertData();
             } catch (e) {
@@ -595,6 +901,11 @@
         }
 
         async function viewAccountDetail(accountId) {
+            const panel = document.getElementById('account-detail-panel');
+            if (panel && panel.style.display !== 'none' && currentViewingAccountId === accountId) {
+                hideAccountDetailPanel();
+                return;
+            }
             try {
                 const data = await fetchAccountDetail(accountId);
                 const usage = data.usage || {};
@@ -613,6 +924,8 @@
                 }
                 rows.push({ label: '最后同步', value: formatDate(data.last_sync_at) });
                 renderAccountDetailPanel(`账号详情（ID: ${accountId}）`, rows);
+                currentViewingAccountId = accountId;
+                updatePageTitle(data.name || `账号${accountId}`);
                 setCurrentAlertAccount(data);
                 setAlertMetricOptions(usage.metric_defs || []);
                 await reloadAlertData();
@@ -622,6 +935,19 @@
         }
 
         async function syncAccount(accountId) {
+            const now = Date.now();
+            const cooldownUntil = Number(syncCooldownUntilByAccount.get(accountId) || 0);
+            if (now < cooldownUntil) {
+                showToast('操作太频繁，请稍后再试', true);
+                return;
+            }
+            const btn = document.getElementById(`sync-btn-${accountId}`);
+            syncCooldownUntilByAccount.set(accountId, now + SYNC_COOLDOWN_MS);
+            if (btn) {
+                btn.disabled = true;
+                btn.dataset.syncOriginalText = btn.textContent || '同步';
+                btn.textContent = '同步中...';
+            }
             try {
                 const resp = await fetch(`${API_BASE}/api/accounts/${accountId}/sync`, {
                     method: 'POST',
@@ -637,6 +963,14 @@
                 await viewAccountDetail(accountId);
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);
+            } finally {
+                setTimeout(() => {
+                    const rowBtn = document.getElementById(`sync-btn-${accountId}`);
+                    if (rowBtn) {
+                        rowBtn.disabled = false;
+                        rowBtn.textContent = rowBtn.dataset.syncOriginalText || '同步';
+                    }
+                }, SYNC_COOLDOWN_MS);
             }
         }
 
@@ -665,16 +999,70 @@
             }
         }
 
-        async function editAccountName(accountId, currentName = '') {
-            const input = prompt('请输入新的配置名称（1-20 字符）：', currentName || '');
-            if (input === null) return;
-            const nextName = input.trim();
+        function startInlineAccountNameEdit(accountId) {
+            const display = document.getElementById(`account-name-display-${accountId}`);
+            const input = document.getElementById(`account-name-input-${accountId}`);
+            if (!display || !input) return;
+            if (savingAccountNameIds.has(accountId)) return;
+            const currentName = display.textContent === '-' ? '' : (display.textContent || '');
+            input.value = currentName;
+            input.dataset.original = currentName;
+            display.style.display = 'none';
+            input.style.display = 'inline-block';
+            input.focus();
+            input.select();
+        }
+
+        function handleInlineAccountNameKeydown(event, accountId) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                finishInlineAccountNameEdit(accountId, true);
+                return;
+            }
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                finishInlineAccountNameEdit(accountId, false);
+            }
+        }
+
+        async function finishInlineAccountNameEdit(accountId, shouldSave) {
+            const display = document.getElementById(`account-name-display-${accountId}`);
+            const input = document.getElementById(`account-name-input-${accountId}`);
+            if (!display || !input) return;
+            if (input.style.display === 'none') return;
+            if (savingAccountNameIds.has(accountId)) return;
+
+            const restore = (name) => {
+                const safeName = (name || '').trim();
+                display.textContent = safeName || '-';
+                input.value = safeName;
+                input.dataset.original = safeName;
+                input.style.display = 'none';
+                display.style.display = 'inline-block';
+            };
+
+            const original = (input.dataset.original || '').trim();
+            if (!shouldSave) {
+                restore(original);
+                return;
+            }
+
+            const nextName = (input.value || '').trim();
             const err = validateConfigName(nextName);
             if (err) {
                 showToast(err, true);
+                setTimeout(() => {
+                    input.focus();
+                    input.select();
+                }, 0);
                 return;
             }
-            if (nextName === (currentName || '').trim()) return;
+            if (nextName === original) {
+                restore(original);
+                return;
+            }
+
+            savingAccountNameIds.add(accountId);
             try {
                 const resp = await fetch(`${API_BASE}/api/accounts/${accountId}`, {
                     method: 'PUT',
@@ -684,13 +1072,26 @@
                 const data = await resp.json();
                 if (!resp.ok) {
                     showToast(data.detail || '更新配置名称失败', true);
+                    setTimeout(() => {
+                        input.focus();
+                        input.select();
+                    }, 0);
                     return;
                 }
+                const cacheItem = accountsCache.find(item => item.id === accountId);
+                if (cacheItem) cacheItem.name = nextName;
+                const cachedDetail = accountDetailCache.get(accountId);
+                if (cachedDetail) cachedDetail.name = nextName;
+                restore(nextName);
                 showToast('配置名称更新成功');
-                await loadAccounts();
-                await viewAccountDetail(accountId);
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);
+                setTimeout(() => {
+                    input.focus();
+                    input.select();
+                }, 0);
+            } finally {
+                savingAccountNameIds.delete(accountId);
             }
         }
 
@@ -720,7 +1121,7 @@
                                 <th>指标键</th>
                                 <th>阈值(%)</th>
                                 <th>冷却时间(分钟)</th>
-                                <th>已启用</th>
+                                <th>启用状态</th>
                                 <th>告警中</th>
                                 <th>操作</th>
                             </tr>
@@ -730,13 +1131,18 @@
                                 <tr>
                                     <td>${escapeHtml(item.account_name || `账号#${item.account_id}`)}</td>
                                     <td>${escapeHtml(item.metric_key)}</td>
-                                    <td><input id="rule-threshold-${idx}" type="number" step="0.1" value="${Number(item.threshold ?? 0)}" style="width:110px;"></td>
-                                    <td><input id="rule-cooldown-${idx}" type="number" min="30" step="1" value="${Math.max(30, Math.ceil(Number(item.cooldown_seconds ?? 0) / 60))}" style="width:110px;"></td>
+                                    <td><input id="rule-threshold-${idx}" class="rule-inline-input" type="number" step="0.1" min="0" max="100" value="${Number(item.threshold ?? 0)}"></td>
+                                    <td><input id="rule-cooldown-${idx}" class="rule-inline-input" type="number" min="30" step="1" value="${Math.max(30, Math.ceil(Number(item.cooldown_seconds ?? 0) / 60))}"></td>
                                     <td>
-                                        <select id="rule-enabled-${idx}" style="width:90px;">
-                                            <option value="true" ${item.is_enabled ? 'selected' : ''}>启用</option>
-                                            <option value="false" ${item.is_enabled ? '' : 'selected'}>停用</option>
-                                        </select>
+                                        <input id="rule-enabled-${idx}" type="hidden" value="${item.is_enabled ? 'true' : 'false'}">
+                                        <div
+                                            id="rule-enabled-toggle-${idx}"
+                                            class="toggle-switch ${item.is_enabled ? 'active' : ''}"
+                                            role="switch"
+                                            aria-checked="${item.is_enabled ? 'true' : 'false'}"
+                                            title="${item.is_enabled ? '当前：启用，点击可停用' : '当前：停用，点击可启用'}"
+                                            onclick="toggleRuleEnabled(${idx})"
+                                        ></div>
                                     </td>
                                     <td>${renderStatusTag(item.is_firing ? '告警中' : '已恢复', item.is_firing ? 'warn' : 'ok')}</td>
                                     <td>
@@ -850,8 +1256,6 @@
         }
 
         async function reloadAlertData() {
-            const rulesContainer = document.getElementById('alert-rules-list');
-            const eventsContainer = document.getElementById('alert-events-list');
             const select = document.getElementById('alert-account-select');
             if (select) {
                 currentAlertAccountId = Number(select.value || 0);
@@ -860,15 +1264,13 @@
                     if (account) setCurrentAlertAccount(account);
                 } else {
                     const hint = document.getElementById('alert-account-hint');
-                    if (hint) hint.textContent = '请从下拉框选择账号查看告警规则';
+                    if (hint) hint.textContent = '请先选择账号';
                     await ensureAlertMetricDefsForAccount(0);
                 }
             }
             alertReloadSeq += 1;
             const seq = alertReloadSeq;
             alertEventsReloadSeq = seq;
-            if (rulesContainer) rulesContainer.innerHTML = '<div class="empty">加载中...</div>';
-            if (eventsContainer) eventsContainer.innerHTML = '<div class="empty">加载中...</div>';
             await ensureAlertMetricDefsForAccount(currentAlertAccountId);
             await Promise.all([loadAlertRules(seq), loadAlertEvents(seq, alertEventsPage)]);
         }
@@ -879,15 +1281,25 @@
                 return;
             }
             const metricKey = (document.getElementById('alert-metric-key').value || '').trim();
-            const threshold = Number(document.getElementById('alert-threshold').value || '80');
-            const cooldownMinutes = Number(document.getElementById('alert-cooldown').value || '30');
-            const enabled = (document.getElementById('alert-enabled').value || 'true') === 'true';
+            const thresholdRaw = (document.getElementById('alert-threshold').value || '').trim();
+            const cooldownRaw = (document.getElementById('alert-cooldown').value || '').trim();
+            if (!thresholdRaw) {
+                showToast('阈值不能为空', true);
+                return;
+            }
+            if (!cooldownRaw) {
+                showToast('冷却时间不能为空', true);
+                return;
+            }
+            const threshold = Number(thresholdRaw);
+            const cooldownMinutes = Number(cooldownRaw);
+            const enabled = true;
             if (!metricKey) {
                 showToast('该账号暂无可用指标，无法保存规则', true);
                 return;
             }
-            if (!Number.isFinite(threshold) || threshold < 0) {
-                showToast('阈值无效', true);
+            if (!Number.isFinite(threshold) || threshold < 0 || threshold > 100) {
+                showToast('阈值需在 0-100 之间', true);
                 return;
             }
             if (!Number.isFinite(cooldownMinutes) || cooldownMinutes < 30) {
@@ -919,11 +1331,21 @@
         }
 
         async function saveAlertRuleInline(accountId, metricKey, idx) {
-            const threshold = Number(document.getElementById(`rule-threshold-${idx}`)?.value || '80');
-            const cooldownMinutes = Number(document.getElementById(`rule-cooldown-${idx}`)?.value || '30');
+            const thresholdRaw = (document.getElementById(`rule-threshold-${idx}`)?.value || '').trim();
+            const cooldownRaw = (document.getElementById(`rule-cooldown-${idx}`)?.value || '').trim();
+            if (!thresholdRaw) {
+                showToast('阈值不能为空', true);
+                return;
+            }
+            if (!cooldownRaw) {
+                showToast('冷却时间不能为空', true);
+                return;
+            }
+            const threshold = Number(thresholdRaw);
+            const cooldownMinutes = Number(cooldownRaw);
             const enabled = (document.getElementById(`rule-enabled-${idx}`)?.value || 'true') === 'true';
-            if (!Number.isFinite(threshold) || threshold < 0) {
-                showToast('阈值无效', true);
+            if (!Number.isFinite(threshold) || threshold < 0 || threshold > 100) {
+                showToast('阈值需在 0-100 之间', true);
                 return;
             }
             if (!Number.isFinite(cooldownMinutes) || cooldownMinutes < 30) {
@@ -982,6 +1404,9 @@
 
         checkAuth().then(ok => {
             if (ok) {
+                updatePageTitle();
+                bindCustomSelectById('alert-account-select');
+                bindCustomSelectById('alert-metric-key');
                 loadAccounts();
                 document.getElementById('alert-account-select')?.addEventListener('change', reloadAlertData);
             }
