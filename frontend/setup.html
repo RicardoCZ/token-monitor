@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cookie 设置 - Token Monitor ✨</title>
+    <title>凭证设置 - Token Monitor ✨</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -19,6 +19,14 @@
         
         h1 { font-size: 24px; text-align: center; margin-bottom: 10px; }
         .subtitle { text-align: center; color: #888; font-size: 13px; margin-bottom: 30px; }
+        .header-top-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .header-top-link:hover {
+            color: #8b9cff;
+        }
         
         .card {
             background: rgba(255, 255, 255, 0.08);
@@ -519,8 +527,9 @@
 </head>
 <body>
     <div class="container">
-        <h1>✨ Cookie 设置</h1>
+        <h1>✨ 凭证设置</h1>
         <p class="subtitle">设置登录凭证后才能查询用量</p>
+        <div id="user-info" style="margin-top: -14px; margin-bottom: 18px; font-size: 12px; color: #888; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 10px;"></div>
         
         <div class="tabs">
             <div class="tab active" data-tab="cdp">🤖 浏览器连接</div>
@@ -663,9 +672,11 @@
         const API_BASE = window.location.hostname === 'localhost' 
             ? 'http://localhost:5188' 
             : '';
+        const CURRENT_PAGE = (window.location.pathname.split('/').pop() || 'setup.html').toLowerCase();
         
         // 用户认证
         let authToken = localStorage.getItem('token');
+        let currentUser = null;
 
         function getAuthHeaders() {
             return { 'Authorization': `Bearer ${authToken}` };
@@ -676,6 +687,27 @@
                 'Authorization': `Bearer ${authToken}`,
                 'Content-Type': 'application/json'
             };
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text == null ? '' : String(text);
+            return div.innerHTML;
+        }
+
+        function buildTopNavLinks(isAdmin) {
+            const links = [
+                { path: 'api.html', label: '📊 实时监控' },
+                { path: 'setup.html', label: '🔧 设置凭证' },
+                { path: 'accounts.html', label: '🧾 账号管理' },
+            ];
+            if (isAdmin) {
+                links.push({ path: 'admin.html', label: '⚙️ 管理后台' });
+            }
+            return links
+                .filter(item => item.path.toLowerCase() !== CURRENT_PAGE)
+                .map(item => `<a href="${item.path}" class="header-top-link">${item.label}</a>`)
+                .join('');
         }
         
         // 检查登录状态
@@ -692,14 +724,30 @@
                 
                 if (!resp.ok) {
                     localStorage.removeItem('token');
+                    localStorage.removeItem('user');
                     window.location.href = 'login.html';
                     return false;
+                }
+                currentUser = await resp.json();
+                const userInfo = document.getElementById('user-info');
+                if (userInfo) {
+                    userInfo.innerHTML = `
+                        <span>👤 ${escapeHtml(currentUser.username)}</span>
+                        ${buildTopNavLinks(currentUser.role === 'admin')}
+                        <span class="header-top-link" style="cursor: pointer;" role="button" tabindex="0" onclick="logout()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout();}">退出</span>
+                    `;
                 }
                 return true;
             } catch (e) {
                 console.error('Auth check failed:', e);
                 return false;
             }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
         }
         
         let cdpConnected = false;
@@ -1072,6 +1120,45 @@
         function getManualService(serviceId) {
             return cdpServices.find(s => s.id === serviceId);
         }
+
+        function getServiceDisplayName(serviceId) {
+            const service = cdpServices.find(s => s.id === serviceId);
+            if (service && service.name) return service.name;
+            if (serviceId === 'minimax') return 'MiniMax';
+            if (serviceId === 'xfyun') return '讯飞星辰';
+            return serviceId;
+        }
+
+        function validateConfigName(name) {
+            const value = (name || '').trim();
+            if (!value) {
+                return '配置名称不能为空';
+            }
+            if (value.length > 20) {
+                return '配置名称长度需为 1-20 个字符';
+            }
+            if (!/^[\u4e00-\u9fffA-Za-z0-9_-]+$/.test(value)) {
+                return '配置名称仅支持中文、英文、数字、下划线(_)和横线(-)';
+            }
+            return '';
+        }
+
+        function askRequiredAccountName(serviceId, initialName = '') {
+            const serviceName = getServiceDisplayName(serviceId);
+            const defaultName = initialName && initialName.trim()
+                ? initialName.trim()
+                : `我的${serviceName}账号`;
+            while (true) {
+                const input = prompt('请输入配置名称（必填，1-20 字符）：', defaultName);
+                if (input === null) return null;
+                const nextName = input.trim();
+                const err = validateConfigName(nextName);
+                if (!err) {
+                    return nextName;
+                }
+                alert(err);
+            }
+        }
         
         function renderManualServices() {
             const container = document.getElementById('manual-services-container');
@@ -1108,7 +1195,7 @@
                 return `
                 <div class="card" id="manual-card-${service.id}">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;">
-                        <h2>${service.icon} ${service.name} Cookie 设置</h2>
+                        <h2>${service.icon} ${service.name} 凭证设置</h2>
                         <button class="remove-btn" onclick="removeManualService('${service.id}')" title="移除此配置">×</button>
                     </div>
                     <div id="${service.id}-status-display" class="status-display-box" data-service="${service.id}"></div>
@@ -1178,7 +1265,7 @@
                 return `
                 <div class="card" id="manual-card-${service.id}">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;">
-                        <h2>${service.icon} ${service.name} Cookie 设置</h2>
+                        <h2>${service.icon} ${service.name} 凭证设置</h2>
                         <button class="remove-btn" onclick="removeManualService('${service.id}')" title="移除此配置">×</button>
                     </div>
                     <div id="${service.id}-status-display" class="status-display-box" data-service="${service.id}"></div>
@@ -1204,7 +1291,7 @@
                 return `
                 <div class="card" id="manual-card-${service.id}">
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;">
-                        <h2>${service.icon} ${service.name} Cookie 设置</h2>
+                        <h2>${service.icon} ${service.name} 凭证设置</h2>
                         <button class="remove-btn" onclick="removeManualService('${service.id}')" title="移除此配置">×</button>
                     </div>
                     <div class="step">
@@ -1712,6 +1799,13 @@
                 const accounts = await listResp.json();
                 
                 const existingAccount = accounts.find(a => a.service_id === service);
+                const accountName = askRequiredAccountName(service, existingAccount?.name || '');
+                if (accountName === null) {
+                    return;
+                }
+                if (!accountName) {
+                    return;
+                }
                 
                 let resp;
                 if (existingAccount) {
@@ -1723,6 +1817,7 @@
                             'Authorization': `Bearer ${authToken}`
                         },
                         body: JSON.stringify({ 
+                            name: accountName,
                             cookies,
                             group_id: groupId
                         })
@@ -1737,7 +1832,7 @@
                         },
                         body: JSON.stringify({ 
                             service_id: service,
-                            name: service === 'minimax' ? '我的 MiniMax' : '我的讯飞账号',
+                            name: accountName,
                             cookies,
                             group_id: groupId
                         })

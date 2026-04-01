@@ -93,6 +93,12 @@ class XunFeiService(BaseHTTPService):
             
             return {
                 "page_info": {
+                    # 统一标准 key（used/total/percent）
+                    "used": round(daily_used, 2),
+                    "total": round(daily_quota, 2),
+                    "remain": round(daily_remain, 2),
+                    "percent": round(min(percent, 100), 1),
+                    # 兼容字段（后续可移除）
                     "dailyQuota": round(daily_quota, 2),
                     "dailyUsed": round(daily_used, 2),
                     "dailyRemain": round(daily_remain, 2),

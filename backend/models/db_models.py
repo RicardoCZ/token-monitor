@@ -76,7 +76,7 @@ class Account(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     service_id = Column(String(20), ForeignKey("services.id"), nullable=False)
-    name = Column(String(100))  # 账号别名（如"工作号"）
+    name = Column(String(50))  # 配置名称（如"工作号"）
     cookies_encrypted = Column(Text)  # 加密后的 Cookie
     group_id = Column(String(100))  # MiniMax 专用
     service_meta = Column(JSON)  # 服务扩展参数（通用）
@@ -121,7 +121,7 @@ class Alert(Base):
 
     id = Column(Integer, primary_key=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
-    metric_key = Column(String(64), nullable=False, default="usage_percent", index=True)
+    metric_key = Column(String(64), nullable=False, default="percent", index=True)
     threshold = Column(Float, default=80)  # 告警阈值（%）
     cooldown_seconds = Column(Integer, default=1800)  # 告警冷却秒数
     notify_channels = Column(String(255))  # 通知渠道（JSON）

@@ -69,7 +69,7 @@ CREATE_INDEXES_SQL = [
 
 async def run_migration() -> None:
     async with engine.begin() as conn:
-        await _add_column_if_missing(conn, "alerts", "metric_key", "metric_key VARCHAR(64) NOT NULL DEFAULT 'usage_percent'")
+        await _add_column_if_missing(conn, "alerts", "metric_key", "metric_key VARCHAR(64) NOT NULL DEFAULT 'percent'")
         await _add_column_if_missing(conn, "alerts", "cooldown_seconds", "cooldown_seconds INT NOT NULL DEFAULT 1800")
         await _add_column_if_missing(conn, "alerts", "is_firing", "is_firing BOOLEAN NOT NULL DEFAULT FALSE")
         await _add_column_if_missing(conn, "alerts", "last_recovered_at", "last_recovered_at DATETIME NULL")

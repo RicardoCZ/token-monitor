@@ -209,7 +209,7 @@
         
         .modal-btn.secondary { background: rgba(255, 255, 255, 0.1); color: #888; }
 
-        /** 监控页顶栏：设置 Cookie / 管理后台 / 退出 同一套文字链风格 */
+        /** 监控页顶栏：设置凭证 / 管理后台 / 退出 同一套文字链风格 */
         .header-top-link {
             color: #667eea;
             text-decoration: none;
@@ -258,11 +258,27 @@
     <script>
         // API 基础地址
         const API_BASE = window.location.origin;
+        const CURRENT_PAGE = (window.location.pathname.split('/').pop() || 'api.html').toLowerCase();
         
         // 用户状态
         let currentUser = null;
         let authToken = localStorage.getItem('token');
         let serviceRegistry = [];
+
+        function buildTopNavLinks(isAdmin) {
+            const links = [
+                { path: 'api.html', label: '📊 实时监控' },
+                { path: 'setup.html', label: '🔧 设置凭证' },
+                { path: 'accounts.html', label: '🧾 账号管理' },
+            ];
+            if (isAdmin) {
+                links.push({ path: 'admin.html', label: '⚙️ 管理后台' });
+            }
+            return links
+                .filter(item => item.path.toLowerCase() !== CURRENT_PAGE)
+                .map(item => `<a href="${item.path}" class="header-top-link">${item.label}</a>`)
+                .join('');
+        }
         
         // 检查登录状态
         async function checkAuth() {
@@ -282,16 +298,9 @@
                 if (resp.ok) {
                     currentUser = await resp.json();
                     
-                    // 管理员显示管理入口
-                    let adminLink = '';
-                    if (currentUser.role === 'admin') {
-                        adminLink = '<a href="admin.html" class="header-top-link">⚙️ 管理后台</a>';
-                    }
-                    
                     userInfo.innerHTML = `
-                        <span>👤 ${currentUser.username}</span>
-                        <a href="setup.html" class="header-top-link">🔧 设置 Cookie</a>
-                        ${adminLink}
+                        <span>👤 ${escapeHtml(currentUser.username)}</span>
+                        ${buildTopNavLinks(currentUser.role === 'admin')}
                         <span class="header-top-link" style="cursor: pointer;" role="button" tabindex="0" onclick="logout()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout();}">退出</span>
                     `;
                     return true;
@@ -442,7 +451,7 @@
             content.innerHTML = `
                 <div class="login-box">
                     <p style="color: #888; font-size: 13px;">${msg}</p>
-                    <p style="color: #666; font-size: 12px; margin-top: 10px;">请使用页面顶部「🔧 设置 Cookie」进行配置。</p>
+                    <p style="color: #666; font-size: 12px; margin-top: 10px;">请使用页面顶部「🔧 设置凭证」进行配置。</p>
                 </div>
             `;
         }
@@ -454,9 +463,10 @@
 
         function buildUsageNumbers(data) {
             const pageInfo = data?.page_info || {};
+            // 标准 key 优先；兼容旧 key 作为兜底
             const used = getNumberValue(pageInfo.used ?? pageInfo.dailyUsed);
             const total = getNumberValue(pageInfo.total ?? pageInfo.dailyQuota);
-            const remainFromPage = pageInfo.dailyRemain ?? pageInfo.remain;
+            const remainFromPage = pageInfo.remain ?? pageInfo.dailyRemain;
             const remain = remainFromPage != null ? getNumberValue(remainFromPage) : Math.max(0, total - used);
             const percentRaw = pageInfo.percent ?? data?.percent;
             const percent = percentRaw != null ? getNumberValue(percentRaw) : (total > 0 ? (used / total) * 100 : 0);
@@ -480,12 +490,11 @@
         }
 
         function pickMetricValue(metricKey, usage) {
-            const key = String(metricKey || "").toLowerCase();
-            if (!key) return null;
-            if (key.includes("percent")) return usage.percent;
-            if (key.includes("remain") || key.includes("left")) return usage.remain;
-            if (key.includes("total") || key.includes("quota")) return usage.total;
-            if (key.includes("used")) return usage.used;
+            const key = String(metricKey || "").trim().toLowerCase();
+            if (key === "used") return usage.used;
+            if (key === "total") return usage.total;
+            if (key === "percent") return usage.percent;
+            if (key === "remain") return usage.remain;
             return null;
         }
 
@@ -557,10 +566,13 @@
                 const percent = getNumberValue(usage.percent);
                 const colorClass = percent > 80 ? "red" : percent > 50 ? "orange" : "green";
 
-                const metaRows = [
-                    { label: "到期时间", value: usage.expiresAt || "-" },
-                    { label: "重置时间", value: formatResetTime(usage.resetHours, usage.resetMinutes) },
-                ];
+                const metaRows = [{ label: "到期时间", value: usage.expiresAt || "-" }];
+                if (service.id !== "xfyun") {
+                    metaRows.push({
+                        label: "重置时间",
+                        value: formatResetTime(usage.resetHours, usage.resetMinutes),
+                    });
+                }
 
                 content.innerHTML = `
                     <div class="card-stats-block">

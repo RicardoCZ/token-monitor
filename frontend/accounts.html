@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>账号管理 - 令牌监控</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header { text-align: center; padding: 20px 0; margin-bottom: 24px; }
+        .header h1 { font-size: 24px; color: #e0e0e0; }
+        .header p { font-size: 12px; color: #888; margin-top: 8px; }
+        .header-top-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .header-top-link:hover {
+            color: #8b9cff;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .card h2 { font-size: 18px; margin-bottom: 8px; color: #fff; }
+        .sub-title { color: #a8b0d3; font-size: 13px; margin-bottom: 12px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 14px;
+        }
+        th {
+            color: #888;
+            font-weight: 500;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        .btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn.secondary { background: rgba(255, 255, 255, 0.1); }
+        .btn.danger { background: rgba(244, 67, 54, 0.9); }
+        .btn.small { padding: 6px 12px; font-size: 12px; margin-right: 6px; }
+        .empty { text-align: center; padding: 40px; color: #666; }
+        .account-status-tag {
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            display: inline-block;
+        }
+        .account-status-tag.ok { color: #4CAF50; background: rgba(76, 175, 80, 0.2); }
+        .account-status-tag.warn { color: #FF9800; background: rgba(255, 152, 0, 0.2); }
+        .account-status-tag.off { color: #9e9e9e; background: rgba(158, 158, 158, 0.2); }
+        .account-detail-box {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.22);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            font-size: 13px;
+        }
+        .account-detail-box .title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #dbe3ff;
+        }
+        .detail-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .collapse-btn {
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+            color: #dbe3ff;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .account-detail-box .row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .account-detail-box .row:last-child { border-bottom: none; }
+        .inline-fields {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
+            margin-top: 12px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #999;
+            font-size: 13px;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 13px;
+        }
+        .form-group select option {
+            background-color: #2a2a4a;
+            color: #fff;
+        }
+        .small-note {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 10px;
+        }
+        .mini-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+        .mini-table th, .mini-table td {
+            padding: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 12px;
+        }
+        .alert-events-table {
+            table-layout: fixed;
+        }
+        .alert-events-table th,
+        .alert-events-table td {
+            vertical-align: top;
+        }
+        .alert-events-table th:nth-child(1),
+        .alert-events-table td:nth-child(1) { width: 12%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .alert-events-table th:nth-child(2),
+        .alert-events-table td:nth-child(2) { width: 18%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .alert-events-table th:nth-child(3),
+        .alert-events-table td:nth-child(3) { width: 12%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .alert-events-table th:nth-child(4),
+        .alert-events-table td:nth-child(4) { width: 10%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .alert-events-table th:nth-child(5),
+        .alert-events-table td:nth-child(5) {
+            width: 48%;
+            white-space: normal;
+            word-break: break-word;
+            overflow-wrap: anywhere;
+            line-height: 1.45;
+        }
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(76, 175, 80, 0.9);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+        .toast.error { background: rgba(244, 67, 54, 0.9); }
+        .toast.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧾 账号管理</h1>
+            <div id="user-info" style="margin-top: 10px; font-size: 12px; color: #888; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 10px;"></div>
+        </div>
+
+        <div class="card">
+            <h2>账号列表</h2>
+            <p class="sub-title">支持查看详情、手动同步、删除账号、编辑配置名称</p>
+            <div id="accounts-list"><div class="empty">加载中...</div></div>
+            <div id="account-detail-panel" class="account-detail-box" style="display:none;"></div>
+        </div>
+
+        <div class="card">
+            <h2>🚨 告警规则管理</h2>
+            <p class="sub-title">按账号与指标键管理阈值、冷却时间与启用状态</p>
+            <div class="form-group">
+                <label>选择账号</label>
+                <select id="alert-account-select"></select>
+            </div>
+            <div class="small-note" id="alert-account-hint">请从下拉框选择账号查看告警规则</div>
+            <button class="btn secondary small" onclick="reloadAlertData()">刷新规则与事件</button>
+
+            <div class="inline-fields">
+                <div class="form-group">
+                    <label>指标键</label>
+                    <select id="alert-metric-key">
+                        <option value="">请先选择账号</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>阈值（%）</label>
+                    <input id="alert-threshold" type="number" step="0.1" value="80">
+                </div>
+                <div class="form-group">
+                    <label>冷却时间（分钟，最低30）</label>
+                    <input id="alert-cooldown" type="number" value="30" min="30" step="1">
+                </div>
+                <div class="form-group">
+                    <label>启用状态</label>
+                    <select id="alert-enabled">
+                        <option value="true" selected>启用</option>
+                        <option value="false">停用</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn" onclick="saveAlertRule()">保存规则</button>
+
+            <h2 style="margin-top:16px;">📋 当前规则</h2>
+            <div id="alert-rules-list"><div class="empty">加载中...</div></div>
+
+            <h2 style="margin-top:16px;">🧾 最近事件</h2>
+            <div id="alert-events-list"><div class="empty">加载中...</div></div>
+            <div id="alert-events-pagination" class="small-note" style="margin-top: 8px;"></div>
+            <div class="small-note" style="margin-top: 8px;">
+                状态说明：红色=告警中，绿色=已恢复，橙色=冷却中，灰色=规则停用或无有效指标。
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        const CURRENT_PAGE = (window.location.pathname.split('/').pop() || 'accounts.html').toLowerCase();
+        let authToken = localStorage.getItem('token');
+        let currentUser = null;
+        let accountsCache = [];
+        let currentAlertAccountId = 0;
+        const accountDetailCache = new Map();
+        let alertReloadSeq = 0;
+        let alertEventsReloadSeq = 0;
+        let alertEventsPage = 1;
+        const ALERT_EVENTS_PAGE_SIZE = 5;
+
+        function getAuthHeaders() {
+            return { 'Authorization': `Bearer ${authToken}` };
+        }
+
+        function getJsonHeaders() {
+            return {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json'
+            };
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text == null ? '' : String(text);
+            return div.innerHTML;
+        }
+
+        function formatDate(value) {
+            if (!value) return '-';
+            return new Date(value).toLocaleString('zh-CN');
+        }
+
+        function validateConfigName(name) {
+            const value = (name || '').trim();
+            if (!value) return '配置名称不能为空';
+            if (value.length > 20) return '配置名称长度需为 1-20 个字符';
+            if (!/^[\u4e00-\u9fffA-Za-z0-9_-]+$/.test(value)) {
+                return '配置名称仅支持中文、英文、数字、下划线(_)和横线(-)';
+            }
+            return '';
+        }
+
+        function formatAccountStatus(item) {
+            if (!item.is_active) return { className: 'off', text: '已停用' };
+            if (!item.has_cookies) return { className: 'warn', text: '缺少凭证' };
+            return { className: 'ok', text: '正常' };
+        }
+
+        function renderAccountDetailPanel(title, rows) {
+            const panel = document.getElementById('account-detail-panel');
+            if (!panel) return;
+            panel.style.display = 'block';
+            panel.innerHTML = `
+                <div class="detail-header">
+                    <div class="title">${escapeHtml(title)}</div>
+                    <button class="collapse-btn" onclick="hideAccountDetailPanel()">收起</button>
+                </div>
+                ${rows.map(row => `
+                    <div class="row">
+                        <span>${escapeHtml(row.label)}</span>
+                        <span>${escapeHtml(row.value)}</span>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        function hideAccountDetailPanel() {
+            const panel = document.getElementById('account-detail-panel');
+            if (panel) panel.style.display = 'none';
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = 'toast show' + (isError ? ' error' : '');
+            setTimeout(() => { toast.className = 'toast'; }, 3000);
+        }
+
+        function buildTopNavLinks(isAdmin) {
+            const links = [
+                { path: 'api.html', label: '📊 实时监控' },
+                { path: 'setup.html', label: '🔧 设置凭证' },
+                { path: 'accounts.html', label: '🧾 账号管理' },
+            ];
+            if (isAdmin) {
+                links.push({ path: 'admin.html', label: '⚙️ 管理后台' });
+            }
+            return links
+                .filter(item => item.path.toLowerCase() !== CURRENT_PAGE)
+                .map(item => `<a href="${item.path}" class="header-top-link">${item.label}</a>`)
+                .join('');
+        }
+
+        function setCurrentAlertAccount(account) {
+            currentAlertAccountId = Number(account?.id || 0);
+            const hint = document.getElementById('alert-account-hint');
+            if (!hint) return;
+            hint.textContent = currentAlertAccountId
+                ? `当前账号：${account.service_name || account.service_id} / ${account.name || '-'}（ID:${account.id}）`
+                : '请从下拉框选择账号查看告警规则';
+            const select = document.getElementById('alert-account-select');
+            if (select && currentAlertAccountId) {
+                select.value = String(currentAlertAccountId);
+            }
+        }
+
+        function renderAlertAccountOptions() {
+            const select = document.getElementById('alert-account-select');
+            const hint = document.getElementById('alert-account-hint');
+            if (!select) return;
+            if (!accountsCache.length) {
+                select.innerHTML = '<option value="">无可用账号</option>';
+                if (hint) hint.textContent = '当前无账号，请先在设置凭证页面完成账号配置';
+                currentAlertAccountId = 0;
+                setAlertMetricOptions([]);
+                return;
+            }
+            const previous = currentAlertAccountId;
+            select.innerHTML = `
+                <option value="">请选择账号</option>
+                ${accountsCache.map(item => {
+                    const label = `${item.service_icon || '🧩'} ${item.service_name || item.service_id} - ${item.name || '-'}`;
+                    return `<option value="${item.id}">${escapeHtml(label)}</option>`;
+                }).join('')}
+            `;
+            if (previous && accountsCache.some(item => item.id === previous)) {
+                select.value = String(previous);
+                const selected = accountsCache.find(item => item.id === previous);
+                if (selected) setCurrentAlertAccount(selected);
+            } else {
+                const first = accountsCache[0];
+                if (first) {
+                    select.value = String(first.id);
+                    setCurrentAlertAccount(first);
+                } else {
+                    select.value = '';
+                    currentAlertAccountId = 0;
+                }
+            }
+            if (hint && !currentAlertAccountId) {
+                hint.textContent = '请从下拉框选择账号查看告警规则';
+            }
+        }
+
+        function normalizeMetricDefs(rawMetricDefs) {
+            if (!Array.isArray(rawMetricDefs)) return [];
+            const result = [];
+            const seen = new Set();
+            for (const item of rawMetricDefs) {
+                if (!item || typeof item !== 'object') continue;
+                const key = String(item.key || '').trim();
+                if (!key || seen.has(key)) continue;
+                const lowerKey = key.toLowerCase();
+                if (!lowerKey.includes('percent') && !lowerKey.includes('usage')) continue;
+                seen.add(key);
+                const label = String(item.label || key).trim();
+                result.push({ key, label: label || key });
+            }
+            return result;
+        }
+
+        function setAlertMetricOptions(metricDefs) {
+            const select = document.getElementById('alert-metric-key');
+            if (!select) return;
+            const defs = normalizeMetricDefs(metricDefs);
+            if (!defs.length) {
+                select.innerHTML = '<option value="">该账号暂无可用指标</option>';
+                return;
+            }
+            const prev = select.value;
+            select.innerHTML = defs.map(item => (
+                `<option value="${escapeHtml(item.key)}">${escapeHtml(item.label)} (${escapeHtml(item.key)})</option>`
+            )).join('');
+            if (prev && defs.some(item => item.key === prev)) {
+                select.value = prev;
+            }
+        }
+
+        function renderAlertEmptyState(ruleText, eventText) {
+            const rulesContainer = document.getElementById('alert-rules-list');
+            const eventsContainer = document.getElementById('alert-events-list');
+            const paginationContainer = document.getElementById('alert-events-pagination');
+            if (rulesContainer) rulesContainer.innerHTML = `<div class="empty">${escapeHtml(ruleText)}</div>`;
+            if (eventsContainer) eventsContainer.innerHTML = `<div class="empty">${escapeHtml(eventText)}</div>`;
+            if (paginationContainer) paginationContainer.innerHTML = '';
+        }
+
+        const ALERT_EVENT_STATUS_TEXT = {
+            triggered: '已触发',
+            recovered: '已恢复',
+            cooldown: '冷却中',
+            ok: '正常',
+            no_rule: '无规则',
+            rule_disabled: '规则停用',
+            no_metric: '缺少指标',
+            no_percent: '缺少使用率',
+            disabled: '已禁用',
+        };
+
+        function formatAlertEventStatus(status) {
+            const key = String(status || '').trim();
+            if (!key) return '-';
+            return ALERT_EVENT_STATUS_TEXT[key] || key;
+        }
+
+        function getAlertStatusTagClass(status) {
+            const key = String(status || '').trim().toLowerCase();
+            if (key === 'triggered' || key === 'alert' || key === 'firing' || key === '告警中') return 'warn';
+            if (key === 'recovered' || key === 'ok' || key === '已恢复') return 'ok';
+            return 'off';
+        }
+
+        function renderStatusTag(label, className = 'off') {
+            const safeClass = ['ok', 'warn', 'off'].includes(className) ? className : 'off';
+            return `<span class="account-status-tag ${safeClass}">${escapeHtml(label || '-')}</span>`;
+        }
+
+        function formatAlertEventMessage(item) {
+            const text = String(item?.message || '').trim();
+            if (!text) return '-';
+            const matched = text.match(/^\[(ALERT|RECOVERED)\]\s+account=(\d+)\s+service=([^\s]+)\s+metric=([^\s]+)\s+percent=([\d.]+)%\s+threshold=([\d.]+)%$/i);
+            if (!matched) return text;
+            const type = matched[1].toUpperCase();
+            const metricKey = matched[4];
+            const percent = Number(matched[5]);
+            const threshold = Number(matched[6]);
+            if (type === 'ALERT') {
+                return `指标 ${metricKey} 使用率 ${percent.toFixed(2)}%，达到阈值 ${threshold.toFixed(2)}%，已触发告警`;
+            }
+            return `指标 ${metricKey} 使用率 ${percent.toFixed(2)}%，已低于阈值 ${threshold.toFixed(2)}%，告警恢复`;
+        }
+
+        async function fetchAccountDetail(accountId) {
+            const resp = await fetch(`${API_BASE}/api/accounts/${accountId}`, { headers: getAuthHeaders() });
+            const data = await resp.json();
+            if (!resp.ok) {
+                throw new Error(data.detail || '加载账号详情失败');
+            }
+            accountDetailCache.set(accountId, data);
+            return data;
+        }
+
+        async function ensureAlertMetricDefsForAccount(accountId) {
+            if (!accountId) {
+                setAlertMetricOptions([]);
+                return;
+            }
+            let detail = accountDetailCache.get(accountId);
+            if (!detail) {
+                detail = await fetchAccountDetail(accountId);
+            }
+            const metricDefs = detail?.usage?.metric_defs || [];
+            setAlertMetricOptions(metricDefs);
+        }
+
+        async function checkAuth() {
+            if (!authToken) {
+                window.location.href = 'login.html';
+                return false;
+            }
+            try {
+                const resp = await fetch(`${API_BASE}/auth/me`, { headers: getAuthHeaders() });
+                if (!resp.ok) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = 'login.html';
+                    return false;
+                }
+                currentUser = await resp.json();
+                document.getElementById('user-info').innerHTML = `
+                    <span>👤 ${escapeHtml(currentUser.username)}</span>
+                    ${buildTopNavLinks(currentUser.role === 'admin')}
+                    <span class="header-top-link" style="cursor: pointer;" role="button" tabindex="0" onclick="logout()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout();}">退出</span>
+                `;
+                return true;
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+                return false;
+            }
+        }
+
+        async function loadAccounts() {
+            const container = document.getElementById('accounts-list');
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts`, { headers: getAuthHeaders() });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(data.detail || '请求失败')}</div>`;
+                    return;
+                }
+                accountsCache = Array.isArray(data) ? data : [];
+                if (!accountsCache.length) {
+                    container.innerHTML = '<div class="empty">暂无账号</div>';
+                    renderAlertAccountOptions();
+                    await reloadAlertData();
+                    return;
+                }
+                container.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>服务</th>
+                                <th>配置名称</th>
+                                <th>状态</th>
+                                <th>最后同步</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${accountsCache.map(item => {
+                                const status = formatAccountStatus(item);
+                                const serviceName = `${item.service_icon || '🧩'} ${item.service_name || item.service_id || '-'}`;
+                                return `
+                                    <tr data-account-id="${item.id}">
+                                        <td>${escapeHtml(serviceName)}</td>
+                                        <td>${escapeHtml(item.name || '-')}</td>
+                                        <td><span class="account-status-tag ${status.className}">${status.text}</span></td>
+                                        <td>${escapeHtml(formatDate(item.last_sync_at))}</td>
+                                        <td>
+                                            <button class="btn secondary small" onclick="event.stopPropagation(); syncAccount(${item.id})">同步</button>
+                                            <button class="btn secondary small" onclick="event.stopPropagation(); viewAccountDetail(${item.id})">详情</button>
+                                            <button class="btn secondary small" onclick='event.stopPropagation(); editAccountName(${item.id}, ${JSON.stringify(item.name || "")})'>编辑</button>
+                                            <button class="btn danger small" onclick="event.stopPropagation(); deleteAccount(${item.id})">删除</button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+                container.querySelectorAll('tbody tr[data-account-id]').forEach(row => {
+                    row.addEventListener('click', () => {
+                        const accountId = Number(row.getAttribute('data-account-id') || 0);
+                        if (accountId) viewAccountDetail(accountId);
+                    });
+                });
+                renderAlertAccountOptions();
+                await reloadAlertData();
+            } catch (e) {
+                container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        async function viewAccountDetail(accountId) {
+            try {
+                const data = await fetchAccountDetail(accountId);
+                const usage = data.usage || {};
+                const rows = [
+                    { label: '服务', value: `${data.service_icon || '🧩'} ${data.service_name || data.service_id || '-'}` },
+                    { label: '配置名称', value: data.name || '-' },
+                    { label: '已用', value: usage.used == null ? '-' : String(usage.used) },
+                    { label: '总量', value: usage.total == null ? '-' : String(usage.total) },
+                    { label: '使用率', value: usage.percent == null ? '-' : `${Number(usage.percent).toFixed(1)}%` },
+                    { label: '到期时间', value: usage.expires_at || usage.expiresAt || '-' },
+                ];
+                if (data.service_id !== 'xfyun') {
+                    const h = Number(usage.reset_hours ?? usage.resetHours ?? 0) || 0;
+                    const m = Number(usage.reset_minutes ?? usage.resetMinutes ?? 0) || 0;
+                    rows.push({ label: '重置时间', value: (h || m) ? `${h}小时${m}分钟` : '-' });
+                }
+                rows.push({ label: '最后同步', value: formatDate(data.last_sync_at) });
+                renderAccountDetailPanel(`账号详情（ID: ${accountId}）`, rows);
+                setCurrentAlertAccount(data);
+                setAlertMetricOptions(usage.metric_defs || []);
+                await reloadAlertData();
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            }
+        }
+
+        async function syncAccount(accountId) {
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts/${accountId}/sync`, {
+                    method: 'POST',
+                    headers: getAuthHeaders()
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '同步失败', true);
+                    return;
+                }
+                showToast(data.message || `账号 ${accountId} 同步成功`);
+                await loadAccounts();
+                await viewAccountDetail(accountId);
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            }
+        }
+
+        async function deleteAccount(accountId) {
+            if (!confirm('确认删除该账号吗？删除后不可恢复。')) return;
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts/${accountId}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '删除失败', true);
+                    return;
+                }
+                showToast('账号已删除');
+                hideAccountDetailPanel();
+                accountDetailCache.delete(accountId);
+                if (currentAlertAccountId === accountId) {
+                    setCurrentAlertAccount(null);
+                    await reloadAlertData();
+                }
+                await loadAccounts();
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            }
+        }
+
+        async function editAccountName(accountId, currentName = '') {
+            const input = prompt('请输入新的配置名称（1-20 字符）：', currentName || '');
+            if (input === null) return;
+            const nextName = input.trim();
+            const err = validateConfigName(nextName);
+            if (err) {
+                showToast(err, true);
+                return;
+            }
+            if (nextName === (currentName || '').trim()) return;
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts/${accountId}`, {
+                    method: 'PUT',
+                    headers: getJsonHeaders(),
+                    body: JSON.stringify({ name: nextName })
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '更新配置名称失败', true);
+                    return;
+                }
+                showToast('配置名称更新成功');
+                await loadAccounts();
+                await viewAccountDetail(accountId);
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            }
+        }
+
+        async function loadAlertRules(seq) {
+            const container = document.getElementById('alert-rules-list');
+            if (!container) return;
+            if (!currentUser?.id) {
+                container.innerHTML = '<div class="empty">未登录</div>';
+                return;
+            }
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts/users/${currentUser.id}/alerts`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await resp.json();
+                if (seq !== alertReloadSeq) return;
+                if (!resp.ok) throw new Error(data.detail || '加载规则失败');
+                if (!data.length) {
+                    container.innerHTML = '<div class="empty">暂无规则</div>';
+                    return;
+                }
+                container.innerHTML = `
+                    <table class="mini-table">
+                        <thead>
+                            <tr>
+                                <th>账号</th>
+                                <th>指标键</th>
+                                <th>阈值(%)</th>
+                                <th>冷却时间(分钟)</th>
+                                <th>已启用</th>
+                                <th>告警中</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.map((item, idx) => `
+                                <tr>
+                                    <td>${escapeHtml(item.account_name || `账号#${item.account_id}`)}</td>
+                                    <td>${escapeHtml(item.metric_key)}</td>
+                                    <td><input id="rule-threshold-${idx}" type="number" step="0.1" value="${Number(item.threshold ?? 0)}" style="width:110px;"></td>
+                                    <td><input id="rule-cooldown-${idx}" type="number" min="30" step="1" value="${Math.max(30, Math.ceil(Number(item.cooldown_seconds ?? 0) / 60))}" style="width:110px;"></td>
+                                    <td>
+                                        <select id="rule-enabled-${idx}" style="width:90px;">
+                                            <option value="true" ${item.is_enabled ? 'selected' : ''}>启用</option>
+                                            <option value="false" ${item.is_enabled ? '' : 'selected'}>停用</option>
+                                        </select>
+                                    </td>
+                                    <td>${renderStatusTag(item.is_firing ? '告警中' : '已恢复', item.is_firing ? 'warn' : 'ok')}</td>
+                                    <td>
+                                        <button class="btn secondary small" onclick='saveAlertRuleInline(${item.account_id}, ${JSON.stringify(item.metric_key)}, ${idx})'>确认</button>
+                                        <button class="btn danger small" onclick='deleteAlertRuleInline(${item.account_id}, ${JSON.stringify(item.metric_key)})'>删除</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (e) {
+                container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(e.message)}</div>`;
+            }
+        }
+
+        function renderAlertEventsPagination(total, currentPage) {
+            const container = document.getElementById('alert-events-pagination');
+            if (!container) return;
+            const totalPages = Math.max(1, Math.ceil((total || 0) / ALERT_EVENTS_PAGE_SIZE));
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            const prevDisabled = currentPage <= 1 ? 'disabled' : '';
+            const nextDisabled = currentPage >= totalPages ? 'disabled' : '';
+            const pageItems = [];
+            for (let p = 1; p <= totalPages; p++) {
+                const activeStyle = p === currentPage
+                    ? 'background: rgba(102,126,234,0.45); border-color: rgba(102,126,234,0.8);'
+                    : '';
+                pageItems.push(
+                    `<button class="btn secondary small" style="margin-right:4px;${activeStyle}" onclick="changeAlertEventsPage(${p})">${p}</button>`
+                );
+            }
+            container.innerHTML = `
+                <button class="btn secondary small" ${prevDisabled} onclick="changeAlertEventsPage(${currentPage - 1})">上一页</button>
+                ${pageItems.join('')}
+                <button class="btn secondary small" ${nextDisabled} onclick="changeAlertEventsPage(${currentPage + 1})">下一页</button>
+            `;
+        }
+
+        async function loadAlertEvents(seq, page = 1) {
+            const container = document.getElementById('alert-events-list');
+            const paginationContainer = document.getElementById('alert-events-pagination');
+            if (!container) return;
+            if (!currentUser?.id) {
+                container.innerHTML = '<div class="empty">未登录</div>';
+                if (paginationContainer) paginationContainer.innerHTML = '';
+                return;
+            }
+            try {
+                const safePage = Math.max(1, Number(page) || 1);
+                const offset = (safePage - 1) * ALERT_EVENTS_PAGE_SIZE;
+                const resp = await fetch(`${API_BASE}/api/accounts/users/${currentUser.id}/alerts/events?limit=${ALERT_EVENTS_PAGE_SIZE}&offset=${offset}`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await resp.json();
+                if (seq !== alertReloadSeq && seq !== alertEventsReloadSeq) return;
+                if (!resp.ok) throw new Error(data.detail || '加载事件失败');
+                const items = Array.isArray(data.items) ? data.items : [];
+                if (!items.length) {
+                    container.innerHTML = '<div class="empty">暂无事件</div>';
+                    if (paginationContainer) paginationContainer.innerHTML = '';
+                    return;
+                }
+                alertEventsPage = safePage;
+                container.innerHTML = `
+                    <table class="mini-table alert-events-table">
+                        <thead>
+                            <tr>
+                                <th>账号</th>
+                                <th>时间</th>
+                                <th>指标</th>
+                                <th>状态</th>
+                                <th>消息</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${items.map(item => `
+                                <tr>
+                                    <td>${escapeHtml(item.account_name || `账号#${item.account_id || '-'}`)}</td>
+                                    <td>${formatDate(item.created_at)}</td>
+                                    <td>${escapeHtml(item.metric_key || '-')}</td>
+                                    <td>${renderStatusTag(formatAlertEventStatus(item.status), getAlertStatusTagClass(item.status))}</td>
+                                    <td>${escapeHtml(formatAlertEventMessage(item))}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                const total = Number(data.pagination?.total || items.length);
+                renderAlertEventsPagination(total, safePage);
+            } catch (e) {
+                container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(e.message)}</div>`;
+                if (paginationContainer) paginationContainer.innerHTML = '';
+            }
+        }
+
+        function changeAlertEventsPage(page) {
+            const nextPage = Math.max(1, Number(page) || 1);
+            if (nextPage === alertEventsPage) return;
+            alertEventsPage = nextPage;
+            reloadAlertEventsOnly(nextPage);
+        }
+
+        async function reloadAlertEventsOnly(page = alertEventsPage) {
+            alertEventsReloadSeq += 1;
+            const seq = alertEventsReloadSeq;
+            await loadAlertEvents(seq, page);
+        }
+
+        async function reloadAlertData() {
+            const rulesContainer = document.getElementById('alert-rules-list');
+            const eventsContainer = document.getElementById('alert-events-list');
+            const select = document.getElementById('alert-account-select');
+            if (select) {
+                currentAlertAccountId = Number(select.value || 0);
+                if (currentAlertAccountId) {
+                    const account = accountsCache.find(item => item.id === currentAlertAccountId);
+                    if (account) setCurrentAlertAccount(account);
+                } else {
+                    const hint = document.getElementById('alert-account-hint');
+                    if (hint) hint.textContent = '请从下拉框选择账号查看告警规则';
+                    await ensureAlertMetricDefsForAccount(0);
+                }
+            }
+            alertReloadSeq += 1;
+            const seq = alertReloadSeq;
+            alertEventsReloadSeq = seq;
+            if (rulesContainer) rulesContainer.innerHTML = '<div class="empty">加载中...</div>';
+            if (eventsContainer) eventsContainer.innerHTML = '<div class="empty">加载中...</div>';
+            await ensureAlertMetricDefsForAccount(currentAlertAccountId);
+            await Promise.all([loadAlertRules(seq), loadAlertEvents(seq, alertEventsPage)]);
+        }
+
+        async function saveAlertRule() {
+            if (!currentAlertAccountId) {
+                showToast('请先选择账号', true);
+                return;
+            }
+            const metricKey = (document.getElementById('alert-metric-key').value || '').trim();
+            const threshold = Number(document.getElementById('alert-threshold').value || '80');
+            const cooldownMinutes = Number(document.getElementById('alert-cooldown').value || '30');
+            const enabled = (document.getElementById('alert-enabled').value || 'true') === 'true';
+            if (!metricKey) {
+                showToast('该账号暂无可用指标，无法保存规则', true);
+                return;
+            }
+            if (!Number.isFinite(threshold) || threshold < 0) {
+                showToast('阈值无效', true);
+                return;
+            }
+            if (!Number.isFinite(cooldownMinutes) || cooldownMinutes < 30) {
+                showToast('冷却时间最低 30 分钟', true);
+                return;
+            }
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts/${currentAlertAccountId}/alerts/${encodeURIComponent(metricKey)}`, {
+                    method: 'PUT',
+                    headers: getJsonHeaders(),
+                    body: JSON.stringify({
+                        threshold,
+                        cooldown_seconds: Math.floor(cooldownMinutes * 60),
+                        is_enabled: enabled,
+                        notify_channels: ['log']
+                    })
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '保存规则失败', true);
+                    return;
+                }
+                showToast('规则已保存');
+                alertEventsPage = 1;
+                await reloadAlertData();
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            }
+        }
+
+        async function saveAlertRuleInline(accountId, metricKey, idx) {
+            const threshold = Number(document.getElementById(`rule-threshold-${idx}`)?.value || '80');
+            const cooldownMinutes = Number(document.getElementById(`rule-cooldown-${idx}`)?.value || '30');
+            const enabled = (document.getElementById(`rule-enabled-${idx}`)?.value || 'true') === 'true';
+            if (!Number.isFinite(threshold) || threshold < 0) {
+                showToast('阈值无效', true);
+                return;
+            }
+            if (!Number.isFinite(cooldownMinutes) || cooldownMinutes < 30) {
+                showToast('冷却时间最低 30 分钟', true);
+                return;
+            }
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts/${accountId}/alerts/${encodeURIComponent(metricKey)}`, {
+                    method: 'PUT',
+                    headers: getJsonHeaders(),
+                    body: JSON.stringify({
+                        threshold,
+                        cooldown_seconds: Math.floor(cooldownMinutes * 60),
+                        is_enabled: enabled,
+                        notify_channels: ['log']
+                    })
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '保存规则失败', true);
+                    return;
+                }
+                showToast(`规则已保存：${metricKey}`);
+                alertEventsPage = 1;
+                await reloadAlertData();
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            }
+        }
+
+        async function deleteAlertRuleInline(accountId, metricKey) {
+            if (!confirm(`确认删除规则 ${metricKey} 吗？`)) return;
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts/${accountId}/alerts/${encodeURIComponent(metricKey)}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '删除规则失败', true);
+                    return;
+                }
+                showToast('规则已删除');
+                alertEventsPage = 1;
+                await reloadAlertData();
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'login.html';
+        }
+
+        checkAuth().then(ok => {
+            if (ok) {
+                loadAccounts();
+                document.getElementById('alert-account-select')?.addEventListener('change', reloadAlertData);
+            }
+        });
+    </script>
+</body>
+</html>

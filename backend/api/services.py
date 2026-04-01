@@ -16,13 +16,6 @@ from models.db_models import Service
 
 router = APIRouter(prefix="/api/services", tags=["服务注册表"])
 
-METRIC_KEY_ALIAS_MAP = {
-    "quota_used": "used",
-    "quota_total": "total",
-    "usage_percent": "percent",
-}
-
-
 def _normalize_cookie_domains(raw: Any) -> list[str]:
     if not raw:
         return []
@@ -68,8 +61,7 @@ def _serialize_service(item: Service) -> dict[str, Any]:
         for metric in raw_metric_defs:
             if not isinstance(metric, dict):
                 continue
-            raw_key = str(metric.get("key") or "").strip()
-            key = METRIC_KEY_ALIAS_MAP.get(raw_key, raw_key)
+            key = str(metric.get("key") or "").strip()
             if not key or key in seen_metric_keys:
                 continue
             seen_metric_keys.add(key)

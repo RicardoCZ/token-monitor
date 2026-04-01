@@ -65,17 +65,17 @@ DEFAULT_SERVICE_REGISTRY: list[dict[str, Any]] = [
         },
         "metric_defs": [
             {
-                "key": "daily_used",
-                "label": "当日已用",
+                "key": "used",
+                "label": "已使用",
                 "unit": "w",
             },
             {
-                "key": "daily_quota",
-                "label": "当日额度",
+                "key": "total",
+                "label": "总量",
                 "unit": "w",
             },
             {
-                "key": "usage_percent",
+                "key": "percent",
                 "label": "使用率",
                 "unit": "percent",
             },

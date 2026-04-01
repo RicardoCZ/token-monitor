@@ -29,6 +29,12 @@ class MiniMaxResponse(BaseModel):
 
 class XunFeiPageInfo(BaseModel):
     """讯飞页面信息"""
+    # 统一标准 key
+    used: float = 0
+    total: float = 0
+    remain: float = 0
+    percent: float = 0
+    # 兼容旧 key（后续可移除）
     dailyQuota: float = 0
     dailyUsed: float = 0
     dailyRemain: float = 0

@@ -55,12 +55,13 @@ def _normalize_channels(raw: Any) -> list[str]:
     return ["log"]
 
 
-async def _ensure_rule(
+async def _find_rule(
     db: AsyncSession,
     *,
     account_id: int,
     metric_key: str,
-) -> Alert:
+) -> Alert | None:
+    """查找告警规则，不自动创建"""
     result = await db.execute(
         select(Alert).where(
             and_(
@@ -69,23 +70,7 @@ async def _ensure_rule(
             )
         )
     )
-    rule = result.scalar_one_or_none()
-    if rule:
-        return rule
-
-    rule = Alert(
-        account_id=account_id,
-        metric_key=metric_key,
-        threshold=float(settings.alert_default_threshold),
-        cooldown_seconds=int(settings.alert_default_cooldown_seconds),
-        notify_channels=json.dumps(["log"]),
-        is_enabled=True,
-        is_firing=False,
-    )
-    db.add(rule)
-    await db.commit()
-    await db.refresh(rule)
-    return rule
+    return result.scalar_one_or_none()
 
 
 async def _create_event(
@@ -129,7 +114,9 @@ async def evaluate_alert_for_snapshot(
     if not metric_key:
         return {"enabled": True, "status": "no_metric"}
 
-    rule = await _ensure_rule(db, account_id=int(snapshot.account_id), metric_key=metric_key)
+    rule = await _find_rule(db, account_id=int(snapshot.account_id), metric_key=metric_key)
+    if not rule:
+        return {"enabled": True, "status": "no_rule", "metric_key": metric_key}
     if not rule.is_enabled:
         return {"enabled": True, "status": "rule_disabled", "metric_key": metric_key}
 

@@ -473,7 +473,6 @@ async function loadServices() {
       })
     ])
     
-    const historyByService = await loadLatestHistoryByService(token)
     const cards: string[] = []
     
     if (minimaxResp.status === 200 && minimaxResp.data && !minimaxResp.data.error) {
@@ -490,16 +489,13 @@ async function loadServices() {
         : `${resetMinutes}分钟`
       const expiresAt = pageInfo.expiresAt || '-'
       
-      const minimaxHistory = historyByService.minimax
       cards.push(createCard('minimax', '🍊 MiniMax', 'ok', '正常', [
         { label: 'Token Plan', value: `${total} 次/5小时` },
         { label: '已使用', value: `${used} 次` },
         { label: '剩余', value: `${remain} 次` },
         { label: '使用率', value: `${percent}%` },
         { label: '到期时间', value: expiresAt },
-        { label: '重置时间', value: resetTime },
-        { label: '最近采集', value: minimaxHistory.collectedAt },
-        { label: '历史指标', value: minimaxHistory.metricKey }
+        { label: '重置时间', value: resetTime }
       ], String(percent)))
     } else {
       const errorMsg = minimaxResp.data?.error || minimaxResp.data?.detail || '请设置 Cookie'
@@ -517,15 +513,12 @@ async function loadServices() {
         ? ((dailyUsed / dailyQuota) * 100).toFixed(1) 
         : '0'
       
-      const xfyunHistory = historyByService.xfyun
       cards.push(createCard('xfyun', '🔵 讯飞星辰 MaaS', 'ok', '正常', [
         { label: '日限额', value: `${dailyQuota} 万 tokens` },
         { label: '已用', value: `${dailyUsed} 万` },
         { label: '剩余', value: `${dailyRemain} 万` },
         { label: '使用率', value: `${percent}%` },
-        { label: '到期时间', value: expiresAt },
-        { label: '最近采集', value: xfyunHistory.collectedAt },
-        { label: '历史指标', value: xfyunHistory.metricKey }
+        { label: '到期时间', value: expiresAt }
       ], percent))
     } else {
       const errorMsg = xfyunResp.data?.error || xfyunResp.data?.detail || '请设置 Cookie'
@@ -749,6 +742,26 @@ function renderCookiePage(serviceId: string) {
   `
 
   let currentPageData: any = null
+  const defaultAccountName = `我的${service.name}账号`
+
+  function askRequiredAccountName(initialName = defaultAccountName): string | null {
+    const input = window.prompt('请输入配置名称（必填，1-20 字符）', initialName)
+    if (input === null) return null
+    const nextName = input.trim()
+    if (!nextName) {
+      showToast('配置名称不能为空', 'err')
+      return ''
+    }
+    if (nextName.length > 20) {
+      showToast('配置名称长度需为 1-20 个字符', 'err')
+      return ''
+    }
+    if (!/^[\u4e00-\u9fffA-Za-z0-9_-]+$/.test(nextName)) {
+      showToast('配置名称仅支持中文、英文、数字、下划线和横线', 'err')
+      return ''
+    }
+    return nextName
+  }
 
   document.getElementById('back-btn')?.addEventListener('click', renderHome)
   
@@ -854,6 +867,10 @@ function renderCookiePage(serviceId: string) {
         }
       }
 
+      const accountName = askRequiredAccountName()
+      if (accountName === null) return
+      if (!accountName) return
+
       const token = getToken()
       const resp = await CapacitorHttp.request({
         method: 'POST',
@@ -864,7 +881,7 @@ function renderCookiePage(serviceId: string) {
         },
         data: {
           service_id: sid,
-          name: `我的${service.name}`,
+          name: accountName,
           cookies: cookiesToSend,
           group_id: groupIdToSend
         }
@@ -896,6 +913,10 @@ function renderCookiePage(serviceId: string) {
       showToast('请输入 Cookie', 'err')
       return
     }
+
+    const accountName = askRequiredAccountName()
+    if (accountName === null) return
+    if (!accountName) return
     
     try {
       const token = getToken()
@@ -908,7 +929,7 @@ function renderCookiePage(serviceId: string) {
         },
         data: {
           service_id: sid,
-          name: `我的${service.name}`,
+          name: accountName,
           cookies: cookie,
           group_id: sid === 'minimax' ? gidInput : null
         }
