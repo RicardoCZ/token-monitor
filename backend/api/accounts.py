@@ -3,7 +3,7 @@ Token Monitor - 账号管理 API 路由
 用户的平台账号管理（增删改查）
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 from typing import Optional, List, Any
 from datetime import datetime, timezone
@@ -170,6 +170,21 @@ def _is_alertable_metric_key(metric_key: str) -> bool:
     if not key:
         return False
     return ("percent" in key) or ("usage" in key)
+
+
+def _normalize_alert_event_status_filter(value: Optional[str]) -> Optional[str]:
+    """返回 None 表示不按状态过滤；否则为 triggered / recovered。"""
+    if value is None:
+        return None
+    v = str(value).strip().lower()
+    if not v or v == "all":
+        return None
+    if v in ("triggered", "recovered"):
+        return v
+    raise HTTPException(
+        status_code=400,
+        detail="status 须为 triggered、recovered，或省略表示全部",
+    )
 
 
 def _parse_history_datetime(value: Optional[str], field_name: str) -> Optional[datetime]:
@@ -765,12 +780,14 @@ async def list_account_alert_events(
     account_id: int,
     limit: int = 20,
     offset: int = 0,
+    status: Optional[str] = Query(None, description="triggered | recovered，省略表示全部"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """获取账号告警事件（数据库事件流）"""
     safe_limit = max(1, min(limit, 100))
     safe_offset = max(0, offset)
+    status_filter = _normalize_alert_event_status_filter(status)
 
     account_result = await db.execute(
         select(Account).where(
@@ -781,16 +798,20 @@ async def list_account_alert_events(
     if not account:
         raise HTTPException(status_code=404, detail="账号不存在")
 
+    event_conditions = [AlertEvent.account_id == account_id]
+    if status_filter:
+        event_conditions.append(AlertEvent.status == status_filter)
+
     total_result = await db.execute(
         select(func.count())
         .select_from(AlertEvent)
-        .where(AlertEvent.account_id == account_id)
+        .where(and_(*event_conditions))
     )
     total = int(total_result.scalar() or 0)
 
     result = await db.execute(
         select(AlertEvent)
-        .where(AlertEvent.account_id == account_id)
+        .where(and_(*event_conditions))
         .order_by(AlertEvent.created_at.desc(), AlertEvent.id.desc())
         .offset(safe_offset)
         .limit(safe_limit)
@@ -820,6 +841,7 @@ async def list_account_alert_events(
             "total": total,
             "has_more": (safe_offset + len(items)) < total,
         },
+        "filters": {"status": status_filter},
         "items": items,
     }
 
@@ -829,6 +851,7 @@ async def list_all_alert_events(
     user_id: int,
     limit: int = 5,
     offset: int = 0,
+    status: Optional[str] = Query(None, description="triggered | recovered，省略表示全部"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -838,19 +861,24 @@ async def list_all_alert_events(
 
     safe_limit = max(1, min(limit, 100))
     safe_offset = max(0, offset)
+    status_filter = _normalize_alert_event_status_filter(status)
+
+    where_parts = [Account.user_id == current_user.id]
+    if status_filter:
+        where_parts.append(AlertEvent.status == status_filter)
 
     total_result = await db.execute(
         select(func.count())
         .select_from(AlertEvent)
         .join(Account, Account.id == AlertEvent.account_id)
-        .where(Account.user_id == current_user.id)
+        .where(and_(*where_parts))
     )
     total = int(total_result.scalar() or 0)
 
     result = await db.execute(
         select(AlertEvent, Account)
         .join(Account, Account.id == AlertEvent.account_id)
-        .where(Account.user_id == current_user.id)
+        .where(and_(*where_parts))
         .order_by(AlertEvent.created_at.desc(), AlertEvent.id.desc())
         .offset(safe_offset)
         .limit(safe_limit)
@@ -881,6 +909,7 @@ async def list_all_alert_events(
             "total": total,
             "has_more": (safe_offset + len(items)) < total,
         },
+        "filters": {"status": status_filter},
         "items": [item.model_dump() for item in items],
     }
 

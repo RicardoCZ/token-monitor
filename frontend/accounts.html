@@ -426,6 +426,16 @@
 
             <div class="list-section">
                 <h2 class="list-section-title">🧾 最近事件</h2>
+                <div class="inline-fields" style="margin-bottom: 10px;">
+                    <div class="form-group">
+                        <label>事件状态</label>
+                        <select id="alert-events-status-filter">
+                            <option value="">全部</option>
+                            <option value="triggered">已触发</option>
+                            <option value="recovered">已恢复</option>
+                        </select>
+                    </div>
+                </div>
                 <div id="alert-events-list" class="list-content"><div class="empty">加载中...</div></div>
                 <div id="alert-events-pagination" class="small-note list-pagination"></div>
                 <div class="small-note list-pagination">
@@ -519,9 +529,26 @@
                     if (!(target instanceof HTMLElement)) return;
                     const item = target.closest('li[data-value]');
                     if (!item) return;
-                    const nextValue = item.getAttribute('data-value') || '';
-                    if (select.value !== nextValue) {
-                        select.value = nextValue;
+                    const nextValue = item.getAttribute('data-value') ?? '';
+                    const optIdx = Array.from(select.options).findIndex(
+                        o => String(o.value ?? '') === String(nextValue)
+                    );
+                    if (optIdx < 0) return;
+                    if (select.selectedIndex !== optIdx) {
+                        select.selectedIndex = optIdx;
+                        const trig = root.querySelector('.custom-select-trigger');
+                        const lst = root.querySelector('.custom-select-options');
+                        const ao = select.options[optIdx] || null;
+                        if (trig) {
+                            trig.textContent = ao ? String(ao.textContent || '').trim() : '请选择';
+                        }
+                        if (lst) {
+                            const cur = String(ao?.value ?? '');
+                            lst.querySelectorAll('li[data-value]').forEach(li => {
+                                const v = li.getAttribute('data-value') ?? '';
+                                li.classList.toggle('active', v === cur);
+                            });
+                        }
                         select.dispatchEvent(new Event('change', { bubbles: true }));
                     }
                     root.classList.remove('open');
@@ -1186,7 +1213,12 @@
             `;
         }
 
-        async function loadAlertEvents(seq, page = 1) {
+        /**
+         * @param {number} seq
+         * @param {number} [page=1]
+         * @param {string|undefined} statusFilterArg 若传入（含空字符串），以此为准；undefined 则从 #alert-events-status-filter 读取（分页等场景）
+         */
+        async function loadAlertEvents(seq, page = 1, statusFilterArg = undefined) {
             const container = document.getElementById('alert-events-list');
             const paginationContainer = document.getElementById('alert-events-pagination');
             if (!container) return;
@@ -1198,15 +1230,22 @@
             try {
                 const safePage = Math.max(1, Number(page) || 1);
                 const offset = (safePage - 1) * ALERT_EVENTS_PAGE_SIZE;
-                const resp = await fetch(`${API_BASE}/api/accounts/users/${currentUser.id}/alerts/events?limit=${ALERT_EVENTS_PAGE_SIZE}&offset=${offset}`, {
-                    headers: getAuthHeaders()
-                });
+                const statusVal = statusFilterArg === undefined
+                    ? (document.getElementById('alert-events-status-filter')?.value ?? '').trim()
+                    : String(statusFilterArg ?? '').trim();
+                const statusQuery = statusVal ? `&status=${encodeURIComponent(statusVal)}` : '';
+                const bust = `&_=${Date.now()}`;
+                const resp = await fetch(
+                    `${API_BASE}/api/accounts/users/${currentUser.id}/alerts/events?limit=${ALERT_EVENTS_PAGE_SIZE}&offset=${offset}${statusQuery}${bust}`,
+                    { headers: getAuthHeaders(), cache: 'no-store' }
+                );
                 const data = await resp.json();
                 if (seq !== alertReloadSeq && seq !== alertEventsReloadSeq) return;
                 if (!resp.ok) throw new Error(data.detail || '加载事件失败');
                 const items = Array.isArray(data.items) ? data.items : [];
                 if (!items.length) {
-                    container.innerHTML = '<div class="empty">暂无事件</div>';
+                    const emptyHint = statusVal ? '该筛选条件下暂无事件' : '暂无事件';
+                    container.innerHTML = `<div class="empty">${escapeHtml(emptyHint)}</div>`;
                     if (paginationContainer) paginationContainer.innerHTML = '';
                     return;
                 }
@@ -1250,10 +1289,10 @@
             reloadAlertEventsOnly(nextPage);
         }
 
-        async function reloadAlertEventsOnly(page = alertEventsPage) {
+        async function reloadAlertEventsOnly(page = alertEventsPage, statusFilterArg = undefined) {
             alertEventsReloadSeq += 1;
             const seq = alertEventsReloadSeq;
-            await loadAlertEvents(seq, page);
+            await loadAlertEvents(seq, page, statusFilterArg);
         }
 
         async function reloadAlertData() {
@@ -1408,8 +1447,14 @@
                 updatePageTitle();
                 bindCustomSelectById('alert-account-select');
                 bindCustomSelectById('alert-metric-key');
+                bindCustomSelectById('alert-events-status-filter');
                 loadAccounts();
                 document.getElementById('alert-account-select')?.addEventListener('change', reloadAlertData);
+                document.getElementById('alert-events-status-filter')?.addEventListener('change', (e) => {
+                    alertEventsPage = 1;
+                    const raw = e.target && 'value' in e.target ? e.target.value : '';
+                    reloadAlertEventsOnly(1, raw);
+                });
             }
         });
     </script>
