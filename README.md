@@ -229,7 +229,9 @@ vite: ^8.0.0
 
 ## 开发规范
 
-协作规范、UI 一致性、依赖安全基线、**Git/proxychains 推送**等见 **`docs/开发规范.md`**。以下为 Git 习惯摘要。
+协作规范、UI 一致性、依赖安全基线、**Git/proxychains 推送**等见**本地**维护的 **`docs/开发规范.md`**（该目录与根目录 **`TODO.md`** 已被 **`.gitignore` 排除，不得推送至远端**；克隆仓库后按需自建）。可选：在仓库根执行 **`git config core.hooksPath scripts/git-hooks`**，用钩子防止误将 `docs/`、`TODO.md` 提交进 Git，说明见 **`scripts/git-hooks/README`**。
+
+以下为 Git 习惯摘要（针对**允许入库**的文件）。
 
 ### Git 提交格式
 ```bash

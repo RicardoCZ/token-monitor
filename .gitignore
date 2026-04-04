@@ -33,7 +33,7 @@ htmlcov/
 *.db
 backend/.coverage
 
-# 本地开发文档与任务清单（不入库、不推送）
+# 本地开发文档与任务清单 — 严禁加入索引或推送（勿 git add -f）
 docs/
 TODO.md
 

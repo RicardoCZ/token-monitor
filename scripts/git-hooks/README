@@ -1,0 +1,11 @@
+本地钩子：拦截 docs/ 与 TODO.md 进入仓库或推送
+
+一次性启用（在本仓库根目录执行）：
+
+  git config core.hooksPath scripts/git-hooks
+
+恢复默认 Git 钩子目录：
+
+  git config --unset core.hooksPath
+
+要求 Git 使用 sh 执行钩子（Git for Windows / WSL / Linux 均可）。

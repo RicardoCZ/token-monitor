@@ -1,0 +1,8 @@
+#!/bin/sh
+# 禁止将本地文档目录与任务清单提交进仓库（与 .gitignore 一致）。
+bad=$(git diff --cached --name-only | grep -E '^docs/|^TODO\.md$' || true)
+if [ -n "$bad" ]; then
+	printf '%s\n' "" "拒绝提交：下列路径仅允许留在本地，不得进入 Git 对象库：" "$bad" "" "若确为误加入暂存区，请： git restore --staged -- <路径>" >&2
+	exit 1
+fi
+exit 0

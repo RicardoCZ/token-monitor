@@ -1,0 +1,26 @@
+#!/bin/sh
+# 禁止推送包含 docs/ 或 TODO.md 的提交（防止 history 或 -f 误提交）。
+remote="$1"
+url="$2"
+z40=0000000000000000000000000000000000000000
+
+while read local_ref local_sha remote_ref remote_sha
+do
+	case $local_sha in
+		$z40) continue ;;
+	esac
+	if [ "$remote_sha" = "$z40" ]; then
+		range="$local_sha"
+	else
+		range="$remote_sha..$local_sha"
+	fi
+	for commit in $(git rev-list $range 2>/dev/null)
+	do
+		names=$(git diff-tree --no-commit-id --name-only -r "$commit" 2>/dev/null | grep -E '^docs/|^TODO\.md$' || true)
+		if [ -n "$names" ]; then
+			printf '%s\n' "" "拒绝推送：提交 $commit 包含仅本地允许的路径：" "$names" "" "请从历史中移除相关提交或重写分支（docs/ 与 TODO.md 不应入库）。" >&2
+			exit 1
+		fi
+	done
+done
+exit 0
