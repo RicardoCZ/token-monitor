@@ -41,5 +41,5 @@ INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
 
 ## 更多
 
-- 产品说明与 API 摘要见根目录 **[README.md](./README.md)**。
-- 若本地存在 **`docs/`** 目录，可打开 **`docs/OPERATIONS.md`** 获取完整运维手册。
+- 产品说明、**Web 前端脚本约定**、**Android 打包与 adb 安装**见根目录 **[README.md](./README.md)**。
+- 完整运维手册（`.env` 全表、Runbook、发布回归）见 **`docs/OPERATIONS.md`**（与仓库一同维护时；若你沿用「docs 不入库」策略，以本地副本为准）。

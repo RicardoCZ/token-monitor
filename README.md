@@ -33,6 +33,11 @@ INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
 │   └── .env.example   # 环境变量模板
 ├── docs/              # （可选，本地维护，不入库）OPERATIONS、ARCHITECTURE 等
 ├── frontend/          # Web 前端静态页面
+│   ├── js/            # 共享脚本（监控页 / 多页复用）
+│   │   ├── api-dashboard-state.js   # window.TMD（页面 ID、API_BASE）
+│   │   ├── api-dashboard-core.js    # window.TMDCore（escapeHtml、指标、小折线图 SVG 等）
+│   │   ├── api-dashboard-app.js     # window.TMDApp（api.html 看板逻辑）
+│   │   └── ui-shared.js             # window.TMDUi（Toast、顶栏链接、自定义 <select>；accounts/admin）
 │   ├── index.html     # 入口
 │   ├── login.html     # 登录
 │   ├── api.html       # 实时监控看板
@@ -40,9 +45,10 @@ INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
 │   ├── accounts.html  # 账号与告警管理
 │   ├── admin.html     # 管理后台（邀请码、API Key）
 │   └── setup.html     # 凭证 / CDP 设置
-├── mobile-app/        # Android 手机端 (Capacitor)
-│   ├── src/           # 前端源码
-│   └── android/       # Android 原生项目
+├── mobile-app/        # Android 手机端 (Capacitor + Vite)
+│   ├── src/           # 移动端 H5 源码（构建产物进 www/）
+│   ├── www/           # vite build 输出（由 cap sync 拷入 android）
+│   └── android/       # Android Gradle 工程
 ├── data/              # 数据存储（Cookie 等）
 │   ├── minimax_cookies.json
 │   └── xfyun_cookies.json
@@ -56,6 +62,9 @@ INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
 - ✅ Web 端 + Android 手机端
 - ✅ **历史用量趋势**（`history.html`，24h/7d，ECharts 双轴）
 - ✅ 多用户登录、账号与告警管理、API Key / 邀请码（管理端）
+- ✅ 账号列表 / 告警规则 / 管理后台 API 密钥等列表 **每页 5 条分页**；监控页「最近告警」固定约 **3 条可视高度 + 自动滚动**
+- ✅ 监控卡「最近 7 天使用率」小折线图（MiniMax / 讯飞配色区分；渐变填充 + 柔光描边；纵轴按数据区间自适应）
+- ✅ 卡片为纯色半透明背景（**无 backdrop-filter 毛玻璃、无悬停上浮**），减少视觉干扰
 - ✅ 内嵌 WebView 自动提取 Cookie
 - ✅ CDP 自动获取 Cookie（Web 端）
 - ✅ 重置时间倒计时
@@ -96,6 +105,8 @@ uvicorn app:app --host 0.0.0.0 --port 5188
 ### Web 前端
 
 开发时访问后端挂载的静态页（默认与 backend 同级的 `frontend/`，根路径由 `app.py` 挂载）。也可将 `frontend/` 交给 Nginx 单独托管并反向代理 API。
+
+**脚本依赖（重要）**：`api.html` 顺序为 `api-dashboard-state.js` → `api-dashboard-core.js` → `api-dashboard-app.js`。`accounts.html` / `admin.html` 在 State/Core 之后加载 **`js/ui-shared.js`**（`window.TMDUi`），再执行页内脚本。详见各文件头注释。
 
 ### Android 手机端
 ```bash
@@ -218,7 +229,7 @@ vite: ^8.0.0
 
 ## 开发规范
 
-协作规范、UI 一致性、依赖安全基线、**Git/proxychains 推送**等见本地 **`docs/开发规范.md`**（若存在）。以下为 Git 习惯摘要。
+协作规范、UI 一致性、依赖安全基线、**Git/proxychains 推送**等见 **`docs/开发规范.md`**。以下为 Git 习惯摘要。
 
 ### Git 提交格式
 ```bash
@@ -240,7 +251,14 @@ fix: 修复描述
 git push origin <分支名>
 ```
 
-若 Agent/终端由 `proxychains4` 启动，推送时需去掉继承的 `LD_PRELOAD`；详见 **`docs/开发规范.md`**「提交流程检查清单 → Git 远程推送」。
+若 Agent/终端由 `proxychains4` 启动，子进程会继承 `LD_PRELOAD`，可能导致 `git push` **无法解析 github.com**。应临时去掉预加载：
+
+```bash
+env -u LD_PRELOAD git push origin <分支名>
+# 或：LD_PRELOAD= git push origin <分支名>
+```
+
+详见 **`docs/开发规范.md`**（仓库内 `docs/开发规范.md` 与根目录说明一致）「提交流程检查清单 → Git 远程推送」。
 
 ---
 
@@ -260,10 +278,16 @@ git push origin <分支名>
 
 ### 2. Android 构建配置
 
-首次构建前，需要创建 `mobile-app/android/local.properties` 文件：
+首次构建前创建 `mobile-app/android/local.properties`，`sdk.dir` 指向本机 **Android SDK 根目录**（不要用引号）：
 
+**Windows（Android Studio 默认）：**
 ```properties
-sdk.dir=C:\\Users\\你的用户名\\AppData\\Local\\Android\\Sdk
+sdk.dir=C\:\\Users\\你的用户名\\AppData\\Local\\Android\\Sdk
+```
+
+**Linux / WSL（SDK 在 Linux 文件系统时）：**
+```properties
+sdk.dir=/home/你的用户/android-sdk
 ```
 
 ### 3. 构建命令
@@ -282,9 +306,23 @@ npx cap sync android
 
 # 用 Android Studio 打开并构建
 npx cap open android
-# 或命令行构建
-cd android
-gradlew assembleDebug
+```
+
+**或命令行（macOS / Linux / WSL）：**
+```bash
+cd mobile-app/android
+./gradlew assembleDebug
+# 输出：app/build/outputs/apk/debug/app-debug.apk
+```
+
+**Windows `cmd.exe`：** `cd android` 后使用 `gradlew.bat assembleDebug`。
+
+仅改 H5 后若 APK 里页面未更新，可再执行 `./gradlew :app:clean :app:assembleDebug` 强制重打资源。
+
+**安装到已连接模拟器/真机：**
+```bash
+# 示例：SDK platform-tools 已在 PATH
+adb install -r mobile-app/android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ### 4. 常见问题
