@@ -237,7 +237,18 @@ fix: 修复描述
 
 ### 推送命令
 ```bash
-git push origin master
+git push origin <分支名>
+```
+
+#### 使用 proxychains 启动的 Agent / 终端
+若通过 `proxychains4 cursor-agent`（或任何会给进程设置 `LD_PRELOAD=...libproxychains.so.4` 的方式）启动环境，**子进程会继承 preload**；此时直接 `git push` 可能使 Git/SSH 与 proxychains 叠加重入，出现域名解析失败等问题。**不要**再套一层 `proxychains4 git push`。
+
+推送前临时去掉预加载即可，例如：
+
+```bash
+env -u LD_PRELOAD git push origin <分支名>
+# 等价写法
+LD_PRELOAD= git push origin <分支名>
 ```
 
 ---
