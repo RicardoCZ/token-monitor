@@ -218,7 +218,7 @@ vite: ^8.0.0
 
 ## 开发规范
 
-协作规范、UI 一致性、依赖安全基线等见本地 **`docs/DEVELOPMENT.md`**（若存在）。以下为 Git 习惯摘要。
+协作规范、UI 一致性、依赖安全基线、**Git/proxychains 推送**等见本地 **`docs/开发规范.md`**（若存在）。以下为 Git 习惯摘要。
 
 ### Git 提交格式
 ```bash
@@ -240,16 +240,7 @@ fix: 修复描述
 git push origin <分支名>
 ```
 
-#### 使用 proxychains 启动的 Agent / 终端
-若通过 `proxychains4 cursor-agent`（或任何会给进程设置 `LD_PRELOAD=...libproxychains.so.4` 的方式）启动环境，**子进程会继承 preload**；此时直接 `git push` 可能使 Git/SSH 与 proxychains 叠加重入，出现域名解析失败等问题。**不要**再套一层 `proxychains4 git push`。
-
-推送前临时去掉预加载即可，例如：
-
-```bash
-env -u LD_PRELOAD git push origin <分支名>
-# 等价写法
-LD_PRELOAD= git push origin <分支名>
-```
+若 Agent/终端由 `proxychains4` 启动，推送时需去掉继承的 `LD_PRELOAD`；详见 **`docs/开发规范.md`**「提交流程检查清单 → Git 远程推送」。
 
 ---
 
