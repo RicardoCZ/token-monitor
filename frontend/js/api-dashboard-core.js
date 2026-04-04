@@ -174,7 +174,10 @@
             }
         },
 
-        /** 简单 SVG 折线（0–100 竖直域），用于监控卡片 7d 趋势 */
+        /**
+         * 监控卡片用小折线图。竖直域按数据 min–max 自适应（带少量内边距），避免在矮条里用满量程 0–100 时曲线被压成平线；
+         * 与历史趋势大图刻度不必一致，以小图可读性优先。
+         */
         buildSparklineSvg(percentSeries, strokeColor = "#6f88ff") {
             const vals = Array.isArray(percentSeries)
                 ? percentSeries.map((v) => this.getNumberValue(v)).filter((n) => Number.isFinite(n))
@@ -191,6 +194,10 @@
             if (maxV - minV < 1e-6) {
                 minV = Math.max(0, minV - 5);
                 maxV = Math.min(100, maxV + 5);
+            } else {
+                const pad = (maxV - minV) * 0.12;
+                minV = Math.max(0, minV - pad);
+                maxV = Math.min(100, maxV + pad);
             }
             const span = Math.max(1e-6, maxV - minV);
             const innerW = w - padX * 2;

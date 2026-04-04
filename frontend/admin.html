@@ -72,6 +72,8 @@
         }
         
         .card {
+            position: relative;
+            z-index: 0;
             background: var(--bg-card);
             border-radius: var(--radius-lg);
             padding: 24px;
@@ -86,6 +88,11 @@
             transform: translateY(-2px);
             box-shadow: var(--shadow-card-hover);
             background: var(--bg-card-hover);
+        }
+
+        /* 下拉展开时托起整张卡片，避免被下方卡片盖住 */
+        .card:has(.custom-select.open) {
+            z-index: 60;
         }
         
         .card h2 {
@@ -186,7 +193,7 @@
             left: 0;
             right: 0;
             top: 100%;
-            z-index: 20;
+            z-index: 80;
             border-radius: 10px;
             background: rgba(30, 34, 58, 0.98);
             border: 1px solid rgba(102, 126, 234, 0.35);

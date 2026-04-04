@@ -297,20 +297,31 @@
             const endMs = Date.now();
             const startIso = new Date(endMs - 7 * 24 * 60 * 60 * 1000).toISOString();
             const endIso = new Date(endMs).toISOString();
-            const limit = 300;
-            const url =
-                `${S.API_BASE}/api/accounts/${accountId}/history?limit=${limit}&offset=0` +
-                `&start_at=${encodeURIComponent(startIso)}&end_at=${encodeURIComponent(endIso)}` +
-                `&metric_key=${encodeURIComponent("percent")}&_=${Date.now()}`;
-            const resp = await fetch(url, {
-                headers: { Authorization: `Bearer ${S.authToken}` },
-            });
-            const data = await resp.json();
-            if (!resp.ok) {
-                throw new Error(U.extractApiErrorMessage(data));
+            /* 与历史趋势页一致：后端 limit 上限 100，需分页拉满窗口内 percent 快照 */
+            const limit = 100;
+            const MAX_FETCH_PAGES = 40;
+            const MAX_POINTS = 3000;
+            const all = [];
+            let offset = 0;
+            const bust = Date.now();
+            for (let i = 0; i < MAX_FETCH_PAGES && all.length < MAX_POINTS; i += 1) {
+                const url =
+                    `${S.API_BASE}/api/accounts/${accountId}/history?limit=${limit}&offset=${offset}` +
+                    `&start_at=${encodeURIComponent(startIso)}&end_at=${encodeURIComponent(endIso)}` +
+                    `&metric_key=${encodeURIComponent("percent")}&_=${bust}&p=${i}`;
+                const resp = await fetch(url, {
+                    headers: { Authorization: `Bearer ${S.authToken}` },
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(U.extractApiErrorMessage(data));
+                }
+                const items = Array.isArray(data.items) ? data.items : [];
+                all.push(...items);
+                if (!data.pagination?.has_more || !items.length) break;
+                offset += limit;
             }
-            const items = Array.isArray(data.items) ? data.items : [];
-            const sorted = items
+            const sorted = all
                 .filter((it) => it && it.collected_at != null && it.percent != null)
                 .sort((a, b) => new Date(a.collected_at).getTime() - new Date(b.collected_at).getTime());
             return sorted.map((it) => U.getNumberValue(it.percent));
@@ -361,6 +372,8 @@
         _recentAlertsListEl: null,
         _recentAlertsBound: null,
         _recentAlertsPaused: false,
+        /** 丢弃过期的并发「最近告警」请求结果，避免后返回的旧列表盖住新数据 */
+        _recentAlertsLoadGen: 0,
 
         stopRecentAlertsTicker() {
             if (this._recentAlertsStepTimer != null) {
@@ -538,8 +551,10 @@
                 list.innerHTML = '<li class="recent-alerts-empty">登录后可查看告警摘要</li>';
                 return;
             }
+            const gen = ++this._recentAlertsLoadGen;
             try {
                 const items = await this.fetchAllUserAlertEvents(uid);
+                if (gen !== this._recentAlertsLoadGen) return;
                 const stamp = JSON.stringify(
                     items.map((it) => [it.id, it.created_at, it.status, it.message || ""])
                 );
@@ -557,6 +572,7 @@
                 list.innerHTML = items.map((item) => `<li>${U.formatDashboardAlertLine(item)}</li>`).join("");
                 this.setupRecentAlertsTicker(list);
             } catch (e) {
+                if (gen !== this._recentAlertsLoadGen) return;
                 delete list.dataset.alertStamp;
                 this.stopRecentAlertsTicker();
                 list.style.maxHeight = "";
@@ -685,14 +701,24 @@
         boot() {
             this.checkAuth().then(loggedIn => {
                 if (loggedIn) {
-                    void this.loadRecentAlertsSummary();
                     this.renderFromCachedDashboard();
+                    /* 最近告警由 refreshAll 首次拉取；勿在此外再并发调用同一函数，避免竞态 */
                     this.refreshAll("init");
                 }
             });
+            /* 全量刷新服务卡片：默认 60s */
             setInterval(() => {
                 if (S.authToken) this.refreshAll("auto");
             }, 60000);
+            /* 最近告警单独更频繁拉取（轻量接口），不必去账号页也能接近实时 */
+            const ALERTS_POLL_MS = 90_000;
+            setInterval(() => {
+                if (S.authToken) void this.loadRecentAlertsSummary();
+            }, ALERTS_POLL_MS);
+            document.addEventListener("visibilitychange", () => {
+                if (document.hidden || !S.authToken) return;
+                void this.loadRecentAlertsSummary();
+            });
         },
     };
 
