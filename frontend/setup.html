@@ -6,18 +6,35 @@
     <title>凭证设置 - Token Monitor ✨</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #667eea;
+            --primary-dark: #764ba2;
+            --bg-dark: #1a1a2e;
+            --bg-card: rgba(255, 255, 255, 0.08);
+            --bg-card-hover: rgba(255, 255, 255, 0.12);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.2);
+            --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.3);
+            --radius-lg: 16px;
+            --transition-normal: 0.25s ease;
+        }
         
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #16213e 100%);
             min-height: 100vh;
             color: #fff;
             padding: 20px;
         }
+
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+        }
         
         .container { max-width: 600px; margin: 0 auto; }
         
-        h1 { font-size: 24px; text-align: center; margin-bottom: 10px; }
+        h1 { font-size: 28px; font-weight: 500; text-align: center; margin-bottom: 10px; }
         .subtitle { text-align: center; color: #888; font-size: 13px; margin-bottom: 30px; }
         .header-top-link {
             color: #667eea;
@@ -29,11 +46,20 @@
         }
         
         .card {
-            background: rgba(255, 255, 255, 0.08);
-            border-radius: 16px;
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
             padding: 24px;
             margin-bottom: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            box-shadow: var(--shadow-card);
+            transition: transform var(--transition-normal), box-shadow var(--transition-normal);
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-card-hover);
+            background: var(--bg-card-hover);
         }
         
         h2 { font-size: 16px; margin-bottom: 15px; color: #e0e0e0; }
