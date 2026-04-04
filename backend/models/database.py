@@ -21,7 +21,8 @@ engine = create_async_engine(
     echo=settings.debug,  # 开发模式打印 SQL
     pool_pre_ping=True,   # 连接池健康检查
     pool_size=5,
-    max_overflow=10
+    max_overflow=10,
+    connect_args={"init_command": "SET time_zone='+00:00'"},
 )
 
 # 创建异步会话工厂

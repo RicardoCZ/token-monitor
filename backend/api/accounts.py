@@ -187,6 +187,17 @@ def _parse_history_datetime(value: Optional[str], field_name: str) -> Optional[d
     return dt
 
 
+def _format_history_collected_at(value: Optional[datetime]) -> Optional[str]:
+    """DB 中为 UTC 墙钟（naive）；序列化为带 Z 的 ISO，供前端 Date 与查询窗口一致。"""
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        utc_dt = value.replace(tzinfo=timezone.utc)
+    else:
+        utc_dt = value.astimezone(timezone.utc)
+    return utc_dt.isoformat().replace("+00:00", "Z")
+
+
 def _normalize_notify_channels(raw: Any) -> list[str]:
     if isinstance(raw, list):
         channels = [str(item).strip() for item in raw if str(item).strip()]
@@ -488,7 +499,7 @@ async def get_account_usage_history(
             "percent": row.percent_value,
             "expires_at": row.expires_at.isoformat() if row.expires_at else None,
             "reset_at": row.reset_at.isoformat() if row.reset_at else None,
-            "collected_at": row.collected_at.isoformat() if row.collected_at else None,
+            "collected_at": _format_history_collected_at(row.collected_at),
             "normalized_payload": row.normalized_payload,
         }
         for row in snapshots

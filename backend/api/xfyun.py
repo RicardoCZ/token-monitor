@@ -61,7 +61,7 @@ async def get_xfyun_status(
             await persist_usage_collection(db, account, data)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
-    
+
     return data
 
 

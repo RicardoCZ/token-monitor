@@ -138,11 +138,6 @@
                 <select id="history-account-select" class="history-select"></select>
                 <button id="history-range-24h" class="history-range-btn active" type="button">24h</button>
                 <button id="history-range-7d" class="history-range-btn" type="button">7d</button>
-                <select id="history-metric-select" class="history-select">
-                    <option value="percent">使用率 (%)</option>
-                    <option value="used">已用 (used)</option>
-                    <option value="total">总量 (total)</option>
-                </select>
             </div>
             <div id="history-chart" class="history-chart"></div>
             <div id="history-status" class="history-status"></div>
@@ -177,7 +172,6 @@
             accounts: [],
             accountId: null,
             range: "24h",
-            metric: "percent",
             chart: null,
             isLoading: false,
         };
@@ -257,9 +251,47 @@
             return "";
         }
 
-        function getNumberValue(value) {
+        /** @returns {number|null} */
+        function getNullableNumber(value) {
             const n = Number(value);
-            return Number.isFinite(n) ? n : 0;
+            return Number.isFinite(n) ? n : null;
+        }
+
+        function formatStatusRangeDate(d) {
+            const m = String(d.getMonth() + 1).padStart(2, "0");
+            const day = String(d.getDate()).padStart(2, "0");
+            const h = String(d.getHours()).padStart(2, "0");
+            const min = String(d.getMinutes()).padStart(2, "0");
+            return `${m}-${day} ${h}:${min}`;
+        }
+
+        /**
+         * 查询窗口内，本地时间下“有至少一个数据点”的小时数；
+         * 分母为窗口时长（毫秒）折合小时数，向上取整，至少为 1。
+         */
+        function computeHourlyCoverage(items, windowStartMs, windowEndMs) {
+            let totalSlots = 1;
+            if (Number.isFinite(windowStartMs) && Number.isFinite(windowEndMs)) {
+                const span = Math.max(0, windowEndMs - windowStartMs);
+                totalSlots = Math.max(1, Math.ceil(span / 3600000));
+            }
+            if (!items.length) {
+                return { covered: 0, totalSlots, pct: 0 };
+            }
+            const hoursWithData = new Set();
+            const winOk = Number.isFinite(windowStartMs) && Number.isFinite(windowEndMs);
+            for (const item of items) {
+                if (!item || !item.collected_at) continue;
+                const t = new Date(item.collected_at).getTime();
+                if (!Number.isFinite(t)) continue;
+                if (winOk && (t < windowStartMs || t > windowEndMs)) continue;
+                const d = new Date(t);
+                const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`;
+                hoursWithData.add(key);
+            }
+            const covered = hoursWithData.size;
+            const pct = totalSlots > 0 ? Math.round((covered / totalSlots) * 100) : 0;
+            return { covered, totalSlots, pct };
         }
 
         function initChart() {
@@ -286,15 +318,14 @@
             if (btn7d) btn7d.classList.toggle("active", state.range === "7d");
         }
 
-        function getRangeStartIso(range) {
-            const now = Date.now();
-            const ms = range === "7d" ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
-            return new Date(now - ms).toISOString();
-        }
-
         async function loadAccounts() {
-            const resp = await fetch(`${API_BASE}/api/accounts`, {
-                headers: { "Authorization": `Bearer ${authToken}` },
+            const resp = await fetch(`${API_BASE}/api/accounts?_=${Date.now()}`, {
+                cache: "no-store",
+                headers: {
+                    "Authorization": `Bearer ${authToken}`,
+                    "Cache-Control": "no-cache",
+                    Pragma: "no-cache",
+                },
             });
             const data = await resp.json();
             if (!resp.ok) {
@@ -316,19 +347,31 @@
             select.value = String(state.accountId);
         }
 
-        async function fetchHistoryItems(accountId, metric, range) {
-            const startAt = encodeURIComponent(getRangeStartIso(range));
-            const endAt = encodeURIComponent(new Date().toISOString());
-            const safeMetric = encodeURIComponent(metric);
+        async function fetchHistoryItems(accountId, range) {
+            const endMs = Date.now();
+            const startIso = new Date(
+                endMs - (range === "7d" ? 7 : 24) * 60 * 60 * 1000
+            ).toISOString();
+            const endIso = new Date(endMs).toISOString();
+            const startAt = encodeURIComponent(startIso);
+            const endAt = encodeURIComponent(endIso);
             const MAX_FETCH_PAGES = 30;
             const MAX_POINTS = 3000;
             const limit = 200;
             const all = [];
             let offset = 0;
+            const bust = Date.now();
             for (let i = 0; i < MAX_FETCH_PAGES && all.length < MAX_POINTS; i += 1) {
-                const url = `${API_BASE}/api/accounts/${accountId}/history?limit=${limit}&offset=${offset}&metric_key=${safeMetric}&start_at=${startAt}&end_at=${endAt}`;
+                const url =
+                    `${API_BASE}/api/accounts/${accountId}/history?limit=${limit}&offset=${offset}`  +
+                    `&start_at=${startAt}&end_at=${endAt}&_=${bust}&p=${i}`;
                 const resp = await fetch(url, {
-                    headers: { "Authorization": `Bearer ${authToken}` },
+                    cache: "no-store",
+                    headers: {
+                        "Authorization": `Bearer ${authToken}`,
+                        "Cache-Control": "no-cache",
+                        Pragma: "no-cache",
+                    },
                 });
                 const data = await resp.json();
                 if (!resp.ok) {
@@ -346,54 +389,113 @@
             return {
                 items: truncated ? normalized.slice(normalized.length - MAX_POINTS) : normalized,
                 truncated,
+                windowStartIso: startIso,
+                windowEndIso: endIso,
             };
         }
 
-        function renderChart(items) {
+        function renderChart(items, windowStartIso, windowEndIso) {
             const chart = initChart();
             if (!chart) return;
 
-            const labels = items.map(item => {
-                const dt = new Date(item.collected_at);
-                return dt.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
-            });
-            const values = items.map(item => getNumberValue(item[state.metric]));
+            const winStart = windowStartIso ? new Date(windowStartIso).getTime() : null;
+            const winEnd = windowEndIso ? new Date(windowEndIso).getTime() : null;
 
-            chart.setOption({
-                backgroundColor: "transparent",
-                tooltip: { trigger: "axis" },
-                grid: { left: 36, right: 20, top: 24, bottom: 42 },
-                xAxis: {
-                    type: "category",
-                    data: labels,
-                    axisLabel: { color: "#93a0cb", fontSize: 10 },
-                    axisLine: { lineStyle: { color: "rgba(255,255,255,0.2)" } },
-                },
-                yAxis: {
-                    type: "value",
-                    axisLabel: {
-                        color: "#93a0cb",
-                        fontSize: 10,
-                        formatter: state.metric === "percent" ? "{value}%" : "{value}",
+            const dataP = [];
+            const dataU = [];
+            for (const item of items) {
+                if (!item || !item.collected_at) continue;
+                const t = item.collected_at;
+                const pv = getNullableNumber(item.percent);
+                const uv = getNullableNumber(item.used);
+                dataP.push([t, pv]);
+                dataU.push([t, uv]);
+            }
+
+            chart.setOption(
+                {
+                    backgroundColor: "transparent",
+                    legend: {
+                        data: ["使用率 %", "已用量"],
+                        textStyle: { color: "#93a0cb", fontSize: 11 },
+                        top: 0,
                     },
-                    splitLine: { lineStyle: { color: "rgba(255,255,255,0.08)" } },
-                },
-                dataZoom: [
-                    { type: "inside", start: 0, end: 100 },
-                    { type: "slider", height: 14, bottom: 10, borderColor: "rgba(255,255,255,0.18)" },
-                ],
-                series: [
-                    {
-                        type: "line",
-                        smooth: true,
-                        symbol: "none",
-                        areaStyle: { opacity: 0.12 },
-                        lineStyle: { width: 2, color: "#6f88ff" },
-                        itemStyle: { color: "#6f88ff" },
-                        data: values,
+                    tooltip: {
+                        trigger: "axis",
+                        axisPointer: { type: "cross" },
                     },
-                ],
-            });
+                    grid: { left: 52, right: 56, top: 36, bottom: 52 },
+                    xAxis: {
+                        type: "time",
+                        min: Number.isFinite(winStart) ? winStart : undefined,
+                        max: Number.isFinite(winEnd) ? winEnd : undefined,
+                        boundaryGap: false,
+                        axisLabel: { color: "#93a0cb", fontSize: 10 },
+                        axisLine: { lineStyle: { color: "rgba(255,255,255,0.2)" } },
+                        splitLine: { show: false },
+                    },
+                    yAxis: [
+                        {
+                            type: "value",
+                            name: "percent",
+                            min: 0,
+                            max: 100,
+                            axisLabel: {
+                                color: "#8b9cff",
+                                fontSize: 10,
+                                formatter: "{value}%",
+                            },
+                            nameTextStyle: { color: "#8b9cff", fontSize: 10 },
+                            splitLine: { lineStyle: { color: "rgba(255,255,255,0.08)" } },
+                        },
+                        {
+                            type: "value",
+                            name: "used",
+                            axisLabel: { color: "#e8a87c", fontSize: 10 },
+                            nameTextStyle: { color: "#e8a87c", fontSize: 10 },
+                            splitLine: { show: false },
+                        },
+                    ],
+                    dataZoom: [
+                        { type: "inside", xAxisIndex: 0 },
+                        {
+                            type: "slider",
+                            xAxisIndex: 0,
+                            height: 14,
+                            bottom: 10,
+                            borderColor: "rgba(255,255,255,0.18)",
+                        },
+                    ],
+                    series: [
+                        {
+                            id: "percent",
+                            name: "使用率 %",
+                            type: "line",
+                            yAxisIndex: 0,
+                            connectNulls: false,
+                            smooth: true,
+                            symbol: "none",
+                            lineStyle: { width: 2, color: "#6f88ff" },
+                            itemStyle: { color: "#6f88ff" },
+                            areaStyle: { opacity: 0.08, color: "#6f88ff" },
+                            data: dataP,
+                        },
+                        {
+                            id: "used",
+                            name: "已用量",
+                            type: "line",
+                            yAxisIndex: 1,
+                            connectNulls: false,
+                            smooth: true,
+                            symbol: "none",
+                            lineStyle: { width: 2, color: "#e8a87c" },
+                            itemStyle: { color: "#e8a87c" },
+                            data: dataU,
+                        },
+                    ],
+                },
+                { notMerge: true }
+            );
         }
 
         function getCurrentAccount() {
@@ -413,17 +515,29 @@
             }
             setHistoryStatus("正在加载历史数据...");
             try {
-                const result = await fetchHistoryItems(state.accountId, state.metric, state.range);
+                const result = await fetchHistoryItems(state.accountId, state.range);
                 const items = result.items;
+                const wsMs = result.windowStartIso ? new Date(result.windowStartIso).getTime() : NaN;
+                const weMs = result.windowEndIso ? new Date(result.windowEndIso).getTime() : NaN;
                 if (!items.length) {
-                    setHistoryStatus("当前时间窗口暂无历史数据。");
-                    renderChart([]);
+                    setHistoryStatus(
+                        `${escapeHtml(account.name || ("账号#" + account.id))} · ${state.range} · 暂无数据点`
+                    );
+                    renderChart([], result.windowStartIso, result.windowEndIso);
                     return;
                 }
-                renderChart(items);
-                const metricLabel = state.metric === "percent" ? "使用率" : state.metric;
-                const truncatedText = result.truncated ? "（数据较多，已截取最近部分）" : "";
-                setHistoryStatus(`${escapeHtml(account.name || ("账号#" + account.id))} · ${state.range} · ${metricLabel}（${items.length} 条）${truncatedText}`);
+                renderChart(items, result.windowStartIso, result.windowEndIso);
+                const firstT = new Date(items[0].collected_at);
+                const lastT = new Date(items[items.length - 1].collected_at);
+                const actualFrom = formatStatusRangeDate(firstT);
+                const actualTo = formatStatusRangeDate(lastT);
+                const cov = computeHourlyCoverage(items, wsMs, weMs);
+                const truncatedText = result.truncated ? " · 数据较多已截取最近部分" : "";
+                setHistoryStatus(
+                    `${escapeHtml(account.name || ("账号#" + account.id))} · ${state.range} · ${items.length} 条` +
+                        `${truncatedText} · 实际范围: ${actualFrom} - ${actualTo} · ` +
+                        `覆盖率: ${cov.covered}/${cov.totalSlots} 小时 (${cov.pct}%)`
+                );
             } catch (e) {
                 setHistoryStatus(e.message || "历史趋势加载失败", true);
             } finally {
@@ -437,7 +551,6 @@
 
         function bindEvents() {
             const select = document.getElementById("history-account-select");
-            const metricSelect = document.getElementById("history-metric-select");
             const btn24 = document.getElementById("history-range-24h");
             const btn7d = document.getElementById("history-range-7d");
             const refreshBtn = document.getElementById("history-refresh-btn");
@@ -445,12 +558,6 @@
             if (select) {
                 select.addEventListener("change", () => {
                     state.accountId = select.value;
-                    refreshHistory();
-                });
-            }
-            if (metricSelect) {
-                metricSelect.addEventListener("change", () => {
-                    state.metric = metricSelect.value || "percent";
                     refreshHistory();
                 });
             }

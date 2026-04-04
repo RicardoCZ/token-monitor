@@ -20,9 +20,9 @@ INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
 ./start.sh
 ```
 
-启动后打开 **http://localhost:5188** 即可。
+启动后打开 **`http://localhost:<PORT>`** 即可（`<PORT>` 以 `backend/.env` 里 `PORT` 为准，默认 **5188**）。
 
-详细步骤见 **[DEPLOYMENT.md](./DEPLOYMENT.md)**。
+详细步骤见 **[docs/OPERATIONS.md](./docs/OPERATIONS.md)**（根目录 [DEPLOYMENT.md](./DEPLOYMENT.md) 为索引）。
 
 ## 项目结构
 
@@ -30,11 +30,16 @@ INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
 ~/share/new/
 ├── backend/           # FastAPI 后端
 │   ├── app.py         # 应用入口
-│   └── .env.example   # 环境变量模板（部署见 DEPLOYMENT.md）
+│   └── .env.example   # 环境变量模板（说明见 docs/OPERATIONS.md）
+├── docs/              # OPERATIONS（部署/迁移/回归）、ARCHITECTURE、DEVELOPMENT、DECISIONS…
 ├── frontend/          # Web 前端静态页面
-│   ├── index.html     # 主页面
-│   ├── api.html       # API 监控页面
-│   └── setup.html     # Cookie 设置页面
+│   ├── index.html     # 入口
+│   ├── login.html     # 登录
+│   ├── api.html       # 实时监控看板
+│   ├── history.html   # 历史用量趋势（ECharts）
+│   ├── accounts.html  # 账号与告警管理
+│   ├── admin.html     # 管理后台（邀请码、API Key）
+│   └── setup.html     # 凭证 / CDP 设置
 ├── mobile-app/        # Android 手机端 (Capacitor)
 │   ├── src/           # 前端源码
 │   └── android/       # Android 原生项目
@@ -49,6 +54,8 @@ INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
 - ✅ MiniMax Token Plan 用量监控
 - ✅ 讯飞星辰每日额度监控
 - ✅ Web 端 + Android 手机端
+- ✅ **历史用量趋势**（`history.html`，24h/7d，ECharts 双轴）
+- ✅ 多用户登录、账号与告警管理、API Key / 邀请码（管理端）
 - ✅ 内嵌 WebView 自动提取 Cookie
 - ✅ CDP 自动获取 Cookie（Web 端）
 - ✅ 重置时间倒计时
@@ -75,7 +82,7 @@ INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
 
 ## 快速启动（本地开发）
 
-完整步骤与密钥配置见 **[DEPLOYMENT.md](./DEPLOYMENT.md)**。
+完整步骤与密钥配置见 **[docs/OPERATIONS.md](./docs/OPERATIONS.md)**。
 
 ### 后端（需已配置 `backend/.env` 与 MySQL）
 
@@ -207,9 +214,11 @@ vite: ^8.0.0
 
 - Cookie 与加密数据依赖 **`backend/.env`** 中的 `APP_SECRET_KEY` 等，**勿提交** `.env`。
 - 业务 Cookie 加密存库；本地 `data/` 与日志已按 `.gitignore` 忽略（以仓库实际规则为准）。
-- 生产密钥与数据库口令**按环境独立生成**，见 **DEPLOYMENT.md**。
+- 生产密钥与数据库口令**按环境独立生成**，见 **[docs/OPERATIONS.md](./docs/OPERATIONS.md)**。
 
 ## 开发规范
+
+协作规范、UI 一致性、依赖安全基线等见 **[docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md)**。以下为 Git 习惯摘要。
 
 ### Git 提交格式
 ```bash

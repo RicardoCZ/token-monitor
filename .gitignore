@@ -33,7 +33,5 @@ htmlcov/
 *.db
 backend/.coverage
 
-# 本地开发文档与扫描输出（仅本地保留）
-docs/
-TODO.md
+# 扫描输出
 output.html

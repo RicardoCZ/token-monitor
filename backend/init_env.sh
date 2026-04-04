@@ -123,7 +123,7 @@ if [[ "$SKIP_MYSQL" -eq 1 ]]; then
 fi
 
 if ! command -v mysql >/dev/null 2>&1; then
-  echo "警告: 未找到 mysql 客户端，跳过连接检测与自动建库。请安装 MySQL 客户端后参见 docs/MIGRATION_GUIDE.md（2. 迁移脚本说明）与 docs/CONFIG_MANUAL.md（2. 配置项总览）手工处理。" >&2
+  echo "警告: 未找到 mysql 客户端，跳过连接检测与自动建库。请安装 MySQL 客户端后参见 docs/OPERATIONS.md（§3 数据库迁移脚本、§4 环境变量）手工处理。" >&2
   exit 0
 fi
 
@@ -156,7 +156,7 @@ PY
   unset _INIT_SQL_DB_NAME _INIT_SQL_DB_USER _INIT_SQL_DB_PASSWORD
   echo "已尝试创建数据库 '$DB_NAME' 与用户 '$DB_USER'@'localhost'（需 MySQL 8+ 支持 CREATE USER IF NOT EXISTS）。"
 else
-  echo "提示: 未设置 INIT_MYSQL_ADMIN_PASSWORD，跳过自动建库。请参见 docs/MIGRATION_GUIDE.md（2. 迁移脚本说明）与 docs/CONFIG_MANUAL.md（2. 配置项总览）手工执行，密码须与 .env 中 DB_PASSWORD 一致。"
+  echo "提示: 未设置 INIT_MYSQL_ADMIN_PASSWORD，跳过自动建库。请参见 docs/OPERATIONS.md（§3 迁移、§7 初始化脚本）手工执行，密码须与 .env 中 DB_PASSWORD 一致。"
 fi
 
 if mysql_ping "$DB_USER" "$DB_PASSWORD" "$DB_HOST" "$DB_PORT"; then

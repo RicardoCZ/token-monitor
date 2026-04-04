@@ -6,7 +6,7 @@ T6: 用量采集统一写入工具
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,7 +33,8 @@ def _parse_datetime(raw: Any) -> Optional[datetime]:
 
 def build_usage_snapshots(account: Account, data: dict) -> list[UsageSnapshot]:
     page_info = data.get("page_info", {}) or {}
-    now = datetime.utcnow()
+    # 与历史查询窗口（前端 ISO Z / 后端按 UTC 解析）一致，避免依赖 MySQL session 时区
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     snapshots: list[UsageSnapshot] = []
 
     if account.service_id == "minimax":
@@ -51,6 +52,7 @@ def build_usage_snapshots(account: Account, data: dict) -> list[UsageSnapshot]:
                 percent_value=float(page_info.get("percent") or 0),
                 expires_at=expires_at,
                 reset_at=reset_at,
+                collected_at=now,
                 raw_payload=data,
                 normalized_payload={
                     "used": float(page_info.get("used") or 0),
@@ -75,6 +77,7 @@ def build_usage_snapshots(account: Account, data: dict) -> list[UsageSnapshot]:
                 total_value=float(page_info.get("total") or 0),
                 percent_value=float(page_info.get("percent") or data.get("percent") or 0),
                 expires_at=expires_at,
+                collected_at=now,
                 raw_payload=data,
                 normalized_payload={
                     "used": float(page_info.get("used") or 0),
@@ -117,7 +120,7 @@ async def persist_usage_collection(
     if snapshots:
         db.add_all(snapshots)
 
-    account.last_sync_at = datetime.utcnow()
+    account.last_sync_at = datetime.now(timezone.utc).replace(tzinfo=None)
     account.last_collect_status = "success"
     account.last_collect_error = None
     await db.commit()
