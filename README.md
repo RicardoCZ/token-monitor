@@ -22,7 +22,7 @@ INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
 
 启动后打开 **`http://localhost:<PORT>`** 即可（`<PORT>` 以 `backend/.env` 里 `PORT` 为准，默认 **5188**）。
 
-详细步骤见 **[docs/OPERATIONS.md](./docs/OPERATIONS.md)**（根目录 [DEPLOYMENT.md](./DEPLOYMENT.md) 为索引）。
+详细步骤见 **[DEPLOYMENT.md](./DEPLOYMENT.md)**。完整运维手册仅在本地 **`docs/OPERATIONS.md`**（`docs/` 不入库，见 DEPLOYMENT 顶部说明）。
 
 ## 项目结构
 
@@ -30,8 +30,8 @@ INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
 ~/share/new/
 ├── backend/           # FastAPI 后端
 │   ├── app.py         # 应用入口
-│   └── .env.example   # 环境变量模板（说明见 docs/OPERATIONS.md）
-├── docs/              # OPERATIONS（部署/迁移/回归）、ARCHITECTURE、DEVELOPMENT、DECISIONS…
+│   └── .env.example   # 环境变量模板
+├── docs/              # （可选，本地维护，不入库）OPERATIONS、ARCHITECTURE 等
 ├── frontend/          # Web 前端静态页面
 │   ├── index.html     # 入口
 │   ├── login.html     # 登录
@@ -82,7 +82,7 @@ INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
 
 ## 快速启动（本地开发）
 
-完整步骤与密钥配置见 **[docs/OPERATIONS.md](./docs/OPERATIONS.md)**。
+完整步骤与密钥配置见 **[DEPLOYMENT.md](./DEPLOYMENT.md)**。
 
 ### 后端（需已配置 `backend/.env` 与 MySQL）
 
@@ -214,11 +214,11 @@ vite: ^8.0.0
 
 - Cookie 与加密数据依赖 **`backend/.env`** 中的 `APP_SECRET_KEY` 等，**勿提交** `.env`。
 - 业务 Cookie 加密存库；本地 `data/` 与日志已按 `.gitignore` 忽略（以仓库实际规则为准）。
-- 生产密钥与数据库口令**按环境独立生成**，见 **[docs/OPERATIONS.md](./docs/OPERATIONS.md)**。
+- 生产密钥与数据库口令**按环境独立生成**，见 **[DEPLOYMENT.md](./DEPLOYMENT.md)**。
 
 ## 开发规范
 
-协作规范、UI 一致性、依赖安全基线等见 **[docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md)**。以下为 Git 习惯摘要。
+协作规范、UI 一致性、依赖安全基线等见本地 **`docs/DEVELOPMENT.md`**（若存在）。以下为 Git 习惯摘要。
 
 ### Git 提交格式
 ```bash
