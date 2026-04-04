@@ -124,7 +124,7 @@
             container.innerHTML = S.serviceRegistry.map(service => `
                 <div class="card" id="service-card-${U.escapeHtml(service.id)}">
                     <div class="card-header">
-                        <span class="card-title">${U.escapeHtml(service.icon || "🧩")} ${U.escapeHtml(service.name || service.id)}</span>
+                        <span class="card-title">${U.renderServiceIconHtml(service.icon || "🧩")}<span class="card-title-text">${U.escapeHtml(service.name || service.id)}</span></span>
                         <span class="card-badge badge-ok" id="service-badge-${U.escapeHtml(service.id)}">加载中</span>
                     </div>
                     <div class="service-card-content" id="service-content-${U.escapeHtml(service.id)}">

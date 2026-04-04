@@ -166,6 +166,19 @@
             font-size: 13px;
         }
 
+        .tm-service-icon {
+            width: 20px;
+            height: 20px;
+            object-fit: contain;
+            flex-shrink: 0;
+            vertical-align: middle;
+        }
+        .service-cell-inner {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         .accounts-data-table tbody tr:nth-child(odd) {
             background: var(--zebra-row);
         }
@@ -900,7 +913,7 @@
                 ${rows.map(row => `
                     <div class="row">
                         <span>${escapeHtml(row.label)}</span>
-                        <span>${escapeHtml(row.value)}</span>
+                        <span>${row.valueHtml != null ? row.valueHtml : escapeHtml(row.value)}</span>
                     </div>
                 `).join('')}
             `;
@@ -940,7 +953,7 @@
             const previous = currentAlertAccountId;
             select.innerHTML = `
                 ${accountsCache.map(item => {
-                    const label = `${item.service_icon || '🧩'} ${item.service_name || item.service_id} - ${item.name || '-'}`;
+                    const label = `${item.service_name || item.service_id} - ${item.name || '-'}`;
                     return `<option value="${item.id}">${escapeHtml(label)}</option>`;
                 }).join('')}
             `;
@@ -1162,10 +1175,9 @@
                         <tbody>
                             ${pageItems.map(item => {
                                 const status = formatAccountStatus(item);
-                                const serviceName = `${item.service_icon || '🧩'} ${item.service_name || item.service_id || '-'}`;
                                 return `
                                     <tr data-account-id="${item.id}">
-                                        <td>${escapeHtml(serviceName)}</td>
+                                        <td><span class="service-cell-inner">${U.renderServiceIconHtml(item.service_icon || '🧩')}<span>${escapeHtml(item.service_name || item.service_id || '-')}</span></span></td>
                                         <td class="account-name-cell" onclick="event.stopPropagation(); startInlineAccountNameEdit(${item.id});">
                                             <span id="account-name-display-${item.id}" class="account-name-display">${escapeHtml(item.name || '-')}</span>
                                             <input
@@ -1238,7 +1250,11 @@
                 const data = await fetchAccountDetail(accountId);
                 const usage = data.usage || {};
                 const rows = [
-                    { label: '服务', value: `${data.service_icon || '🧩'} ${data.service_name || data.service_id || '-'}` },
+                    {
+                        label: '服务',
+                        value: '',
+                        valueHtml: `<span class="service-cell-inner">${U.renderServiceIconHtml(data.service_icon || '🧩')}<span>${escapeHtml(data.service_name || data.service_id || '-')}</span></span>`,
+                    },
                     { label: '配置名称', value: data.name || '-' },
                     { label: '已用额度', value: usage.used == null ? '-' : String(usage.used) },
                     { label: '总额度', value: usage.total == null ? '-' : String(usage.total) },

@@ -2,6 +2,8 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   root: 'src',
+  /** 与 root 解耦：静态资源放在仓库 mobile-app/public（Capacitor 需 /icons/*.ico） */
+  publicDir: '../public',
   build: {
     outDir: '../www',
     emptyOutDir: true,

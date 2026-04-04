@@ -15,6 +15,32 @@
             return div.innerHTML;
         },
 
+        escapeAttr(text) {
+            return String(text ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/"/g, "&quot;")
+                .replace(/</g, "&lt;");
+        },
+
+        /** 服务注册表 icon 可为 emoji 或静态资源路径（如 /icons/minimax.ico） */
+        isServiceIconUrl(icon) {
+            const s = String(icon || "").trim();
+            if (!s) return false;
+            if (s.startsWith("/icons/") || s.startsWith("http://") || s.startsWith("https://")) return true;
+            return /\.(ico|png|webp|svg|gif)$/i.test(s);
+        },
+
+        renderServiceIconHtml(icon, alt = "") {
+            const s = String(icon || "").trim();
+            if (!s) return "";
+            if (this.isServiceIconUrl(s)) {
+                const src = this.escapeAttr(s);
+                const altEsc = this.escapeAttr(alt);
+                return `<img class="tm-service-icon" src="${src}" alt="${altEsc}" width="20" height="20" loading="lazy" decoding="async" />`;
+            }
+            return this.escapeHtml(s);
+        },
+
         formatUnit(unit) {
             const key = String(unit || "").toLowerCase();
             if (!key) return "";

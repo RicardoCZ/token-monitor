@@ -5,6 +5,7 @@ Token Monitor - 数据库配置
 
 from urllib.parse import quote_plus
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from core.config import settings
@@ -48,6 +49,10 @@ async def get_db() -> AsyncSession:
 
 
 async def init_db():
-    """初始化数据库（创建所有表）"""
+    """初始化数据库（创建所有表；对已存在库做必须的列宽补丁）"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # create_all 不会加宽已有列；icon 已改为 URL 路径（如 /icons/minimax.ico），超出历史 VARCHAR(10)
+        await conn.execute(
+            text("ALTER TABLE services MODIFY COLUMN icon VARCHAR(128) NULL")
+        )

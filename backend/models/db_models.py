@@ -55,7 +55,7 @@ class Service(Base):
 
     id = Column(String(20), primary_key=True)  # minimax, xfyun
     name = Column(String(50), nullable=False)  # MiniMax, 讯飞星辰
-    icon = Column(String(10))  # 🍊, 🔵
+    icon = Column(String(128))  # emoji 或静态路径，如 /icons/minimax.ico
     login_url = Column(String(255))
     cookie_domains = Column(String(255))  # 逗号分隔的域名列表
     adapter_key = Column(String(100))  # 服务适配器标识

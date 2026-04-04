@@ -73,17 +73,17 @@ async def cdp_get_services(
         "success": True,
         "services": [
             {
-                "id": "minimax", 
-                "name": "MiniMax", 
-                "icon": "🍊",
+                "id": "minimax",
+                "name": "MiniMax",
+                "icon": "/icons/minimax.ico",
                 "domain": "minimaxi.com",
                 "login_url": "https://platform.minimaxi.com/user-center/payment/token-plan",
                 "cookie_domains": ["minimaxi.com", "minimax.com"]
             },
             {
-                "id": "xfyun", 
-                "name": "讯飞星辰", 
-                "icon": "🔵",
+                "id": "xfyun",
+                "name": "讯飞",
+                "icon": "/icons/xfyun.ico",
                 "domain": "xfyun.cn",
                 "login_url": "https://maas.xfyun.cn/packageSubscription",
                 "cookie_domains": ["xfyun.cn"]

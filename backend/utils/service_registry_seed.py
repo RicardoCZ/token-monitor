@@ -19,7 +19,7 @@ DEFAULT_SERVICE_REGISTRY: list[dict[str, Any]] = [
     {
         "id": "minimax",
         "name": "MiniMax",
-        "icon": "🍊",
+        "icon": "/icons/minimax.ico",
         "login_url": "https://platform.minimaxi.com/user-center/payment/token-plan",
         "cookie_domains": "minimaxi.com,minimax.com",
         "adapter_key": "minimax_adapter",
@@ -52,7 +52,7 @@ DEFAULT_SERVICE_REGISTRY: list[dict[str, Any]] = [
     {
         "id": "xfyun",
         "name": "讯飞",
-        "icon": "🔵",
+        "icon": "/icons/xfyun.ico",
         "login_url": "https://maas.xfyun.cn/packageSubscription",
         "cookie_domains": "xfyun.cn,xfyun.com",
         "adapter_key": "xfyun_adapter",
@@ -127,6 +127,11 @@ async def seed_service_registry(db: AsyncSession) -> tuple[int, int]:
         for field in ("name", "icon", "login_url", "cookie_domains", "adapter_key"):
             current_value = getattr(service, field)
             default_value = payload[field]
+            if field == "icon" and service_id in ("minimax", "xfyun") and not _is_blank(default_value):
+                if current_value != default_value:
+                    setattr(service, field, default_value)
+                    changed = True
+                continue
             if _is_blank(current_value) and not _is_blank(default_value):
                 setattr(service, field, default_value)
                 changed = True

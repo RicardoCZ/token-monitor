@@ -29,6 +29,9 @@ INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
 浏览器访问 `http://localhost:<PORT>`（`<PORT>` 见 `backend/.env`，默认 5188）。  
 启动时 `init_db()` 会执行 SQLAlchemy `create_all`：**仅创建库中尚不存在的表**，不会给已有表自动加列/删列。**全新空库**首次启动前需已建好数据库并配置好 `backend/.env`（可用 `init_env.sh` / `init_env.ps1`）。若某张表早已存在但缺新字段，需手工 `ALTER` 或删表后再启（开发环境常见）。
 
+此外，每次启动会在事务中执行一条**幂等**结构补丁：将 `services.icon` 加宽为 `VARCHAR(128)`（兼容历史 `VARCHAR(10)` 存不下 `/icons/*.ico` 路径的情况）。若数据库用户无 `ALTER` 权限，需 DBA 手工执行：  
+`ALTER TABLE services MODIFY COLUMN icon VARCHAR(128) NULL;`
+
 ---
 
 ## 配置与安全
