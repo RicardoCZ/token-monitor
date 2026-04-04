@@ -3,6 +3,7 @@
  *
  * 依赖：先加载 api-dashboard-state.js（window.TMD）。
  * api.html 再加载 api-dashboard-app.js；其它页面仅 state + core 即可。
+ * 账号/管理页等可再加载 ui-shared.js（window.TMDUi）。
  */
 (function (w) {
     const S = w.TMD;
@@ -188,12 +189,12 @@
             const vals = Array.isArray(percentSeries)
                 ? percentSeries.map((v) => this.getNumberValue(v)).filter((n) => Number.isFinite(n))
                 : [];
-            const w = 120;
-            const h = 36;
-            const padX = 2;
-            const padY = 3;
+            const w = 200;
+            const h = 52;
+            const padX = 6;
+            const padY = 10;
             if (vals.length < 2) {
-                return `<svg class="sparkline-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><text x="4" y="22" fill="#666" font-size="9">暂无足够数据</text></svg>`;
+                return `<svg class="sparkline-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><text x="8" y="30" fill="rgba(168,176,211,0.75)" font-size="11">暂无足够数据</text></svg>`;
             }
             let minV = Math.min(...vals);
             let maxV = Math.max(...vals);
@@ -208,19 +209,30 @@
             const span = Math.max(1e-6, maxV - minV);
             const innerW = w - padX * 2;
             const innerH = h - padY * 2;
-            const pts = vals.map((v, i) => {
-                const x = padX + (i / (vals.length - 1)) * innerW;
-                const y = padY + (1 - (v - minV) / span) * innerH;
-                return `${x.toFixed(2)},${y.toFixed(2)}`;
-            });
-            const line = pts.join(" ");
+            const line = vals
+                .map((v, i) => {
+                    const x = padX + (i / (vals.length - 1)) * innerW;
+                    const y = padY + (1 - (v - minV) / span) * innerH;
+                    return `${x.toFixed(2)},${y.toFixed(2)}`;
+                })
+                .join(" ");
             /* 底边收到 y=h 铺满底部；左右仍与折线两端对齐，避免拉到 0/w 产生斜向补边 */
             const area = `${padX},${h} ${line} ${w - padX},${h}`;
-            const safeStroke = String(strokeColor || "#6f88ff").replace(/[^#0-9a-fA-F]/g, "") || "#6f88ff";
+            const raw = String(strokeColor || "#6f88ff").trim();
+            const safeStroke = /^#[0-9a-fA-F]{6}$/.test(raw) ? raw : "#6f88ff";
+            const gid = `sf${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
             return (
                 `<svg class="sparkline-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">` +
-                `<polygon points="${area}" fill="${safeStroke}" fill-opacity="0.12" />` +
-                `<polyline points="${line}" fill="none" stroke="${safeStroke}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />` +
+                `<defs>` +
+                `<linearGradient id="${gid}-area" x1="0" y1="0" x2="0" y2="1">` +
+                `<stop offset="0%" stop-color="${safeStroke}" stop-opacity="0.28"/>` +
+                `<stop offset="38%" stop-color="${safeStroke}" stop-opacity="0.09"/>` +
+                `<stop offset="100%" stop-color="${safeStroke}" stop-opacity="0"/>` +
+                `</linearGradient>` +
+                `</defs>` +
+                `<polygon class="sparkline-area" points="${area}" fill="url(#${gid}-area)" />` +
+                `<polyline class="sparkline-halo" points="${line}" fill="none" stroke="${safeStroke}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.11"/>` +
+                `<polyline class="sparkline-line" points="${line}" fill="none" stroke="${safeStroke}" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>` +
                 `</svg>`
             );
         },

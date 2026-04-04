@@ -479,6 +479,7 @@
             <div id="api-keys-list">
                 <div class="empty">加载中...</div>
             </div>
+            <div id="api-keys-pagination" class="small-note" style="margin-top: 8px;"></div>
         </div>
 
     </div>
@@ -487,8 +488,10 @@
     
     <script src="js/api-dashboard-state.js"></script>
     <script src="js/api-dashboard-core.js"></script>
+    <script src="js/ui-shared.js"></script>
     <script>
         const U = window.TMDCore;
+        const Ui = window.TMDUi;
         const API_BASE = window.location.origin;
         const CURRENT_PAGE = (window.location.pathname.split('/').pop() || 'admin.html').toLowerCase();
         let authToken = localStorage.getItem('token');
@@ -497,6 +500,9 @@
         let inviteStatusFilter = 'all';
         let inviteCurrentPage = 1;
         const INVITE_PAGE_SIZE = 5;
+        let apiKeysCache = [];
+        let apiKeysPage = 1;
+        const API_KEYS_PAGE_SIZE = 5;
 
         function getAuthHeaders() {
             return { 'Authorization': `Bearer ${authToken}` };
@@ -511,20 +517,10 @@
 
         const escapeHtml = (text) => U.escapeHtml(text);
 
-        function buildTopNavLinks() {
-            const links = [
-                { path: 'api.html', label: '📊 实时监控' },
-                { path: 'history.html', label: '📈 历史趋势' },
-                { path: 'setup.html', label: '🔧 设置凭证' },
-                { path: 'accounts.html', label: '🧾 账号管理' },
-                { path: 'admin.html', label: '⚙️ 管理后台' },
-            ];
-            return links
-                .filter(item => item.path.toLowerCase() !== CURRENT_PAGE)
-                .map(item => `<a href="${item.path}" class="header-top-link">${item.label}</a>`)
-                .join('');
+        function showToast(msg, isError) {
+            Ui.showToast(msg, isError);
         }
-        
+
         // 检查登录状态和管理员权限
         async function checkAuth() {
             if (!authToken) {
@@ -550,7 +546,7 @@
                     
                     document.getElementById('user-info').innerHTML = `
                         <span>👤 ${escapeHtml(currentUser.username)}</span>
-                        ${buildTopNavLinks()}
+                        ${Ui.buildTopNavLinks(CURRENT_PAGE, { showAdminLink: true })}
                         <span class="header-top-link" style="cursor: pointer;" role="button" tabindex="0" onclick="logout()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout();}">退出</span>
                     `;
                     
@@ -646,65 +642,6 @@
             }
         }
 
-        function initCustomInviteStatusFilterSelect() {
-            const select = document.getElementById('invite-status-filter');
-            if (!select || select.tagName !== 'SELECT') return;
-            if (select.dataset.customized === '1') return;
-
-            const customId = 'custom-invite-status-filter';
-            const root = document.createElement('div');
-            root.className = 'custom-select';
-            root.id = customId;
-            root.innerHTML = `
-                <div class="custom-select-trigger"></div>
-                <ul class="custom-select-options"></ul>
-            `;
-            select.insertAdjacentElement('afterend', root);
-            select.classList.add('native-select-hidden');
-            select.dataset.customized = '1';
-
-            const trigger = root.querySelector('.custom-select-trigger');
-            const optionsEl = root.querySelector('.custom-select-options');
-            if (!trigger || !optionsEl) return;
-
-            const render = () => {
-                const currentValue = String(select.value || '');
-                optionsEl.innerHTML = Array.from(select.options).map(opt => {
-                    const value = String(opt.value || '');
-                    const text = String(opt.textContent || '').trim();
-                    const active = value === currentValue ? 'active' : '';
-                    return `<li data-value="${escapeHtml(value)}" class="${active}">${escapeHtml(text)}</li>`;
-                }).join('');
-                const currentOption = select.options[select.selectedIndex] || select.options[0];
-                trigger.textContent = currentOption ? String(currentOption.textContent || '').trim() : '全部';
-            };
-
-            render();
-
-            trigger.addEventListener('click', (event) => {
-                event.stopPropagation();
-                root.classList.toggle('open');
-            });
-
-            optionsEl.addEventListener('click', (event) => {
-                const target = event.target;
-                if (!(target instanceof HTMLElement)) return;
-                const item = target.closest('li[data-value]');
-                if (!item) return;
-                const value = item.getAttribute('data-value') || 'all';
-                if (select.value !== value) {
-                    select.value = value;
-                    select.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-                render();
-                root.classList.remove('open');
-            });
-
-            document.addEventListener('click', (event) => {
-                if (!root.contains(event.target)) root.classList.remove('open');
-            });
-        }
-        
         // 加载邀请码列表
         async function loadInviteCodes() {
             const container = document.getElementById('codes-list');
@@ -756,9 +693,10 @@
                 );
             }
             container.innerHTML = `
-                <button class="btn secondary small" ${prevDisabled} onclick="changeInvitePage(${page - 1})">上一页</button>
+                <button type="button" class="btn secondary small" ${prevDisabled} onclick="changeInvitePage(${page - 1})">上一页</button>
                 ${pageItems.join('')}
-                <button class="btn secondary small" ${nextDisabled} onclick="changeInvitePage(${page + 1})">下一页</button>
+                <button type="button" class="btn secondary small" ${nextDisabled} onclick="changeInvitePage(${page + 1})">下一页</button>
+                <span style="margin-left:8px;color:#888;">共 ${total} 条</span>
             `;
         }
 
@@ -955,24 +893,48 @@
             }
         }
 
-        async function loadApiKeys() {
+        function renderApiKeysPagination() {
+            const container = document.getElementById('api-keys-pagination');
+            if (!container) return;
+            const total = apiKeysCache.length;
+            const totalPages = Math.max(1, Math.ceil(total / API_KEYS_PAGE_SIZE));
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            const page = apiKeysPage;
+            const prevDisabled = page <= 1 ? 'disabled' : '';
+            const nextDisabled = page >= totalPages ? 'disabled' : '';
+            const pageItems = [];
+            for (let p = 1; p <= totalPages; p++) {
+                const activeStyle = p === page
+                    ? 'background: rgba(102,126,234,0.45); border-color: rgba(102,126,234,0.8);'
+                    : '';
+                pageItems.push(
+                    `<button type="button" class="btn secondary small" style="margin-right:4px;${activeStyle}" onclick="changeApiKeysPage(${p})">${p}</button>`
+                );
+            }
+            container.innerHTML = `
+                <button type="button" class="btn secondary small" ${prevDisabled} onclick="changeApiKeysPage(${page - 1})">上一页</button>
+                ${pageItems.join('')}
+                <button type="button" class="btn secondary small" ${nextDisabled} onclick="changeApiKeysPage(${page + 1})">下一页</button>
+                <span style="margin-left:8px;color:#888;">共 ${total} 条</span>
+            `;
+        }
+
+        function changeApiKeysPage(p) {
+            apiKeysPage = Math.max(1, Number(p) || 1);
+            renderApiKeysTable();
+        }
+
+        function renderApiKeysTable() {
             const container = document.getElementById('api-keys-list');
-            try {
-                const resp = await fetch(`${API_BASE}/auth/api-keys`, {
-                    headers: getAuthHeaders()
-                });
-                const keys = await resp.json();
-                if (!resp.ok) {
-                    container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(keys.detail || '请求失败')}</div>`;
-                    return;
-                }
-
-                if (!keys.length) {
-                    container.innerHTML = '<div class="empty">暂无接口密钥</div>';
-                    return;
-                }
-
-                container.innerHTML = `
+            if (!container || !apiKeysCache.length) return;
+            const totalPages = Math.max(1, Math.ceil(apiKeysCache.length / API_KEYS_PAGE_SIZE));
+            apiKeysPage = Math.min(Math.max(1, apiKeysPage), totalPages);
+            const start = (apiKeysPage - 1) * API_KEYS_PAGE_SIZE;
+            const pageItems = apiKeysCache.slice(start, start + API_KEYS_PAGE_SIZE);
+            container.innerHTML = `
                     <table>
                         <thead>
                             <tr>
@@ -985,7 +947,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            ${keys.map(item => {
+                            ${pageItems.map(item => {
                                 const status = getApiKeyStatus(item);
                                 const scopes = escapeHtml(formatScopes(item.scopes));
                                 return `
@@ -996,8 +958,8 @@
                                         <td><span class="status ${status.className}">${status.text}</span></td>
                                         <td>${formatDate(item.last_used_at)}</td>
                                         <td>
-                                            <button class="btn secondary small" onclick="rotateApiKey(${item.id})">轮换</button>
-                                            <button class="btn danger small" onclick="revokeApiKey(${item.id})">撤销</button>
+                                            <button type="button" class="btn secondary small" onclick="rotateApiKey(${item.id})">轮换</button>
+                                            <button type="button" class="btn danger small" onclick="revokeApiKey(${item.id})">撤销</button>
                                         </td>
                                     </tr>
                                 `;
@@ -1005,8 +967,38 @@
                         </tbody>
                     </table>
                 `;
+            renderApiKeysPagination();
+        }
+
+        async function loadApiKeys() {
+            const container = document.getElementById('api-keys-list');
+            const pagEl = document.getElementById('api-keys-pagination');
+            try {
+                const resp = await fetch(`${API_BASE}/auth/api-keys`, {
+                    headers: getAuthHeaders()
+                });
+                const keys = await resp.json();
+                if (!resp.ok) {
+                    container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(keys.detail || '请求失败')}</div>`;
+                    if (pagEl) pagEl.innerHTML = '';
+                    apiKeysCache = [];
+                    return;
+                }
+
+                const list = Array.isArray(keys) ? keys : [];
+                apiKeysCache = list;
+                apiKeysPage = 1;
+                if (!list.length) {
+                    container.innerHTML = '<div class="empty">暂无接口密钥</div>';
+                    if (pagEl) pagEl.innerHTML = '';
+                    return;
+                }
+
+                renderApiKeysTable();
             } catch (e) {
                 container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(e.message)}</div>`;
+                if (pagEl) pagEl.innerHTML = '';
+                apiKeysCache = [];
             }
         }
 
@@ -1049,17 +1041,6 @@
             }
         }
         
-        // 显示提示
-        function showToast(msg, isError = false) {
-            const toast = document.getElementById('toast');
-            toast.textContent = msg;
-            toast.className = 'toast show' + (isError ? ' error' : '');
-            
-            setTimeout(() => {
-                toast.className = 'toast';
-            }, 3000);
-        }
-        
         // 退出登录
         function logout() {
             localStorage.removeItem('token');
@@ -1071,7 +1052,7 @@
         checkAuth().then(ok => {
             if (ok) {
                 initCustomMaxUsesSelect();
-                initCustomInviteStatusFilterSelect();
+                Ui.bindCustomSelectById('invite-status-filter');
                 loadInviteCodes();
                 loadApiKeys();
             }

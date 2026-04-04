@@ -342,7 +342,11 @@
             }
             try {
                 const series = await this.fetchPercentHistoryForAccount(accountId);
-                const stroke = service.id === "xfyun" ? "#e8a87c" : "#6f88ff";
+                const strokePalette = {
+                    minimax: "#e8a87c",
+                    xfyun: "#6f88ff",
+                };
+                const stroke = strokePalette[service.id] ?? "#8fa3e6";
                 chartEl.innerHTML = U.buildSparklineSvg(series, stroke);
             } catch (e) {
                 if (!keepVisual) {

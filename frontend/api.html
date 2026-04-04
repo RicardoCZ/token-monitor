@@ -482,37 +482,39 @@
         .card-sparkline {
             margin-top: 14px;
             padding-top: 12px;
-            border-top: 1px solid var(--border-color);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
             flex: 1 1 auto;
             display: flex;
             flex-direction: column;
-            min-height: 72px;
+            min-height: 84px;
         }
 
         .card-sparkline-head {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }
 
         .card-sparkline-title {
             font-size: 12px;
-            color: var(--text-muted);
-            font-weight: 400;
-            letter-spacing: 0.02em;
+            color: var(--text-secondary);
+            font-weight: 500;
+            letter-spacing: 0.03em;
         }
 
         .card-sparkline-chart {
             width: 100%;
-            height: 40px;
+            height: 52px;
             flex: 1;
+            min-height: 48px;
         }
 
         .card-sparkline-chart .sparkline-svg {
             width: 100%;
             height: 100%;
             display: block;
+            overflow: visible;
         }
 
         .sparkline-empty,
@@ -521,7 +523,8 @@
             color: var(--text-muted);
             display: flex;
             align-items: center;
-            height: 36px;
+            height: 100%;
+            min-height: 40px;
         }
 
         .recent-alerts-panel {
