@@ -1,8 +1,8 @@
 /**
- * 监控看板 — 纯工具、sessionStorage 缓存、指标解析（api.html）
+ * 共享工具与监控指标解析（window.TMDCore）
  *
  * 依赖：先加载 api-dashboard-state.js（window.TMD）。
- * 后继：api-dashboard-app.js
+ * api.html 再加载 api-dashboard-app.js；其它页面仅 state + core 即可。
  */
 (function (w) {
     const S = w.TMD;
@@ -59,6 +59,12 @@
         getNumberValue(value) {
             const n = Number(value);
             return Number.isFinite(n) ? n : 0;
+        },
+
+        /** 图表等场景：非数值返回 null（与 getNumberValue 默认 0 区分） */
+        getNullableNumber(value) {
+            const n = Number(value);
+            return Number.isFinite(n) ? n : null;
         },
 
         buildUsageNumbers(data) {

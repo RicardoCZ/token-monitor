@@ -206,7 +206,10 @@
             document.head.appendChild(fallback);
         }
     </script>
+    <script src="js/api-dashboard-state.js"></script>
+    <script src="js/api-dashboard-core.js"></script>
     <script>
+        const U = window.TMDCore;
         const API_BASE = window.location.origin;
         const CURRENT_PAGE = (window.location.pathname.split('/').pop() || 'history.html').toLowerCase();
 
@@ -220,11 +223,7 @@
             isLoading: false,
         };
 
-        function escapeHtml(text) {
-            const div = document.createElement("div");
-            div.textContent = text == null ? "" : String(text);
-            return div.innerHTML;
-        }
+        const escapeHtml = (text) => U.escapeHtml(text);
 
         function setHistoryStatus(text, isError = false) {
             const el = document.getElementById("history-status");
@@ -284,22 +283,8 @@
             }
         }
 
-        function extractApiErrorMessage(data) {
-            if (!data || typeof data !== "object") return "请求失败";
-            if (typeof data.detail === "string") return data.detail;
-            if (Array.isArray(data.detail)) {
-                const parts = data.detail.map(e => (e && (e.msg || e.message)) || "").filter(Boolean);
-                return parts.length ? parts.join(" ") : "请求无效";
-            }
-            if (data.error) return String(data.error);
-            return "";
-        }
-
-        /** @returns {number|null} */
-        function getNullableNumber(value) {
-            const n = Number(value);
-            return Number.isFinite(n) ? n : null;
-        }
+        const extractApiErrorMessage = (data) => U.extractApiErrorMessage(data);
+        const getNullableNumber = (value) => U.getNullableNumber(value);
 
         function formatStatusRangeDate(d) {
             const m = String(d.getMonth() + 1).padStart(2, "0");

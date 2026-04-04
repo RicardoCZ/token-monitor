@@ -1,10 +1,11 @@
 /**
- * 监控看板 — 共享状态（api.html）
+ * 共享前端状态（window.TMD）
  *
- * 脚本加载顺序（须严格遵守）：
- *   1. api-dashboard-state.js  （本文件 → window.TMD）
- *   2. api-dashboard-core.js   （工具与缓存 → window.TMDCore，依赖 TMD）
- *   3. api-dashboard-app.js    （业务与入口 → window.TMDApp，依赖 TMD + TMDCore）
+ * 加载本文件 + api-dashboard-core.js 的页面：api.html，以及 accounts / admin / history / setup 等
+ * （共用 TMDCore：escapeHtml、extractApiErrorMessage、指标与数字工具等）。
+ *
+ * 仅监控看板完整链路须再加载 api-dashboard-app.js：
+ *   state → core → app
  */
 (function (w) {
     w.TMD = {
