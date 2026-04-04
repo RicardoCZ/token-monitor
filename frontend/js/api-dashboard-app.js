@@ -25,11 +25,34 @@
                 .join("");
         },
 
+        _refreshFeedbackClearTimer: null,
+
         setRefreshFeedback(text, isError = false) {
             const el = document.getElementById("refresh-feedback");
             if (!el) return;
             el.textContent = text || "";
             el.className = "refresh-feedback" + (isError ? " error" : "");
+        },
+
+        /** 成功提示（如「刷新完成」）在若干秒后自动清空；错误文案保留至下次刷新 */
+        scheduleRefreshFeedbackAutoClear(delayMs = 2300) {
+            if (this._refreshFeedbackClearTimer != null) {
+                clearTimeout(this._refreshFeedbackClearTimer);
+                this._refreshFeedbackClearTimer = null;
+            }
+            this._refreshFeedbackClearTimer = setTimeout(() => {
+                this._refreshFeedbackClearTimer = null;
+                const el = document.getElementById("refresh-feedback");
+                if (!el || el.classList.contains("error")) return;
+                el.textContent = "";
+            }, delayMs);
+        },
+
+        cancelRefreshFeedbackAutoClear() {
+            if (this._refreshFeedbackClearTimer != null) {
+                clearTimeout(this._refreshFeedbackClearTimer);
+                this._refreshFeedbackClearTimer = null;
+            }
         },
 
         updateLastUpdateText(timestamp, suffix = "") {
@@ -112,7 +135,9 @@
                             <div class="card-sparkline-head">
                                 <span class="card-sparkline-title">最近 7 天 · 使用率</span>
                             </div>
-                            <div class="card-sparkline-chart sparkline-skeleton" id="service-sparkline-chart-${U.escapeHtml(service.id)}" aria-hidden="true"></div>
+                            <div class="card-sparkline-chart" id="service-sparkline-chart-${U.escapeHtml(service.id)}">
+                                <span class="sparkline-loading">加载中…</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -183,8 +208,11 @@
                     ${metaCells}
                 </div>
                 <div class="card-progress-wrap">
-                    <div class="progress-bar" role="progressbar" aria-valuenow="${Math.round(percent)}" aria-valuemin="0" aria-valuemax="100">
-                        <div class="progress-fill ${colorClass}" style="width: ${Math.max(0, Math.min(100, percent))}%"></div>
+                    <div class="progress-row">
+                        <div class="progress-bar" role="progressbar" aria-valuenow="${Math.round(percent)}" aria-valuemin="0" aria-valuemax="100">
+                            <div class="progress-fill ${colorClass}" style="width: ${Math.max(0, Math.min(100, percent))}%"></div>
+                        </div>
+                        <span class="progress-pct" aria-hidden="true">${percent.toFixed(1)}%</span>
                     </div>
                 </div>
             `;
@@ -328,17 +356,155 @@
             }
         },
 
-        async loadRecentAlertsSummary() {
-            const list = document.getElementById("recent-alerts-list");
-            if (!list) return;
-            const uid = this.resolveDashboardUserId();
-            if (!uid || !S.authToken) {
-                list.innerHTML = '<li class="recent-alerts-empty">登录后可查看告警摘要</li>';
+        _recentAlertsStepTimer: null,
+        _recentAlertsScrollRaf: null,
+        _recentAlertsListEl: null,
+        _recentAlertsBound: null,
+        _recentAlertsPaused: false,
+
+        stopRecentAlertsTicker() {
+            if (this._recentAlertsStepTimer != null) {
+                clearTimeout(this._recentAlertsStepTimer);
+                this._recentAlertsStepTimer = null;
+            }
+            if (this._recentAlertsScrollRaf != null) {
+                cancelAnimationFrame(this._recentAlertsScrollRaf);
+                this._recentAlertsScrollRaf = null;
+            }
+            if (this._recentAlertsBound && this._recentAlertsListEl) {
+                this._recentAlertsListEl.removeEventListener("mouseenter", this._recentAlertsBound.enter);
+                this._recentAlertsListEl.removeEventListener("mouseleave", this._recentAlertsBound.leave);
+                if (this._recentAlertsBound.wheel) {
+                    this._recentAlertsListEl.removeEventListener("wheel", this._recentAlertsBound.wheel);
+                }
+            }
+            this._recentAlertsBound = null;
+            this._recentAlertsListEl = null;
+            this._recentAlertsPaused = false;
+        },
+
+        /** ease-out 平滑滚动，避免 scrollTop 瞬变闪烁 */
+        animateRecentAlertsScrollTo(ul, targetTop, durationMs, onDone) {
+            const maxS = Math.max(0, ul.scrollHeight - ul.clientHeight);
+            const target = Math.max(0, Math.min(targetTop, maxS));
+            const start = ul.scrollTop;
+            const delta = target - start;
+            if (Math.abs(delta) < 0.5) {
+                if (onDone) onDone();
                 return;
             }
-            try {
+            const t0 = performance.now();
+            const easeOut = (p) => 1 - (1 - p) ** 3;
+            const frame = (now) => {
+                const p = Math.min(1, (now - t0) / durationMs);
+                ul.scrollTop = start + delta * easeOut(p);
+                if (p < 1) {
+                    this._recentAlertsScrollRaf = requestAnimationFrame(frame);
+                } else {
+                    this._recentAlertsScrollRaf = null;
+                    if (onDone) onDone();
+                }
+            };
+            if (this._recentAlertsScrollRaf != null) {
+                cancelAnimationFrame(this._recentAlertsScrollRaf);
+                this._recentAlertsScrollRaf = null;
+            }
+            this._recentAlertsScrollRaf = requestAnimationFrame(frame);
+        },
+
+        /** 未限高前按 DOM 量出前 n 条（至多 3）占用的总高度（px） */
+        measureRecentAlertsRowsHeight(ul, rowCount) {
+            const items = ul.querySelectorAll("li:not(.recent-alerts-empty)");
+            if (!items.length) return 0;
+            const n = Math.min(rowCount, items.length);
+            const top = items[0].getBoundingClientRect().top;
+            const bottom = items[n - 1].getBoundingClientRect().bottom;
+            return Math.max(0, Math.ceil(bottom - top));
+        },
+
+        /** 固定可视区为恰好 3 条高度；多于 3 条时定时向下滚一行，到底回到顶部 */
+        setupRecentAlertsTicker(ul) {
+            this.stopRecentAlertsTicker();
+            ul.style.maxHeight = "";
+            ul.scrollTop = 0;
+
+            const items = ul.querySelectorAll("li:not(.recent-alerts-empty)");
+            if (!items.length) return;
+
+            const startTicking = () => {
+                const h = this.measureRecentAlertsRowsHeight(ul, 3);
+                if (h > 0) ul.style.maxHeight = `${h}px`;
+
+                if (items.length <= 3) return;
+
+                this._recentAlertsListEl = ul;
+                const enter = () => {
+                    this._recentAlertsPaused = true;
+                };
+                const leave = () => {
+                    this._recentAlertsPaused = false;
+                };
+                const wheel = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                };
+                ul.addEventListener("mouseenter", enter);
+                ul.addEventListener("mouseleave", leave);
+                ul.addEventListener("wheel", wheel, { passive: false });
+                this._recentAlertsBound = { enter, leave, wheel };
+
+                const stepPx = () => {
+                    const lis = ul.querySelectorAll("li:not(.recent-alerts-empty)");
+                    if (lis.length < 2) return lis[0] ? lis[0].offsetHeight : 64;
+                    return lis[1].offsetTop - lis[0].offsetTop;
+                };
+
+                const animMs = 520;
+                const pauseMs = 1100;
+
+                const scheduleNext = (delay) => {
+                    this._recentAlertsStepTimer = setTimeout(doStep, delay);
+                };
+
+                const doStep = () => {
+                    this._recentAlertsStepTimer = null;
+                    if (!this._recentAlertsListEl || this._recentAlertsListEl !== ul) return;
+                    if (this._recentAlertsPaused) {
+                        scheduleNext(360);
+                        return;
+                    }
+                    const lis = ul.querySelectorAll("li:not(.recent-alerts-empty)");
+                    if (lis.length <= 3) return;
+                    let step = stepPx();
+                    if (step < 8) step = lis[0].offsetHeight + 4;
+                    const maxScroll = ul.scrollHeight - ul.clientHeight;
+                    if (maxScroll <= 0) return;
+
+                    const afterMove = () => scheduleNext(pauseMs);
+
+                    if (ul.scrollTop >= maxScroll - 2) {
+                        ul.scrollTop = 0;
+                        afterMove();
+                    } else {
+                        const nextTop = Math.min(ul.scrollTop + step, maxScroll);
+                        this.animateRecentAlertsScrollTo(ul, nextTop, animMs, afterMove);
+                    }
+                };
+
+                scheduleNext(1200);
+            };
+
+            requestAnimationFrame(() => requestAnimationFrame(startTicking));
+        },
+
+        async fetchAllUserAlertEvents(userId) {
+            const pageSize = 100;
+            const maxPages = 50;
+            const all = [];
+            let offset = 0;
+            for (let page = 0; page < maxPages; page += 1) {
                 const resp = await fetch(
-                    `${S.API_BASE}/api/accounts/users/${uid}/alerts/events?limit=3&offset=0&_=${Date.now()}`,
+                    `${S.API_BASE}/api/accounts/users/${userId}/alerts/events?limit=${pageSize}&offset=${offset}&_=${Date.now()}`,
                     {
                         headers: {
                             Authorization: `Bearer ${S.authToken}`,
@@ -351,7 +517,29 @@
                 if (!resp.ok) {
                     throw new Error(U.extractApiErrorMessage(data));
                 }
-                const items = Array.isArray(data.items) ? data.items : [];
+                const batch = Array.isArray(data.items) ? data.items : [];
+                all.push(...batch);
+                const hasMore = !!(data.pagination && data.pagination.has_more);
+                if (!hasMore || batch.length < pageSize) {
+                    break;
+                }
+                offset += pageSize;
+            }
+            return all;
+        },
+
+        async loadRecentAlertsSummary() {
+            const list = document.getElementById("recent-alerts-list");
+            if (!list) return;
+            const uid = this.resolveDashboardUserId();
+            if (!uid || !S.authToken) {
+                this.stopRecentAlertsTicker();
+                list.style.maxHeight = "";
+                list.innerHTML = '<li class="recent-alerts-empty">登录后可查看告警摘要</li>';
+                return;
+            }
+            try {
+                const items = await this.fetchAllUserAlertEvents(uid);
                 const stamp = JSON.stringify(
                     items.map((it) => [it.id, it.created_at, it.status, it.message || ""])
                 );
@@ -359,14 +547,19 @@
                     return;
                 }
                 list.dataset.alertStamp = stamp;
+                this.stopRecentAlertsTicker();
+                list.style.maxHeight = "";
                 if (!items.length) {
                     list.innerHTML =
                         '<li class="recent-alerts-empty">暂无告警事件，系统运行正常 ✓</li>';
                     return;
                 }
                 list.innerHTML = items.map((item) => `<li>${U.formatDashboardAlertLine(item)}</li>`).join("");
+                this.setupRecentAlertsTicker(list);
             } catch (e) {
                 delete list.dataset.alertStamp;
+                this.stopRecentAlertsTicker();
+                list.style.maxHeight = "";
                 const msg = e instanceof Error ? e.message : String(e || "加载失败");
                 list.innerHTML = `<li class="recent-alerts-empty">${U.escapeHtml(msg)}</li>`;
             }
@@ -428,6 +621,7 @@
                 }
                 return;
             }
+            this.cancelRefreshFeedbackAutoClear();
             const btn = document.getElementById("refresh-btn");
             S.isRefreshing = true;
             if (btn) {
@@ -450,6 +644,7 @@
                     this.updateLastUpdateText(Date.now());
                 }
                 this.setRefreshFeedback("刷新完成");
+                this.scheduleRefreshFeedbackAutoClear();
             } catch (e) {
                 const msg = e instanceof Error ? e.message : String(e || "未知错误");
                 this.setRefreshFeedback(`刷新失败：${msg}`, true);

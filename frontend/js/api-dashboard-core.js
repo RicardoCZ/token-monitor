@@ -201,8 +201,8 @@
                 return `${x.toFixed(2)},${y.toFixed(2)}`;
             });
             const line = pts.join(" ");
-            const bottom = h - padY;
-            const area = `${padX},${bottom} ${line} ${w - padX},${bottom}`;
+            /* 底边收到 y=h 铺满底部；左右仍与折线两端对齐，避免拉到 0/w 产生斜向补边 */
+            const area = `${padX},${h} ${line} ${w - padX},${h}`;
             const safeStroke = String(strokeColor || "#6f88ff").replace(/[^#0-9a-fA-F]/g, "") || "#6f88ff";
             return (
                 `<svg class="sparkline-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">` +

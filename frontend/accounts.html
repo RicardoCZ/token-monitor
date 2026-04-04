@@ -22,9 +22,9 @@
             --radius-md: 12px;
             --radius-lg: 16px;
             --transition-normal: 0.25s ease;
-            --success-tag-bg: rgba(46, 125, 50, 0.5);
-            --success-tag-border: rgba(129, 199, 132, 0.65);
-            --success-tag-text: #e8f5e9;
+            --success-tag-bg: rgba(76, 175, 80, 0.22);
+            --success-tag-border: rgba(129, 199, 132, 0.38);
+            --success-tag-text: #c8e6c9;
             --zebra-row: rgba(255, 255, 255, 0.065);
             --zebra-row-alt: rgba(255, 255, 255, 0.028);
         }
@@ -65,8 +65,8 @@
         .card:hover {
             box-shadow: var(--shadow-card-hover);
         }
-        .card h2 { font-size: 18px; margin-bottom: 8px; color: #fff; }
-        .sub-title { color: #a8b0d3; font-size: 13px; margin-bottom: 12px; }
+        .card h2 { font-size: 18px; margin-bottom: 8px; color: #fff; font-weight: 500; }
+        .sub-title { color: #a8b0d3; font-size: 13px; margin-bottom: 12px; line-height: 1.35; font-weight: 400; }
         table { width: 100%; border-collapse: collapse; }
         th, td {
             padding: 16px 14px;
@@ -80,6 +80,9 @@
             font-weight: 500;
             font-size: 12px;
             text-transform: uppercase;
+        }
+        td {
+            font-weight: 400;
         }
         .btn {
             padding: 12px 24px;
@@ -118,26 +121,25 @@
         .account-status-tag {
             padding: 5px 11px;
             border-radius: 999px;
-            font-size: 11px;
-            font-weight: 700;
+            font-size: 12px;
+            font-weight: 500;
             display: inline-block;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.02em;
         }
         .account-status-tag.ok {
             color: var(--success-tag-text);
             background: var(--success-tag-bg);
             border: 1px solid var(--success-tag-border);
-            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
         }
         .account-status-tag.warn {
-            color: #ffe0b2;
-            background: rgba(255, 152, 0, 0.35);
-            border: 1px solid rgba(255, 183, 77, 0.55);
+            color: #ffcc80;
+            background: rgba(255, 152, 0, 0.2);
+            border: 1px solid rgba(255, 183, 77, 0.38);
         }
         .account-status-tag.off {
-            color: #e0e0e0;
-            background: rgba(158, 158, 158, 0.28);
-            border: 1px solid rgba(189, 189, 189, 0.35);
+            color: #b0b0b0;
+            background: rgba(158, 158, 158, 0.16);
+            border: 1px solid rgba(189, 189, 189, 0.28);
         }
 
         .account-status-with-dot {
@@ -214,7 +216,7 @@
             font-size: 13px;
         }
         .account-detail-box .title {
-            font-weight: 600;
+            font-weight: 500;
             margin-bottom: 8px;
             color: #dbe3ff;
         }
@@ -676,12 +678,12 @@
         .toast.show { display: block; }
 
         .alert-hub-card .sub-title {
-            line-height: 1.5;
+            line-height: 1.35;
             max-width: 820px;
         }
         .alert-hub-section .list-section-title {
             font-size: 15px;
-            font-weight: 600;
+            font-weight: 500;
             color: #e8ecff;
             letter-spacing: 0.03em;
             margin-bottom: 14px;
@@ -693,7 +695,7 @@
             letter-spacing: 0.02em;
             font-size: 11px;
             color: #95a0c8;
-            font-weight: 600;
+            font-weight: 500;
             padding: 12px 11px;
             border-bottom: 1px solid rgba(102, 126, 234, 0.28);
         }
@@ -1287,8 +1289,8 @@
                 const rows = [
                     { label: '服务', value: `${data.service_icon || '🧩'} ${data.service_name || data.service_id || '-'}` },
                     { label: '配置名称', value: data.name || '-' },
-                    { label: '已用', value: usage.used == null ? '-' : String(usage.used) },
-                    { label: '总量', value: usage.total == null ? '-' : String(usage.total) },
+                    { label: '已用额度', value: usage.used == null ? '-' : String(usage.used) },
+                    { label: '总额度', value: usage.total == null ? '-' : String(usage.total) },
                     { label: '使用率', value: usage.percent == null ? '-' : `${Number(usage.percent).toFixed(1)}%` },
                     { label: '到期时间', value: usage.expires_at || usage.expiresAt || '-' },
                 ];

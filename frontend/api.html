@@ -26,13 +26,12 @@
             --radius-md: 12px;
             --radius-lg: 16px;
             --transition-normal: 0.25s ease;
-            --success-soft: rgba(76, 175, 80, 0.38);
-            --success-border: rgba(76, 175, 80, 0.55);
-            --success-text-on-tag: #e8f5e9;
+            --success-soft: rgba(76, 175, 80, 0.22);
+            --success-border: rgba(76, 175, 80, 0.38);
+            --success-text-on-tag: #c8e6c9;
             --alert-panel-bg: linear-gradient(145deg, rgba(102, 126, 234, 0.14) 0%, rgba(22, 33, 62, 0.92) 45%, rgba(255, 255, 255, 0.06) 100%);
             --alert-panel-border: rgba(102, 126, 234, 0.35);
             --font-section: 18px;
-            --font-section-sub: 12px;
             --font-alert-line: 14px;
             --font-alert-meta: 12px;
         }
@@ -57,13 +56,13 @@
             margin-bottom: 20px;
         }
         
-        .header h1 { font-size: 28px; color: #e0e0e0; margin-bottom: 5px; font-weight: 600; }
+        .header h1 { font-size: 28px; color: #e0e0e0; margin-bottom: 5px; font-weight: 500; }
         .header p { font-size: 12px; color: #888; }
         
         .dashboard-wrap {
             max-width: 1080px;
             margin: 0 auto;
-            padding-bottom: 100px;
+            padding-bottom: 56px;
         }
 
         .cards-grid {
@@ -110,12 +109,12 @@
             margin-bottom: 16px;
         }
         
-        .card-title { font-size: 18px; font-weight: 600; }
+        .card-title { font-size: 18px; font-weight: 500; }
         
         .card-badge {
             padding: 4px 10px;
             border-radius: 20px;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: 500;
         }
         
@@ -123,13 +122,23 @@
             background: var(--success-soft);
             color: var(--success-text-on-tag);
             border: 1px solid var(--success-border);
-            font-weight: 600;
+            font-weight: 500;
         }
         .badge-error { background: rgba(244, 67, 54, 0.2); color: #f44336; }
         .badge-warn { background: rgba(255, 152, 0, 0.2); color: #FF9800; }
         
-        .stat-label { color: #999; font-size: 14px; }
-        .stat-value { font-weight: 600; font-size: 14px; color: #fff; }
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 12px;
+            font-weight: 400;
+            line-height: 1.3;
+        }
+        .stat-value {
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--text-primary);
+            line-height: 1.3;
+        }
         
         /* 卡片主体纵向排列；指标区为统一两列表格，数值列右对齐齐平 */
         .service-card-content {
@@ -149,7 +158,8 @@
         .metric-sheet {
             display: grid;
             grid-template-columns: minmax(0, 1fr) minmax(6.75rem, max-content);
-            column-gap: 14px;
+            column-gap: 16px;
+            row-gap: 4px;
             align-items: center;
             width: 100%;
         }
@@ -186,29 +196,158 @@
             flex: 0 0 auto;
             width: 100%;
             min-width: 0;
-            margin-top: 4px;
-            padding-top: 12px;
+            margin-top: 8px;
+            padding-top: 16px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             box-sizing: border-box;
         }
+
+        .progress-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+        }
         
         .progress-bar {
-            width: 100%;
-            height: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
+            flex: 1 1 auto;
+            min-width: 0;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 999px;
             overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
         }
         
+        /* 斜纹漂移 + 高光斜扫；绿 / 橙 / 红仅底色与外发光色相不同，动效相同 */
         .progress-fill {
+            position: relative;
+            isolation: isolate;
+            overflow: hidden;
             height: 100%;
-            border-radius: 4px;
+            border-radius: 999px;
             transition: width 0.5s ease;
+            min-width: 0;
         }
-        
-        .progress-fill.green { background: linear-gradient(90deg, #4CAF50, #8BC34A); }
-        .progress-fill.orange { background: linear-gradient(90deg, #FF9800, #FFC107); }
-        .progress-fill.red { background: linear-gradient(90deg, #f44336, #E91E63); }
+
+        .progress-fill::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: repeating-linear-gradient(
+                122deg,
+                transparent 0,
+                transparent 10px,
+                rgba(255, 255, 255, 0.04)       10px,
+                rgba(255, 255, 255, 0.1) 12px,
+                transparent                        12px,
+                transparent                        24px
+            );
+            background-size: 36px 36px;
+            animation: progress-wave-drift 5.5s linear infinite;
+            pointer-events: none;
+        }
+
+        .progress-fill::after {
+            content: "";
+            position: absolute;
+            top: -15%;
+            width: 55%;
+            height: 130%;
+            left: 0;
+            border-radius: inherit;
+            background: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0)     0%,
+                rgba(255, 255, 255, 0.09) 38%,
+                rgba(255, 255, 255, 0.46) 50%,
+                rgba(255, 255, 255, 0.1)  62%,
+                rgba(255, 255, 255, 0)    100%
+            );
+            transform: translateX(-115%) skewX(-14deg);
+            animation: progress-gloss-pass 2.85s cubic-bezier(0.42, 0.02, 0.58, 0.98) infinite;
+            pointer-events: none;
+            filter: blur(0.6px);
+            mix-blend-mode: soft-light;
+        }
+
+        @keyframes progress-wave-drift {
+            0% { background-position: 0 0; }
+            100% { background-position: 36px 0; }
+        }
+
+        @keyframes progress-gloss-pass {
+            0% {
+                transform: translateX(-125%) skewX(-14deg);
+                opacity: 0.5;
+            }
+            12% {
+                opacity: 0.95;
+            }
+            88% {
+                opacity: 0.95;
+            }
+            100% {
+                transform: translateX(265%) skewX(-14deg);
+                opacity: 0.5;
+            }
+        }
+
+        .progress-fill.green {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, transparent 40%),
+                linear-gradient(90deg, #145214 0%, #1b5e20 12%, #2e7d32 35%, #43a047 55%, #5faf62 78%, #2e7d32 100%);
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.38),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3),
+                inset 0 -3px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .progress-fill.orange {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, transparent 36%),
+                linear-gradient(90deg, #8d3800 0%, #bf360c 14%, #e65100 38%, #fb8c00 55%, #ffa726 80%, #ef6c00 100%);
+            box-shadow: 0 0 20px rgba(255, 152, 0, 0.36),
+                inset 0 1px 0 rgba(255, 255, 255, 0.28),
+                inset 0 -3px 6px rgba(0, 0, 0, 0.18);
+        }
+
+        .progress-fill.red {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, transparent 36%),
+                linear-gradient(90deg, #5c0a0a 0%, #7f1010 12%, #b71c1c 35%, #e53935 55%, #ff6b6b 78%, #c62828 100%);
+            box-shadow: 0 0 20px rgba(244, 67, 54, 0.38),
+                inset 0 1px 0 rgba(255, 255, 255, 0.26),
+                inset 0 -3px 6px rgba(0, 0, 0, 0.22);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .progress-fill::before,
+            .progress-fill::after {
+                animation: none;
+                display: none;
+            }
+            .progress-fill.green {
+                background: linear-gradient(90deg, #43a047, #8bc34a 55%, #c5e1a5);
+                box-shadow: 0 0 12px rgba(76, 175, 80, 0.35);
+            }
+            .progress-fill.orange {
+                background: linear-gradient(90deg, #fb8c00, #ffca28 60%, #fff176);
+                box-shadow: 0 0 12px rgba(255, 152, 0, 0.32);
+            }
+            .progress-fill.red {
+                background: linear-gradient(90deg, #e53935, #ff5252 55%, #ff8a80);
+                box-shadow: 0 0 12px rgba(244, 67, 54, 0.35);
+            }
+        }
+
+        .progress-pct {
+            flex-shrink: 0;
+            font-size: 15px;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            color: var(--text-secondary);
+            min-width: 3.25rem;
+            text-align: right;
+        }
         
         .loading {
             text-align: center;
@@ -244,7 +383,7 @@
         
         .refresh-btn {
             position: fixed;
-            bottom: 30px;
+            bottom: 52px;
             right: 30px;
             width: 56px;
             height: 56px;
@@ -276,14 +415,15 @@
             text-align: center;
             font-size: 11px;
             color: #666;
-            margin-top: 20px;
+            margin-top: 10px;
         }
         .refresh-feedback {
             text-align: center;
             font-size: 12px;
             color: #9aa3c7;
             min-height: 18px;
-            margin-top: 6px;
+            margin-top: 4px;
+            margin-bottom: 8px;
         }
         .refresh-feedback.error { color: #ff9aa2; }
         
@@ -357,10 +497,10 @@
         }
 
         .card-sparkline-title {
-            font-size: 11px;
-            color: var(--text-secondary);
-            font-weight: 600;
-            letter-spacing: 0.04em;
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 400;
+            letter-spacing: 0.02em;
         }
 
         .card-sparkline-chart {
@@ -382,19 +522,6 @@
             display: flex;
             align-items: center;
             height: 36px;
-        }
-
-        .sparkline-skeleton {
-            height: 36px;
-            border-radius: 6px;
-            background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%);
-            background-size: 200% 100%;
-            animation: skeleton-shimmer 1.2s ease-in-out infinite;
-        }
-
-        @keyframes skeleton-shimmer {
-            0% { background-position: 100% 0; }
-            100% { background-position: -100% 0; }
         }
 
         .recent-alerts-panel {
@@ -424,25 +551,16 @@
 
         .recent-alerts-title {
             font-size: var(--font-section);
-            font-weight: 700;
+            font-weight: 500;
             color: var(--text-primary);
             letter-spacing: 0.02em;
-            line-height: 1.3;
+            line-height: 1.25;
             margin: 0;
-        }
-
-        .recent-alerts-sub {
-            margin: 8px 0 0 0;
-            font-size: var(--font-section-sub);
-            color: var(--text-secondary);
-            line-height: 1.45;
-            font-weight: 500;
-            max-width: 36em;
         }
 
         .recent-alerts-more {
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 500;
             white-space: nowrap;
             flex-shrink: 0;
             margin-top: 2px;
@@ -459,14 +577,25 @@
             color: #fff;
         }
 
+        /* 可视高度由 JS 按真实 3 条高度写入；自动滚动，隐藏滚动条 */
         .recent-alerts-list {
             list-style: none;
+            overflow-x: hidden;
+            overflow-y: auto;
+            margin: 0;
+            padding-right: 2px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .recent-alerts-list::-webkit-scrollbar {
+            display: none;
         }
 
         .recent-alerts-list li {
             font-size: var(--font-alert-line);
             color: var(--text-secondary);
-            line-height: 1.5;
+            line-height: 1.35;
             padding: 14px 12px;
             margin: 0 -6px;
             border-radius: var(--radius-md);
@@ -489,12 +618,12 @@
         .recent-alerts-list .recent-alert-time {
             color: var(--text-muted);
             font-size: var(--font-alert-meta);
-            font-weight: 500;
+            font-weight: 400;
         }
 
         .recent-alerts-list .recent-alert-svc {
             color: #a6b7ff;
-            font-weight: 700;
+            font-weight: 600;
         }
 
         .recent-alerts-empty {
@@ -530,7 +659,6 @@
             <div class="recent-alerts-head">
                 <div class="recent-alerts-head-main">
                     <h2 class="recent-alerts-title">📊 最近告警</h2>
-                    <p class="recent-alerts-sub">跨账号最近 3 条事件；规则与静默请在账号管理页操作。</p>
                 </div>
                 <a href="accounts.html" class="header-top-link recent-alerts-more">查看全部</a>
             </div>

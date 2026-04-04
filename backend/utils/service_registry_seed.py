@@ -51,7 +51,7 @@ DEFAULT_SERVICE_REGISTRY: list[dict[str, Any]] = [
     },
     {
         "id": "xfyun",
-        "name": "讯飞星辰",
+        "name": "讯飞",
         "icon": "🔵",
         "login_url": "https://maas.xfyun.cn/packageSubscription",
         "cookie_domains": "xfyun.cn,xfyun.com",
@@ -66,12 +66,12 @@ DEFAULT_SERVICE_REGISTRY: list[dict[str, Any]] = [
         "metric_defs": [
             {
                 "key": "used",
-                "label": "已使用",
+                "label": "已用额度",
                 "unit": "w",
             },
             {
                 "key": "total",
-                "label": "总量",
+                "label": "总额度",
                 "unit": "w",
             },
             {
@@ -128,6 +128,14 @@ async def seed_service_registry(db: AsyncSession) -> tuple[int, int]:
             current_value = getattr(service, field)
             default_value = payload[field]
             if _is_blank(current_value) and not _is_blank(default_value):
+                setattr(service, field, default_value)
+                changed = True
+            elif (
+                field == "name"
+                and service_id == "xfyun"
+                and current_value == "讯飞星辰"
+                and default_value == "讯飞"
+            ):
                 setattr(service, field, default_value)
                 changed = True
 
