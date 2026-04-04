@@ -14,6 +14,8 @@
         authToken: localStorage.getItem("token"),
         serviceRegistry: [],
         serviceDataCache: {},
+        /** service_id -> account id（用于历史趋势小图） */
+        serviceAccountIds: {},
         isRefreshing: false,
         DASHBOARD_CACHE_KEY: "token-monitor:api-dashboard-cache:v1",
     };

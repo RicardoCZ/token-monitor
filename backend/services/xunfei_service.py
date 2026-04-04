@@ -97,7 +97,10 @@ class XunFeiService(BaseHTTPService):
                     "total": round(total, 2),
                     "remain": round(remain, 2),
                     "percent": round(min(percent, 100), 1),
-                    "expiresAt": expires_at
+                    "expiresAt": expires_at,
+                    "resetHours": 0,
+                    "resetMinutes": 0,
+                    "resetCaption": "每日 00:00",
                 },
                 "percent": round(min(percent, 100), 1)
             }

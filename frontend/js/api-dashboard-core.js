@@ -76,6 +76,7 @@
                 pageInfo.expire_at ??
                 data?.expiresAt ??
                 data?.expires_at;
+            const resetCaptionRaw = pageInfo.resetCaption ?? pageInfo.reset_caption ?? "";
             return {
                 used,
                 total,
@@ -84,6 +85,7 @@
                 expiresAt: expiresAtRaw ? String(expiresAtRaw) : "-",
                 resetHours: this.getNumberValue(pageInfo.resetHours ?? pageInfo.reset_hours),
                 resetMinutes: this.getNumberValue(pageInfo.resetMinutes ?? pageInfo.reset_minutes),
+                resetCaption: String(resetCaptionRaw || "").trim(),
                 raw: pageInfo,
             };
         },
@@ -170,6 +172,93 @@
             } catch (e) {
                 return null;
             }
+        },
+
+        /** 简单 SVG 折线（0–100 竖直域），用于监控卡片 7d 趋势 */
+        buildSparklineSvg(percentSeries, strokeColor = "#6f88ff") {
+            const vals = Array.isArray(percentSeries)
+                ? percentSeries.map((v) => this.getNumberValue(v)).filter((n) => Number.isFinite(n))
+                : [];
+            const w = 120;
+            const h = 36;
+            const padX = 2;
+            const padY = 3;
+            if (vals.length < 2) {
+                return `<svg class="sparkline-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><text x="4" y="22" fill="#666" font-size="9">暂无足够数据</text></svg>`;
+            }
+            let minV = Math.min(...vals);
+            let maxV = Math.max(...vals);
+            if (maxV - minV < 1e-6) {
+                minV = Math.max(0, minV - 5);
+                maxV = Math.min(100, maxV + 5);
+            }
+            const span = Math.max(1e-6, maxV - minV);
+            const innerW = w - padX * 2;
+            const innerH = h - padY * 2;
+            const pts = vals.map((v, i) => {
+                const x = padX + (i / (vals.length - 1)) * innerW;
+                const y = padY + (1 - (v - minV) / span) * innerH;
+                return `${x.toFixed(2)},${y.toFixed(2)}`;
+            });
+            const line = pts.join(" ");
+            const bottom = h - padY;
+            const area = `${padX},${bottom} ${line} ${w - padX},${bottom}`;
+            const safeStroke = String(strokeColor || "#6f88ff").replace(/[^#0-9a-fA-F]/g, "") || "#6f88ff";
+            return (
+                `<svg class="sparkline-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">` +
+                `<polygon points="${area}" fill="${safeStroke}" fill-opacity="0.12" />` +
+                `<polyline points="${line}" fill="none" stroke="${safeStroke}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />` +
+                `</svg>`
+            );
+        },
+
+        serviceIdToShortLabel(serviceId) {
+            const k = String(serviceId || "").toLowerCase();
+            if (k === "minimax") return "MiniMax";
+            if (k === "xfyun") return "讯飞";
+            return serviceId || "-";
+        },
+
+        alertEventEmoji(status) {
+            const key = String(status || "").trim().toLowerCase();
+            if (key === "recovered" || key === "ok") return "🟢";
+            if (key === "triggered" || key === "holding") return "🔴";
+            return "🟠";
+        },
+
+        /** 与账号页解析规则对齐的简短文案（监控摘要） */
+        formatDashboardAlertLine(item) {
+            const acc = this.escapeHtml(item.account_name || `账号#${item.account_id || ""}`);
+            const svc = this.escapeHtml(this.serviceIdToShortLabel(item.service_id));
+            const msgRaw = String(item.message || "").trim();
+            let detail = this.escapeHtml(msgRaw || "-");
+            const matched = msgRaw.match(
+                /^\[(ALERT|RECOVERED)\]\s+account=\d+\s+service=[^\s]+\s+metric=([^\s]+)\s+percent=([\d.]+)%\s+threshold=([\d.]+)%$/i
+            );
+            if (matched) {
+                const type = matched[1].toUpperCase();
+                const metricKey = this.escapeHtml(matched[2]);
+                const percent = Number(matched[3]);
+                const threshold = Number(matched[4]);
+                if (type === "ALERT") {
+                    detail = `指标 ${metricKey} ${percent.toFixed(1)}% ≥ 阈值 ${threshold.toFixed(1)}%`;
+                } else {
+                    detail = `指标 ${metricKey} 已恢复（阈值 ${threshold.toFixed(1)}%）`;
+                }
+            }
+            let timeText = "";
+            try {
+                const t = item.created_at != null ? new Date(item.created_at) : null;
+                if (t && !Number.isNaN(t.getTime())) {
+                    timeText = this.escapeHtml(
+                        `${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")} ${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`
+                    );
+                }
+            } catch (e) {
+                /* ignore */
+            }
+            const emoji = this.alertEventEmoji(item.status);
+            return `${emoji} <span class="recent-alert-svc">${svc}</span> · ${acc} · ${detail}` + (timeText ? ` <span class="recent-alert-time">${timeText}</span>` : "");
         },
     };
 })(window);

@@ -426,6 +426,7 @@ async def get_account(
         "expires_at": "",
         "reset_hours": 0,
         "reset_minutes": 0,
+        "reset_caption": "",
         "metric_defs": service_metric_defs,
         "source": "usage_snapshots",
     }
@@ -449,6 +450,7 @@ async def get_account(
             ),
             "reset_hours": normalized_payload.get("reset_hours", 0),
             "reset_minutes": normalized_payload.get("reset_minutes", 0),
+            "reset_caption": normalized_payload.get("reset_caption") or "",
             "metric_defs": service_metric_defs,
             "source": "usage_snapshots",
         }

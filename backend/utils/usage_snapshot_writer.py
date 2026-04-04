@@ -85,6 +85,7 @@ def build_usage_snapshots(account: Account, data: dict) -> list[UsageSnapshot]:
                     "percent": float(page_info.get("percent") or data.get("percent") or 0),
                     "remain": float(page_info.get("remain") or 0),
                     "expires_at": page_info.get("expiresAt") or "",
+                    "reset_caption": (page_info.get("resetCaption") or page_info.get("reset_caption") or "每日 00:00"),
                 },
             )
         )

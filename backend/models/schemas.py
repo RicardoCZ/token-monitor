@@ -28,12 +28,15 @@ class MiniMaxResponse(BaseModel):
 # ============ 讯飞相关模型 ============
 
 class XunFeiPageInfo(BaseModel):
-    """讯飞页面信息"""
+    """讯飞页面信息（日配额自然日 00:00 重置，与平台日维度一致）"""
     used: float = 0
     total: float = 0
     remain: float = 0
     percent: float = 0
     expiresAt: str = ""
+    resetHours: int = 0
+    resetMinutes: int = 0
+    resetCaption: str = "每日 00:00"
 
 
 class XunFeiResponse(BaseModel):
