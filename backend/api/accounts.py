@@ -66,21 +66,28 @@ class UsageHistoryResponse(BaseModel):
 
 class AlertRuleUpsertRequest(BaseModel):
     threshold: float = 80.0
-    cooldown_seconds: int = 1800
     is_enabled: bool = True
     notify_channels: List[str] = ["log"]
+
+
+class AlertMutePatchRequest(BaseModel):
+    """muted_until 必填键：null 表示解除静默；非 null 须为未来 UTC 时间（可与前端 ISO8601 Z 对齐）。"""
+
+    muted_until: Optional[datetime] = None
+    mute_reason: Optional[str] = None
 
 
 class AlertRuleResponse(BaseModel):
     id: int
     metric_key: str
     threshold: float
-    cooldown_seconds: int
     is_enabled: bool
     is_firing: bool
     notify_channels: List[str]
     last_triggered_at: Optional[datetime]
     last_recovered_at: Optional[datetime]
+    muted_until: Optional[datetime] = None
+    mute_reason: Optional[str] = None
 
 
 class AlertRuleWithAccountResponse(AlertRuleResponse):
@@ -187,6 +194,15 @@ def _normalize_alert_event_status_filter(value: Optional[str]) -> Optional[str]:
     )
 
 
+def _naive_utc_dt(value: Optional[datetime]) -> Optional[datetime]:
+    """将带时区的 datetime 转为 UTC naive，与库内其它告警时间字段一致。"""
+    if value is None:
+        return None
+    if value.tzinfo is not None:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
+
+
 def _parse_history_datetime(value: Optional[str], field_name: str) -> Optional[datetime]:
     if not value:
         return None
@@ -239,12 +255,13 @@ def _serialize_alert_rule(rule: Alert) -> AlertRuleResponse:
         id=rule.id,
         metric_key=rule.metric_key,
         threshold=float(rule.threshold or 0),
-        cooldown_seconds=int(rule.cooldown_seconds or 0),
         is_enabled=bool(rule.is_enabled),
         is_firing=bool(rule.is_firing),
         notify_channels=_normalize_notify_channels(rule.notify_channels),
         last_triggered_at=rule.last_triggered_at,
         last_recovered_at=rule.last_recovered_at,
+        muted_until=rule.muted_until,
+        mute_reason=rule.mute_reason,
     )
 
 @router.get("", response_model=List[AccountResponse])
@@ -672,9 +689,6 @@ async def upsert_account_alert_rule(
     normalized_metric_key = metric_key.strip()
     if not normalized_metric_key:
         raise HTTPException(status_code=400, detail="metric_key 不能为空")
-    min_cooldown_seconds = 30 * 60
-    if int(req.cooldown_seconds) < min_cooldown_seconds:
-        raise HTTPException(status_code=400, detail="冷却时间最低 30 分钟")
 
     account_result = await db.execute(
         select(Account).where(
@@ -720,7 +734,6 @@ async def upsert_account_alert_rule(
             account_id=account_id,
             metric_key=normalized_metric_key,
             threshold=float(req.threshold),
-            cooldown_seconds=max(min_cooldown_seconds, int(req.cooldown_seconds)),
             notify_channels=json.dumps(channels, ensure_ascii=False),
             is_enabled=bool(req.is_enabled),
             is_firing=False,
@@ -728,9 +741,70 @@ async def upsert_account_alert_rule(
         db.add(rule)
     else:
         rule.threshold = float(req.threshold)
-        rule.cooldown_seconds = max(min_cooldown_seconds, int(req.cooldown_seconds))
         rule.notify_channels = json.dumps(channels, ensure_ascii=False)
         rule.is_enabled = bool(req.is_enabled)
+
+    await db.commit()
+    await db.refresh(rule)
+    return _serialize_alert_rule(rule)
+
+
+@router.patch("/{account_id}/alerts/{metric_key}/mute", response_model=AlertRuleResponse)
+async def patch_alert_rule_mute(
+    account_id: int,
+    metric_key: str,
+    body: AlertMutePatchRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """设置或解除告警静默（不影响阈值/启用）。"""
+    normalized_metric_key = metric_key.strip()
+    if not normalized_metric_key:
+        raise HTTPException(status_code=400, detail="metric_key 不能为空")
+
+    account_result = await db.execute(
+        select(Account).where(
+            and_(Account.id == account_id, Account.user_id == current_user.id)
+        )
+    )
+    account = account_result.scalar_one_or_none()
+    if not account:
+        raise HTTPException(status_code=404, detail="账号不存在")
+
+    result = await db.execute(
+        select(Alert).where(
+            and_(
+                Alert.account_id == account_id,
+                Alert.metric_key == normalized_metric_key,
+            )
+        )
+    )
+    rule = result.scalar_one_or_none()
+    if not rule:
+        raise HTTPException(status_code=404, detail="规则不存在")
+
+    fs = body.model_fields_set
+    if "muted_until" not in fs:
+        raise HTTPException(
+            status_code=400,
+            detail="须指定 muted_until（ISO8601 时间，或 null 表示解除静默）",
+        )
+
+    if body.muted_until is None:
+        rule.muted_until = None
+        rule.mute_reason = None
+    else:
+        until = _naive_utc_dt(body.muted_until)
+        now = datetime.utcnow()
+        if until is None or until <= now:
+            raise HTTPException(
+                status_code=400,
+                detail="muted_until 须晚于当前时间（UTC）",
+            )
+        rule.muted_until = until
+        if "mute_reason" in fs:
+            reason = (body.mute_reason or "").strip()
+            rule.mute_reason = reason[:255] if reason else None
 
     await db.commit()
     await db.refresh(rule)

@@ -67,7 +67,6 @@ class Settings(BaseSettings):
     # 告警评估（P2-3）
     alert_eval_enabled: bool = True
     alert_default_threshold: float = 80.0
-    alert_default_cooldown_seconds: int = 1800
 
 
 settings = Settings()

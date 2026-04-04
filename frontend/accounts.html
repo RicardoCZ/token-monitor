@@ -13,7 +13,7 @@
             color: #fff;
             padding: 20px;
         }
-        .container { max-width: 900px; margin: 0 auto; }
+        .container { max-width: 1080px; margin: 0 auto; }
         .header { text-align: center; padding: 20px 0; margin-bottom: 24px; }
         .header h1 { font-size: 24px; color: #e0e0e0; }
         .header p { font-size: 12px; color: #888; margin-top: 8px; }
@@ -146,6 +146,36 @@
             margin-top: 12px;
             align-items: end;
         }
+        .inline-fields.alert-rule-inline {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 12px 14px;
+            margin-top: 8px;
+            margin-bottom: 4px;
+        }
+        .inline-fields.alert-rule-inline > .form-group.alert-account-group,
+        .inline-fields.alert-rule-inline > .form-group.alert-metric-group {
+            flex: 1 1 160px;
+            min-width: 140px;
+        }
+        .inline-fields.alert-rule-inline > .form-group.alert-threshold-group {
+            flex: 0 1 110px;
+            min-width: 96px;
+            max-width: 130px;
+        }
+        .inline-fields.alert-rule-inline > .form-group.alert-save-group,
+        .inline-fields.alert-rule-inline > .form-group.alert-refresh-group {
+            flex: 0 0 auto;
+        }
+        .inline-fields.alert-rule-inline .save-rule-btn,
+        .inline-fields.alert-rule-inline .reload-alert-data-btn {
+            white-space: nowrap;
+        }
+        #alert-account-hint {
+            margin-top: 2px;
+            margin-bottom: 14px;
+        }
         .inline-fields .form-group {
             display: flex;
             flex-direction: column;
@@ -205,7 +235,8 @@
         .custom-select.open .custom-select-trigger {
             border-color: #667eea;
         }
-        .save-rule-btn {
+        .save-rule-btn,
+        .reload-alert-data-btn {
             width: 100%;
             height: 40px;
             padding: 0 14px;
@@ -214,6 +245,8 @@
             align-items: center;
             justify-content: center;
             border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
         }
         .custom-select-options {
             list-style: none;
@@ -251,6 +284,14 @@
         .custom-select-options li.active {
             background: rgba(102, 126, 234, 0.35);
             color: #fff;
+        }
+        .rule-mute-hours-wrap {
+            width: 100%;
+            max-width: 200px;
+            min-width: 0;
+        }
+        .rule-mute-hours-wrap .custom-select {
+            width: 100%;
         }
         .toggle-switch {
             position: relative;
@@ -297,6 +338,164 @@
         }
         .list-content {
             margin-top: 0;
+        }
+        /* 当前规则表：无 max-height，行数增加时卡片与表格高度随内容变高 */
+        .rules-table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 8px;
+            margin-left: -4px;
+            margin-right: -4px;
+            padding: 0 4px 6px;
+        }
+        .mini-table.rules-table {
+            width: 100%;
+            min-width: 880px;
+            table-layout: fixed;
+        }
+        .mini-table.rules-table th,
+        .mini-table.rules-table td {
+            vertical-align: middle;
+            padding: 10px 12px;
+        }
+        .rules-col-mute {
+            vertical-align: top;
+        }
+        .rules-col-actions {
+            vertical-align: middle;
+        }
+        .mini-table.rules-table .custom-select-trigger {
+            height: 34px;
+            line-height: 32px;
+            font-size: 12px;
+            padding: 0 10px;
+        }
+        .rules-col-account {
+            width: 16%;
+            max-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .mini-table.rules-table th.rules-col-account,
+        .mini-table.rules-table td.rules-col-account {
+            padding-right: 6px;
+        }
+        .rules-col-metric {
+            width: 64px;
+            max-width: 64px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .mini-table.rules-table th.rules-col-metric,
+        .mini-table.rules-table td.rules-col-metric {
+            padding-left: 4px;
+            padding-right: 4px;
+        }
+        .mini-table.rules-table th.rules-col-threshold,
+        .mini-table.rules-table td.rules-col-threshold {
+            padding-left: 4px;
+        }
+        .rules-col-threshold { width: 78px; }
+        .mini-table.rules-table .rules-col-threshold .rule-inline-input {
+            height: 30px;
+            padding: 3px 6px;
+            font-size: 11px;
+            border-radius: 6px;
+        }
+        .rules-col-enabled {
+            width: 72px;
+            text-align: center;
+        }
+        .mini-table.rules-table thead .rules-col-enabled {
+            text-align: center;
+        }
+        .rules-enabled-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 34px;
+        }
+        .rules-enabled-cell .toggle-switch {
+            flex-shrink: 0;
+        }
+        .rules-col-firing {
+            width: 80px;
+            white-space: nowrap;
+            text-align: center;
+        }
+        .mini-table.rules-table thead .rules-col-firing {
+            text-align: center;
+        }
+        .rules-firing-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 34px;
+        }
+        .rules-firing-cell .account-status-tag {
+            line-height: 1.2;
+        }
+        .rule-mute-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+            min-width: 0;
+        }
+        .rule-mute-controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            width: 100%;
+        }
+        .mini-table.rules-table .rule-mute-hours-wrap {
+            width: auto;
+            flex: 0 0 auto;
+            max-width: 128px;
+            min-width: 108px;
+        }
+        .rule-mute-meta {
+            font-size: 11px;
+            color: #a8b0d3;
+            line-height: 1.35;
+            word-break: break-word;
+        }
+        .rule-mute-reason-input {
+            flex: 1 1 88px;
+            width: auto;
+            min-width: 72px;
+            max-width: 140px;
+            box-sizing: border-box;
+        }
+        .rule-mute-stack > .btn.small {
+            width: auto;
+            align-self: flex-start;
+            margin-right: 0;
+            padding: 6px 12px;
+        }
+        .rule-actions-stack {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+        .rule-actions-stack .btn.small {
+            margin-right: 0;
+            width: auto;
+            min-width: 0;
+            padding: 6px 12px;
+            box-sizing: border-box;
+        }
+        .mini-table.rules-table .rule-inline-input {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
         }
         .list-pagination {
             margin-top: 8px;
@@ -372,6 +571,42 @@
         }
         .toast.error { background: rgba(244, 67, 54, 0.9); }
         .toast.show { display: block; }
+
+        .alert-hub-card .sub-title {
+            line-height: 1.5;
+            max-width: 820px;
+        }
+        .alert-hub-section .list-section-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #e8ecff;
+            letter-spacing: 0.03em;
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .mini-table.rules-table thead th {
+            text-transform: none;
+            letter-spacing: 0.02em;
+            font-size: 11px;
+            color: #95a0c8;
+            font-weight: 600;
+            padding-top: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.28);
+        }
+        .mini-table.rules-table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.035);
+        }
+        .mini-table.rules-table tbody td {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .rules-col-mute {
+            width: 208px;
+        }
+        .rules-col-actions {
+            width: 108px;
+        }
     </style>
 </head>
 <body>
@@ -388,43 +623,41 @@
             <div id="account-detail-panel" class="account-detail-box" style="display:none;"></div>
         </div>
 
-        <div class="card">
+        <div class="card alert-hub-card">
             <h2>🚨 告警规则管理</h2>
-            <p class="sub-title">按账号与指标键管理阈值、冷却时间与启用状态</p>
-            <div class="form-group">
-                <label>选择账号</label>
-                <select id="alert-account-select"></select>
-            </div>
-            <div class="small-note" id="alert-account-hint"></div>
-            <button class="btn secondary small" onclick="reloadAlertData()">刷新规则与事件</button>
-
-            <div class="inline-fields">
-                <div class="form-group">
+            <p class="sub-title">按账号与指标键管理阈值与启用状态；告警仅在首次超阈值时通知一次，恢复后可再次触发</p>
+            <div class="inline-fields alert-rule-inline">
+                <div class="form-group alert-account-group">
+                    <label>选择账号</label>
+                    <select id="alert-account-select"></select>
+                </div>
+                <div class="form-group alert-metric-group">
                     <label>指标键</label>
                     <select id="alert-metric-key">
                         <option value="">请先选择账号</option>
                     </select>
                 </div>
-                <div class="form-group">
+                <div class="form-group alert-threshold-group">
                     <label>阈值（%）</label>
                     <input id="alert-threshold" type="number" step="0.1" value="80" min="0" max="100" required>
                 </div>
-                <div class="form-group">
-                    <label>冷却时间（分钟，最低30）</label>
-                    <input id="alert-cooldown" type="number" value="30" min="30" step="1">
-                </div>
-                <div class="form-group">
+                <div class="form-group alert-save-group">
                     <label>&nbsp;</label>
-                    <button class="btn save-rule-btn" onclick="saveAlertRule()">保存规则</button>
+                    <button type="button" class="btn save-rule-btn" onclick="saveAlertRule()">保存规则</button>
+                </div>
+                <div class="form-group alert-refresh-group">
+                    <label>&nbsp;</label>
+                    <button type="button" class="btn reload-alert-data-btn" onclick="reloadAlertData()">刷新规则与事件</button>
                 </div>
             </div>
+            <div class="small-note" id="alert-account-hint"></div>
 
-            <div class="list-section">
+            <div class="list-section alert-hub-section">
                 <h2 class="list-section-title">📋 当前规则</h2>
                 <div id="alert-rules-list" class="list-content"><div class="empty">加载中...</div></div>
             </div>
 
-            <div class="list-section">
+            <div class="list-section alert-hub-section">
                 <h2 class="list-section-title">🧾 最近事件</h2>
                 <div class="inline-fields" style="margin-bottom: 10px;">
                     <div class="form-group">
@@ -439,7 +672,7 @@
                 <div id="alert-events-list" class="list-content"><div class="empty">加载中...</div></div>
                 <div id="alert-events-pagination" class="small-note list-pagination"></div>
                 <div class="small-note list-pagination">
-                    提示：仅展示最近告警事件；红色=告警中，绿色=已恢复，橙色=冷却中，灰色=规则停用或无有效指标。
+                    提示：仅展示最近告警事件；红色=已触发，绿色=已恢复。规则为「首次超阈值告警一次」，持续超标不会重复记事件直至恢复。
                 </div>
             </div>
         </div>
@@ -771,7 +1004,7 @@
         const ALERT_EVENT_STATUS_TEXT = {
             triggered: '已触发',
             recovered: '已恢复',
-            cooldown: '冷却中',
+            holding: '持续超标',
             ok: '正常',
             no_rule: '无规则',
             rule_disabled: '规则停用',
@@ -789,6 +1022,7 @@
         function getAlertStatusTagClass(status) {
             const key = String(status || '').trim().toLowerCase();
             if (key === 'triggered' || key === 'alert' || key === 'firing' || key === '告警中') return 'warn';
+            if (key === 'holding') return 'warn';
             if (key === 'recovered' || key === 'ok' || key === '已恢复') return 'ok';
             return 'off';
         }
@@ -1134,7 +1368,16 @@
                 const resp = await fetch(`${API_BASE}/api/accounts/users/${currentUser.id}/alerts`, {
                     headers: getAuthHeaders()
                 });
-                const data = await resp.json();
+                const raw = await resp.text();
+                let data;
+                try {
+                    data = raw ? JSON.parse(raw) : {};
+                } catch (parseErr) {
+                    const hint = raw.trim().startsWith('<') || raw.includes('Internal Server Error')
+                        ? '服务器错误。请检查后端是否已重启、MySQL 是否可达及表结构是否与当前代码一致（可看后端日志）。'
+                        : (raw.slice(0, 120) || parseErr.message);
+                    throw new Error(hint);
+                }
                 if (seq !== alertReloadSeq) return;
                 if (!resp.ok) throw new Error(data.detail || '加载规则失败');
                 if (!data.length) {
@@ -1142,46 +1385,81 @@
                     return;
                 }
                 container.innerHTML = `
-                    <table class="mini-table">
+                    <div class="rules-table-wrap">
+                    <table class="mini-table rules-table">
                         <thead>
                             <tr>
-                                <th>账号</th>
-                                <th>指标键</th>
-                                <th>阈值(%)</th>
-                                <th>冷却时间(分钟)</th>
-                                <th>启用状态</th>
-                                <th>告警中</th>
-                                <th>操作</th>
+                                <th class="rules-col-account">账号</th>
+                                <th class="rules-col-metric">指标键</th>
+                                <th class="rules-col-threshold">阈值(%)</th>
+                                <th class="rules-col-enabled">启用</th>
+                                <th class="rules-col-firing">告警</th>
+                                <th class="rules-col-mute">静默</th>
+                                <th class="rules-col-actions">操作</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${data.map((item, idx) => `
                                 <tr>
-                                    <td>${escapeHtml(item.account_name || `账号#${item.account_id}`)}</td>
-                                    <td>${escapeHtml(item.metric_key)}</td>
-                                    <td><input id="rule-threshold-${idx}" class="rule-inline-input" type="number" step="0.1" min="0" max="100" value="${Number(item.threshold ?? 0)}"></td>
-                                    <td><input id="rule-cooldown-${idx}" class="rule-inline-input" type="number" min="30" step="1" value="${Math.max(30, Math.ceil(Number(item.cooldown_seconds ?? 0) / 60))}"></td>
-                                    <td>
-                                        <input id="rule-enabled-${idx}" type="hidden" value="${item.is_enabled ? 'true' : 'false'}">
-                                        <div
-                                            id="rule-enabled-toggle-${idx}"
-                                            class="toggle-switch ${item.is_enabled ? 'active' : ''}"
-                                            role="switch"
-                                            aria-checked="${item.is_enabled ? 'true' : 'false'}"
-                                            title="${item.is_enabled ? '当前：启用，点击可停用' : '当前：停用，点击可启用'}"
-                                            onclick="toggleRuleEnabled(${idx})"
-                                        ></div>
+                                    <td class="rules-col-account" title="${escapeHtml(item.account_name || `账号#${item.account_id}`)}">${escapeHtml(item.account_name || `账号#${item.account_id}`)}</td>
+                                    <td class="rules-col-metric" title="${escapeHtml(item.metric_key)}">${escapeHtml(item.metric_key)}</td>
+                                    <td class="rules-col-threshold"><input id="rule-threshold-${idx}" class="rule-inline-input" type="number" step="0.1" min="0" max="100" value="${Number(item.threshold ?? 0)}"></td>
+                                    <td class="rules-col-enabled">
+                                        <div class="rules-enabled-cell">
+                                            <input id="rule-enabled-${idx}" type="hidden" value="${item.is_enabled ? 'true' : 'false'}">
+                                            <div
+                                                id="rule-enabled-toggle-${idx}"
+                                                class="toggle-switch ${item.is_enabled ? 'active' : ''}"
+                                                role="switch"
+                                                aria-checked="${item.is_enabled ? 'true' : 'false'}"
+                                                title="${item.is_enabled ? '当前：启用，点击可停用' : '当前：停用，点击可启用'}"
+                                                onclick="toggleRuleEnabled(${idx})"
+                                            ></div>
+                                        </div>
                                     </td>
-                                    <td>${renderStatusTag(item.is_firing ? '告警中' : '已恢复', item.is_firing ? 'warn' : 'ok')}</td>
-                                    <td>
-                                        <button class="btn secondary small" onclick='saveAlertRuleInline(${item.account_id}, ${JSON.stringify(item.metric_key)}, ${idx})'>确认</button>
-                                        <button class="btn danger small" onclick='deleteAlertRuleInline(${item.account_id}, ${JSON.stringify(item.metric_key)})'>删除</button>
+                                    <td class="rules-col-firing"><div class="rules-firing-cell">${renderStatusTag(item.is_firing ? '告警中' : '已恢复', item.is_firing ? 'warn' : 'ok')}</div></td>
+                                    <td class="rules-col-mute">
+                                        ${item.muted_until ? `
+                                            <div class="rule-mute-stack">
+                                                <div class="rule-mute-meta">至 ${escapeHtml(formatDate(item.muted_until))}</div>
+                                                ${item.mute_reason ? `<div class="rule-mute-meta">${escapeHtml(item.mute_reason)}</div>` : ''}
+                                                <button type="button" class="btn secondary small" onclick='clearAlertMute(${item.account_id}, ${JSON.stringify(item.metric_key)})'>解除静默</button>
+                                            </div>
+                                        ` : `
+                                            <div class="rule-mute-stack">
+                                                <div class="rule-mute-controls-row">
+                                                    <div class="rule-mute-hours-wrap">
+                                                        <select id="rule-mute-hours-${idx}">
+                                                            <option value="0">静默时长</option>
+                                                            <option value="1">1 小时</option>
+                                                            <option value="8">8 小时</option>
+                                                            <option value="24">24 小时</option>
+                                                        </select>
+                                                    </div>
+                                                    <input id="rule-mute-reason-${idx}" class="rule-inline-input rule-mute-reason-input" placeholder="原因(可选)">
+                                                </div>
+                                                <button type="button" class="btn secondary small" onclick='applyAlertMute(${item.account_id}, ${JSON.stringify(item.metric_key)}, ${idx})'>应用静默</button>
+                                            </div>
+                                        `}
+                                    </td>
+                                    <td class="rules-col-actions">
+                                        <div class="rule-actions-stack">
+                                            <button type="button" class="btn secondary small" onclick='saveAlertRuleInline(${item.account_id}, ${JSON.stringify(item.metric_key)}, ${idx})'>保存</button>
+                                            <button type="button" class="btn danger small" onclick='deleteAlertRuleInline(${item.account_id}, ${JSON.stringify(item.metric_key)})'>删除</button>
+                                        </div>
                                     </td>
                                 </tr>
                             `).join('')}
                         </tbody>
                     </table>
+                    </div>
                 `;
+                if (seq !== alertReloadSeq) return;
+                data.forEach((item, idx) => {
+                    if (!item.muted_until) {
+                        bindCustomSelectById(`rule-mute-hours-${idx}`);
+                    }
+                });
             } catch (e) {
                 container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(e.message)}</div>`;
             }
@@ -1322,17 +1600,11 @@
             }
             const metricKey = (document.getElementById('alert-metric-key').value || '').trim();
             const thresholdRaw = (document.getElementById('alert-threshold').value || '').trim();
-            const cooldownRaw = (document.getElementById('alert-cooldown').value || '').trim();
             if (!thresholdRaw) {
                 showToast('阈值不能为空', true);
                 return;
             }
-            if (!cooldownRaw) {
-                showToast('冷却时间不能为空', true);
-                return;
-            }
             const threshold = Number(thresholdRaw);
-            const cooldownMinutes = Number(cooldownRaw);
             const enabled = true;
             if (!metricKey) {
                 showToast('该账号暂无可用指标，无法保存规则', true);
@@ -1342,17 +1614,12 @@
                 showToast('阈值需在 0-100 之间', true);
                 return;
             }
-            if (!Number.isFinite(cooldownMinutes) || cooldownMinutes < 30) {
-                showToast('冷却时间最低 30 分钟', true);
-                return;
-            }
             try {
                 const resp = await fetch(`${API_BASE}/api/accounts/${currentAlertAccountId}/alerts/${encodeURIComponent(metricKey)}`, {
                     method: 'PUT',
                     headers: getJsonHeaders(),
                     body: JSON.stringify({
                         threshold,
-                        cooldown_seconds: Math.floor(cooldownMinutes * 60),
                         is_enabled: enabled,
                         notify_channels: ['log']
                     })
@@ -1372,24 +1639,14 @@
 
         async function saveAlertRuleInline(accountId, metricKey, idx) {
             const thresholdRaw = (document.getElementById(`rule-threshold-${idx}`)?.value || '').trim();
-            const cooldownRaw = (document.getElementById(`rule-cooldown-${idx}`)?.value || '').trim();
             if (!thresholdRaw) {
                 showToast('阈值不能为空', true);
                 return;
             }
-            if (!cooldownRaw) {
-                showToast('冷却时间不能为空', true);
-                return;
-            }
             const threshold = Number(thresholdRaw);
-            const cooldownMinutes = Number(cooldownRaw);
             const enabled = (document.getElementById(`rule-enabled-${idx}`)?.value || 'true') === 'true';
             if (!Number.isFinite(threshold) || threshold < 0 || threshold > 100) {
                 showToast('阈值需在 0-100 之间', true);
-                return;
-            }
-            if (!Number.isFinite(cooldownMinutes) || cooldownMinutes < 30) {
-                showToast('冷却时间最低 30 分钟', true);
                 return;
             }
             try {
@@ -1398,7 +1655,6 @@
                     headers: getJsonHeaders(),
                     body: JSON.stringify({
                         threshold,
-                        cooldown_seconds: Math.floor(cooldownMinutes * 60),
                         is_enabled: enabled,
                         notify_channels: ['log']
                     })
@@ -1409,6 +1665,72 @@
                     return;
                 }
                 showToast(`规则已保存：${metricKey}`);
+                alertEventsPage = 1;
+                await reloadAlertData();
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            }
+        }
+
+        function _muteUntilIsoFromHours(hours) {
+            const h = Number(hours);
+            if (!Number.isFinite(h) || h <= 0) return null;
+            return new Date(Date.now() + h * 3600000).toISOString();
+        }
+
+        async function applyAlertMute(accountId, metricKey, idx) {
+            const sel = document.getElementById(`rule-mute-hours-${idx}`);
+            const hours = Number(sel && sel.value);
+            if (!hours) {
+                showToast('请选择静默时长', true);
+                return;
+            }
+            const until = _muteUntilIsoFromHours(hours);
+            if (!until) {
+                showToast('静默时长无效', true);
+                return;
+            }
+            const reasonRaw = (document.getElementById(`rule-mute-reason-${idx}`)?.value || '').trim();
+            const payload = { muted_until: until };
+            if (reasonRaw) payload.mute_reason = reasonRaw;
+            try {
+                const resp = await fetch(
+                    `${API_BASE}/api/accounts/${accountId}/alerts/${encodeURIComponent(metricKey)}/mute`,
+                    {
+                        method: 'PATCH',
+                        headers: getJsonHeaders(),
+                        body: JSON.stringify(payload)
+                    }
+                );
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '设置静默失败', true);
+                    return;
+                }
+                showToast('已设置静默');
+                alertEventsPage = 1;
+                await reloadAlertData();
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            }
+        }
+
+        async function clearAlertMute(accountId, metricKey) {
+            try {
+                const resp = await fetch(
+                    `${API_BASE}/api/accounts/${accountId}/alerts/${encodeURIComponent(metricKey)}/mute`,
+                    {
+                        method: 'PATCH',
+                        headers: getJsonHeaders(),
+                        body: JSON.stringify({ muted_until: null })
+                    }
+                );
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '解除静默失败', true);
+                    return;
+                }
+                showToast('已解除静默');
                 alertEventsPage = 1;
                 await reloadAlertData();
             } catch (e) {

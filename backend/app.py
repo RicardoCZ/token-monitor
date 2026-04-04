@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
     # 启动时：初始化数据库
     await init_db()
     print("✅ 数据库初始化完成")
-    
+
     # 初始化默认服务数据（增量幂等）
     from models.database import async_session_maker
 

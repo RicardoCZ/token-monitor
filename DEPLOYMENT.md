@@ -26,20 +26,8 @@ INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
 ./start.sh
 ```
 
-浏览器访问 `http://localhost:<PORT>`（`<PORT>` 见 `backend/.env`，默认 5188）。
-
----
-
-## 数据库迁移（按需）
-
-在 `backend/` 目录建议按顺序执行（可重复执行）：
-
-```bash
-cd backend
-python3 -m utils.migrate_service_registry
-python3 -m utils.migrate_alerting_p2_3
-python3 -m utils.migrate_api_keys
-```
+浏览器访问 `http://localhost:<PORT>`（`<PORT>` 见 `backend/.env`，默认 5188）。  
+启动时 `init_db()` 会执行 SQLAlchemy `create_all`：**仅创建库中尚不存在的表**，不会给已有表自动加列/删列。**全新空库**首次启动前需已建好数据库并配置好 `backend/.env`（可用 `init_env.sh` / `init_env.ps1`）。若某张表早已存在但缺新字段，需手工 `ALTER` 或删表后再启（开发环境常见）。
 
 ---
 

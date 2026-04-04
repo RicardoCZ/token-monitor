@@ -123,12 +123,13 @@ class Alert(Base):
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
     metric_key = Column(String(64), nullable=False, default="percent", index=True)
     threshold = Column(Float, default=80)  # 告警阈值（%）
-    cooldown_seconds = Column(Integer, default=1800)  # 告警冷却秒数
     notify_channels = Column(String(255))  # 通知渠道（JSON）
     is_enabled = Column(Boolean, default=True)
     is_firing = Column(Boolean, default=False)  # 当前是否处于告警中
     last_triggered_at = Column(DateTime)
     last_recovered_at = Column(DateTime)
+    muted_until = Column(DateTime, nullable=True)  # 静默截止（UTC naive），到期后自动恢复判定
+    mute_reason = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     # 关联

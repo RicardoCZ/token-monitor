@@ -349,9 +349,9 @@
 
         async function fetchHistoryItems(accountId, range) {
             const endMs = Date.now();
-            const startIso = new Date(
-                endMs - (range === "7d" ? 7 : 24) * 60 * 60 * 1000
-            ).toISOString();
+            const windowMs =
+                range === "7d" ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+            const startIso = new Date(endMs - windowMs).toISOString();
             const endIso = new Date(endMs).toISOString();
             const startAt = encodeURIComponent(startIso);
             const endAt = encodeURIComponent(endIso);

@@ -1,14 +1,14 @@
 """
 P2-3 告警服务（usage_snapshots 单轨）
 - 基于 account_id + metric_key 规则判定
-- 支持冷却防抖
+- 边沿触发：仅「非告警 → 告警」时产生一次 triggered；持续超标不再重复触发
 - 记录日志通知 + 数据库告警事件
 """
 
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import and_, select
@@ -125,19 +125,18 @@ async def evaluate_alert_for_snapshot(
         return {"enabled": True, "status": "no_percent", "metric_key": metric_key}
 
     now = datetime.utcnow()
+    if rule.muted_until is not None:
+        if now < rule.muted_until:
+            return {"enabled": True, "status": "muted", "metric_key": metric_key}
+        rule.muted_until = None
+        rule.mute_reason = None
+        await db.commit()
     threshold = float(rule.threshold or 0)
-    cooldown = max(0, int(rule.cooldown_seconds or 0))
     channels = _normalize_channels(rule.notify_channels)
     channel = channels[0] if channels else "log"
 
     if observed >= threshold:
-        should_notify = True
-        if rule.is_firing and rule.last_triggered_at:
-            next_notify_at = rule.last_triggered_at + timedelta(seconds=cooldown)
-            if now < next_notify_at:
-                should_notify = False
-
-        if should_notify:
+        if not rule.is_firing:
             rule.is_firing = True
             rule.last_triggered_at = now
             message = (
@@ -157,7 +156,7 @@ async def evaluate_alert_for_snapshot(
             await db.commit()
             return {"enabled": True, "status": "triggered", "metric_key": metric_key}
 
-        return {"enabled": True, "status": "cooldown", "metric_key": metric_key}
+        return {"enabled": True, "status": "holding", "metric_key": metric_key}
 
     if rule.is_firing:
         rule.is_firing = False
