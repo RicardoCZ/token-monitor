@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Token Monitor - 历史趋势</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 20px;
+        }
+
+        .header h1 { font-size: 24px; color: #e0e0e0; margin-bottom: 5px; }
+        .header p { font-size: 12px; color: #888; }
+
+        .header-top-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .header-top-link:hover { color: #8b9cff; }
+
+        .cards { max-width: 900px; margin: 0 auto; }
+
+        .card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .card-title { font-size: 18px; font-weight: 600; }
+
+        .history-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+
+        .history-select {
+            min-width: 140px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 10px;
+            padding: 8px 10px;
+            font-size: 12px;
+        }
+
+        .history-select option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+
+        .history-range-btn {
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            background: rgba(255, 255, 255, 0.06);
+            color: #cfd6f4;
+            border-radius: 999px;
+            padding: 6px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .history-range-btn.active {
+            background: rgba(102, 126, 234, 0.35);
+            color: #fff;
+            border-color: rgba(102, 126, 234, 0.75);
+        }
+
+        .history-chart {
+            width: 100%;
+            height: 360px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .history-status {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #98a2c8;
+            min-height: 16px;
+        }
+
+        .refresh-row {
+            margin-top: 12px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .refresh-btn {
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            background: rgba(102, 126, 234, 0.24);
+            color: #fff;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📈 历史趋势</h1>
+        <p>按账号查看 24h/7d 用量变化</p>
+        <div id="user-info" style="margin-top: 10px; font-size: 12px; color: #888; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 10px;"></div>
+    </div>
+
+    <div class="cards">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">历史用量曲线</span>
+            </div>
+            <div class="history-toolbar">
+                <select id="history-account-select" class="history-select"></select>
+                <button id="history-range-24h" class="history-range-btn active" type="button">24h</button>
+                <button id="history-range-7d" class="history-range-btn" type="button">7d</button>
+                <select id="history-metric-select" class="history-select">
+                    <option value="percent">使用率 (%)</option>
+                    <option value="used">已用 (used)</option>
+                    <option value="total">总量 (total)</option>
+                </select>
+            </div>
+            <div id="history-chart" class="history-chart"></div>
+            <div id="history-status" class="history-status"></div>
+            <div class="refresh-row">
+                <button id="history-refresh-btn" class="refresh-btn" type="button">刷新历史数据</button>
+            </div>
+        </div>
+    </div>
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"
+        integrity="sha384-Mx5lkUEQPM1pOJCwFtUICyX45KNojXbkWdYhkKUKsbv391mavbfoAmONbzkgYPzR"
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"
+    ></script>
+    <script>
+        if (!window.echarts) {
+            const fallback = document.createElement("script");
+            fallback.src = "https://unpkg.com/echarts@5.5.1/dist/echarts.min.js";
+            fallback.crossOrigin = "anonymous";
+            fallback.referrerPolicy = "no-referrer";
+            document.head.appendChild(fallback);
+        }
+    </script>
+    <script>
+        const API_BASE = window.location.origin;
+        const CURRENT_PAGE = (window.location.pathname.split('/').pop() || 'history.html').toLowerCase();
+
+        let authToken = localStorage.getItem("token");
+        let currentUser = null;
+        const state = {
+            accounts: [],
+            accountId: null,
+            range: "24h",
+            metric: "percent",
+            chart: null,
+            isLoading: false,
+        };
+
+        function escapeHtml(text) {
+            const div = document.createElement("div");
+            div.textContent = text == null ? "" : String(text);
+            return div.innerHTML;
+        }
+
+        function setHistoryStatus(text, isError = false) {
+            const el = document.getElementById("history-status");
+            if (!el) return;
+            el.textContent = text || "";
+            el.style.color = isError ? "#ff9aa2" : "#98a2c8";
+        }
+
+        function buildTopNavLinks(isAdmin) {
+            const links = [
+                { path: 'api.html', label: '📊 实时监控' },
+                { path: 'history.html', label: '📈 历史趋势' },
+                { path: 'setup.html', label: '🔧 设置凭证' },
+                { path: 'accounts.html', label: '🧾 账号管理' },
+            ];
+            if (isAdmin) {
+                links.push({ path: 'admin.html', label: '⚙️ 管理后台' });
+            }
+            return links
+                .filter(item => item.path.toLowerCase() !== CURRENT_PAGE)
+                .map(item => `<a href="${item.path}" class="header-top-link">${item.label}</a>`)
+                .join('');
+        }
+
+        function logout() {
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            window.location.href = "login.html";
+        }
+
+        async function checkAuth() {
+            if (!authToken) {
+                window.location.href = "login.html";
+                return false;
+            }
+            try {
+                const resp = await fetch(`${API_BASE}/auth/me`, {
+                    headers: { "Authorization": `Bearer ${authToken}` },
+                });
+                if (!resp.ok) {
+                    localStorage.removeItem("token");
+                    localStorage.removeItem("user");
+                    window.location.href = "login.html";
+                    return false;
+                }
+                currentUser = await resp.json();
+                const userInfo = document.getElementById("user-info");
+                userInfo.innerHTML = `
+                    <span>👤 ${escapeHtml(currentUser.username)}</span>
+                    ${buildTopNavLinks(currentUser.role === "admin")}
+                    <span class="header-top-link" style="cursor: pointer;" role="button" tabindex="0" onclick="logout()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout();}">退出</span>
+                `;
+                return true;
+            } catch (e) {
+                setHistoryStatus("登录态检查失败，请稍后重试。", true);
+                return false;
+            }
+        }
+
+        function extractApiErrorMessage(data) {
+            if (!data || typeof data !== "object") return "请求失败";
+            if (typeof data.detail === "string") return data.detail;
+            if (Array.isArray(data.detail)) {
+                const parts = data.detail.map(e => (e && (e.msg || e.message)) || "").filter(Boolean);
+                return parts.length ? parts.join(" ") : "请求无效";
+            }
+            if (data.error) return String(data.error);
+            return "";
+        }
+
+        function getNumberValue(value) {
+            const n = Number(value);
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function initChart() {
+            const chartEl = document.getElementById("history-chart");
+            if (!chartEl) return null;
+            if (!window.echarts) {
+                setHistoryStatus("图表库加载失败，无法渲染历史趋势。", true);
+                chartEl.innerHTML = '<div style="padding: 140px 0; text-align:center; color:#7f8ab3;">图表组件不可用</div>';
+                return null;
+            }
+            if (!state.chart) {
+                state.chart = window.echarts.init(chartEl);
+                window.addEventListener("resize", () => {
+                    if (state.chart) state.chart.resize();
+                });
+            }
+            return state.chart;
+        }
+
+        function markRangeButtons() {
+            const btn24 = document.getElementById("history-range-24h");
+            const btn7d = document.getElementById("history-range-7d");
+            if (btn24) btn24.classList.toggle("active", state.range === "24h");
+            if (btn7d) btn7d.classList.toggle("active", state.range === "7d");
+        }
+
+        function getRangeStartIso(range) {
+            const now = Date.now();
+            const ms = range === "7d" ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+            return new Date(now - ms).toISOString();
+        }
+
+        async function loadAccounts() {
+            const resp = await fetch(`${API_BASE}/api/accounts`, {
+                headers: { "Authorization": `Bearer ${authToken}` },
+            });
+            const data = await resp.json();
+            if (!resp.ok) {
+                throw new Error(extractApiErrorMessage(data) || `账号列表加载失败 (${resp.status})`);
+            }
+            state.accounts = Array.isArray(data) ? data : [];
+            const select = document.getElementById("history-account-select");
+            if (!select) return;
+            if (!state.accounts.length) {
+                select.innerHTML = '<option value="">暂无账号</option>';
+                state.accountId = null;
+                setHistoryStatus("暂无可用账号，请先到账号管理页配置。");
+                return;
+            }
+            select.innerHTML = state.accounts
+                .map(item => `<option value="${item.id}">${escapeHtml(item.service_name || item.service_id)} · ${escapeHtml(item.name || ("账号#" + item.id))}</option>`)
+                .join("");
+            state.accountId = state.accounts[0].id;
+            select.value = String(state.accountId);
+        }
+
+        async function fetchHistoryItems(accountId, metric, range) {
+            const startAt = encodeURIComponent(getRangeStartIso(range));
+            const endAt = encodeURIComponent(new Date().toISOString());
+            const safeMetric = encodeURIComponent(metric);
+            const MAX_FETCH_PAGES = 30;
+            const MAX_POINTS = 3000;
+            const limit = 200;
+            const all = [];
+            let offset = 0;
+            for (let i = 0; i < MAX_FETCH_PAGES && all.length < MAX_POINTS; i += 1) {
+                const url = `${API_BASE}/api/accounts/${accountId}/history?limit=${limit}&offset=${offset}&metric_key=${safeMetric}&start_at=${startAt}&end_at=${endAt}`;
+                const resp = await fetch(url, {
+                    headers: { "Authorization": `Bearer ${authToken}` },
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    throw new Error(extractApiErrorMessage(data) || `历史数据加载失败 (${resp.status})`);
+                }
+                const items = Array.isArray(data.items) ? data.items : [];
+                all.push(...items);
+                if (!data.pagination?.has_more || !items.length) break;
+                offset += limit;
+            }
+            const normalized = all
+                .filter(item => item && item.collected_at)
+                .sort((a, b) => new Date(a.collected_at).getTime() - new Date(b.collected_at).getTime());
+            const truncated = normalized.length > MAX_POINTS;
+            return {
+                items: truncated ? normalized.slice(normalized.length - MAX_POINTS) : normalized,
+                truncated,
+            };
+        }
+
+        function renderChart(items) {
+            const chart = initChart();
+            if (!chart) return;
+
+            const labels = items.map(item => {
+                const dt = new Date(item.collected_at);
+                return dt.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+            });
+            const values = items.map(item => getNumberValue(item[state.metric]));
+
+            chart.setOption({
+                backgroundColor: "transparent",
+                tooltip: { trigger: "axis" },
+                grid: { left: 36, right: 20, top: 24, bottom: 42 },
+                xAxis: {
+                    type: "category",
+                    data: labels,
+                    axisLabel: { color: "#93a0cb", fontSize: 10 },
+                    axisLine: { lineStyle: { color: "rgba(255,255,255,0.2)" } },
+                },
+                yAxis: {
+                    type: "value",
+                    axisLabel: {
+                        color: "#93a0cb",
+                        fontSize: 10,
+                        formatter: state.metric === "percent" ? "{value}%" : "{value}",
+                    },
+                    splitLine: { lineStyle: { color: "rgba(255,255,255,0.08)" } },
+                },
+                dataZoom: [
+                    { type: "inside", start: 0, end: 100 },
+                    { type: "slider", height: 14, bottom: 10, borderColor: "rgba(255,255,255,0.18)" },
+                ],
+                series: [
+                    {
+                        type: "line",
+                        smooth: true,
+                        symbol: "none",
+                        areaStyle: { opacity: 0.12 },
+                        lineStyle: { width: 2, color: "#6f88ff" },
+                        itemStyle: { color: "#6f88ff" },
+                        data: values,
+                    },
+                ],
+            });
+        }
+
+        function getCurrentAccount() {
+            return state.accounts.find(item => String(item.id) === String(state.accountId));
+        }
+
+        async function refreshHistory() {
+            if (!state.accountId || state.isLoading) return;
+            const account = getCurrentAccount();
+            if (!account) return;
+
+            const refreshBtn = document.getElementById("history-refresh-btn");
+            state.isLoading = true;
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.textContent = "加载中...";
+            }
+            setHistoryStatus("正在加载历史数据...");
+            try {
+                const result = await fetchHistoryItems(state.accountId, state.metric, state.range);
+                const items = result.items;
+                if (!items.length) {
+                    setHistoryStatus("当前时间窗口暂无历史数据。");
+                    renderChart([]);
+                    return;
+                }
+                renderChart(items);
+                const metricLabel = state.metric === "percent" ? "使用率" : state.metric;
+                const truncatedText = result.truncated ? "（数据较多，已截取最近部分）" : "";
+                setHistoryStatus(`${escapeHtml(account.name || ("账号#" + account.id))} · ${state.range} · ${metricLabel}（${items.length} 条）${truncatedText}`);
+            } catch (e) {
+                setHistoryStatus(e.message || "历史趋势加载失败", true);
+            } finally {
+                state.isLoading = false;
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.textContent = "刷新历史数据";
+                }
+            }
+        }
+
+        function bindEvents() {
+            const select = document.getElementById("history-account-select");
+            const metricSelect = document.getElementById("history-metric-select");
+            const btn24 = document.getElementById("history-range-24h");
+            const btn7d = document.getElementById("history-range-7d");
+            const refreshBtn = document.getElementById("history-refresh-btn");
+
+            if (select) {
+                select.addEventListener("change", () => {
+                    state.accountId = select.value;
+                    refreshHistory();
+                });
+            }
+            if (metricSelect) {
+                metricSelect.addEventListener("change", () => {
+                    state.metric = metricSelect.value || "percent";
+                    refreshHistory();
+                });
+            }
+            if (btn24) {
+                btn24.addEventListener("click", () => {
+                    state.range = "24h";
+                    markRangeButtons();
+                    refreshHistory();
+                });
+            }
+            if (btn7d) {
+                btn7d.addEventListener("click", () => {
+                    state.range = "7d";
+                    markRangeButtons();
+                    refreshHistory();
+                });
+            }
+            if (refreshBtn) {
+                refreshBtn.addEventListener("click", () => refreshHistory());
+            }
+        }
+
+        async function init() {
+            const ok = await checkAuth();
+            if (!ok) return;
+            bindEvents();
+            markRangeButtons();
+            initChart();
+            try {
+                await loadAccounts();
+                if (state.accountId) await refreshHistory();
+            } catch (e) {
+                setHistoryStatus(e.message || "初始化失败", true);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
