@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Token Monitor - 账号管理</title>
+    <title>Token Monitor - 规则与事件</title>
     <style>
         :root {
             --primary: #667eea;
@@ -1281,93 +1281,74 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🧾 账号管理</h1>
+            <h1>🚨 规则与事件</h1>
+            <p class="sub-title" style="margin-top:10px;line-height:1.5;">飞书 / QQ 通知请在<strong>账号管理</strong>页的「告警通知」中配置。</p>
             <div id="user-info" class="header-user-bar"></div>
         </div>
 
-        <div class="card">
-            <h2>账号列表</h2>
-            <p class="sub-title">支持查看详情、手动同步、删除账号，点击配置名称可原地编辑</p>
-            <div id="accounts-list"><div class="empty">加载中...</div></div>
-            <div id="accounts-pagination" class="small-note list-pagination"></div>
-            <div id="account-detail-panel" class="account-detail-box" style="display:none;"></div>
+        <div class="card alert-hub-card">
+            <h2>🚨 告警规则</h2>
+            <p class="sub-title">在上方选定<strong>账号</strong>与<strong>指标</strong>，设置阈值并勾选通知渠道后，点<strong>保存规则</strong>即可新建或覆盖该账号下该指标的规则。下方表格用于逐条修改；每行点<strong>保存</strong>后生效。静默列默认为<strong>无静默</strong>；若需静默，请先选静默时长再点该行<strong>保存</strong>。告警仅在<strong>首次</strong>超过阈值时推送一次，恢复后才会再次触发。</p>
+            <div class="alert-rule-toolbar">
+                <div class="form-group alert-account-group">
+                    <label>账号</label>
+                    <select id="alert-account-select"></select>
+                </div>
+                <div class="form-group alert-metric-group">
+                    <label>指标</label>
+                    <select id="alert-metric-key">
+                        <option value="">请先选择账号</option>
+                    </select>
+                </div>
+                <div class="form-group alert-threshold-group">
+                    <label>阈值</label>
+                    <input id="alert-threshold" type="number" step="0.1" value="80" min="0" max="100">
+                </div>
+                <div class="alert-toolbar-right">
+                    <div class="form-group alert-channel-toolbar-group">
+                        <label>告警渠道</label>
+                        <div class="alert-channel-checks toolbar-channels">
+                            <label class="inline-chk"><input type="checkbox" id="alert-ch-log" checked><span class="chk-pill">日志</span></label>
+                            <label class="inline-chk"><input type="checkbox" id="alert-ch-feishu"><span class="chk-pill">飞书</span></label>
+                            <label class="inline-chk"><input type="checkbox" id="alert-ch-qq"><span class="chk-pill">QQ</span></label>
+                        </div>
+                    </div>
+                    <button type="button" class="btn" onclick="saveAlertRule()">保存规则</button>
+                </div>
+            </div>
+            <div class="small-note" id="alert-account-hint"></div>
+
+            <div class="list-section alert-hub-section">
+                <div class="section-header rules-list-header">
+                    <h2 class="list-section-title">📋 当前规则</h2>
+                    <div id="alert-rules-pagination" class="small-note list-pagination"></div>
+                </div>
+                <div id="alert-rules-list" class="list-content"><div class="empty">加载中...</div></div>
+            </div>
         </div>
 
         <div class="card">
-            <h2>🔔 告警通知</h2>
-            <p class="sub-title">配置<strong>自己的</strong>飞书 / QQ 机器人 <strong>App ID、App Secret（仅存密文）</strong>与收件人 Open ID；未配齐的通道<strong>不会发送</strong>。底部可打开官方文档。</p>
-            <div class="notify-tab-strip">
-                <div class="notify-tab-bar">
-                    <button type="button" class="notify-tab active" data-tab="feishu" onclick="switchNotifyTab('feishu')">飞书</button>
-                    <button type="button" class="notify-tab" data-tab="qq" onclick="switchNotifyTab('qq')">QQ</button>
+            <h2>🧾 最近事件</h2>
+            <div class="alert-events-bar">
+                <div class="form-group alert-events-filter-group">
+                    <label>事件状态</label>
+                    <select id="alert-events-status-filter">
+                        <option value="">全部</option>
+                        <option value="triggered">已触发</option>
+                        <option value="recovered">已恢复</option>
+                    </select>
                 </div>
-                <div id="notify-webhook-status-box" class="notify-status-display-box" role="status" aria-live="polite"></div>
-            </div>
-            <div id="notify-feishu-form" class="notify-tab-content">
-                <div class="notify-fields-grid">
-                    <div class="form-group">
-                        <label>App ID</label>
-                        <div class="notify-secret-hint" aria-hidden="true"></div>
-                        <div class="notify-sensitive-wrap">
-                            <input id="wh-feishu-app-id" class="notify-sensitive-input" type="password" autocomplete="off" spellcheck="false" placeholder="cli_xxx 或自建应用 App ID">
-                            <button type="button" class="btn secondary small notify-reveal-btn" aria-label="显示或隐藏 App ID" aria-pressed="false" onclick="toggleNotifySensitiveField('wh-feishu-app-id', this)">显示</button>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>App Secret（仅更新时填）</label>
-                        <div class="notify-secret-hint" id="wh-feishu-secret-hint"></div>
-                        <input id="wh-feishu-app-secret" type="password" autocomplete="new-password" placeholder="不修改请留空">
-                    </div>
-                    <div class="form-group">
-                        <label>Open ID（通知人）</label>
-                        <div class="notify-secret-hint" aria-hidden="true"></div>
-                        <div class="notify-sensitive-wrap">
-                            <input id="wh-feishu-open-id" class="notify-sensitive-input" type="password" autocomplete="off" spellcheck="false" placeholder="ou_xxxxxxxx">
-                            <button type="button" class="btn secondary small notify-reveal-btn" aria-label="显示或隐藏 Open ID" aria-pressed="false" onclick="toggleNotifySensitiveField('wh-feishu-open-id', this)">显示</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="notify-form-actions">
-                    <button type="button" class="btn" onclick="saveNotifyWebhooks()">保存配置</button>
-                    <button type="button" class="btn secondary small" onclick="clearNotifySecret('feishu')">清除密钥</button>
+                <div class="form-group alert-events-refresh-group">
+                    <label>&nbsp;</label>
+                    <button type="button" class="btn reload-alert-data-btn" onclick="reloadAlertData()">刷新规则与事件</button>
                 </div>
             </div>
-            <div id="notify-qq-form" class="notify-tab-content" style="display:none">
-                <div class="notify-fields-grid">
-                    <div class="form-group">
-                        <label>App ID</label>
-                        <div class="notify-secret-hint" aria-hidden="true"></div>
-                        <div class="notify-sensitive-wrap">
-                            <input id="wh-qq-bot-app-id" class="notify-sensitive-input" type="password" autocomplete="off" spellcheck="false" placeholder="QQ 开放平台 AppID">
-                            <button type="button" class="btn secondary small notify-reveal-btn" aria-label="显示或隐藏 App ID" aria-pressed="false" onclick="toggleNotifySensitiveField('wh-qq-bot-app-id', this)">显示</button>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label>App Secret（仅更新时填）</label>
-                        <div class="notify-secret-hint" id="wh-qq-secret-hint"></div>
-                        <input id="wh-qq-bot-app-secret" type="password" autocomplete="new-password" placeholder="不修改请留空">
-                    </div>
-                    <div class="form-group">
-                        <label>Open ID（通知人）</label>
-                        <div class="notify-secret-hint" aria-hidden="true"></div>
-                        <div class="notify-sensitive-wrap">
-                            <input id="wh-qq-openid" class="notify-sensitive-input" type="password" autocomplete="off" spellcheck="false" placeholder="QQ 单聊用户 openid">
-                            <button type="button" class="btn secondary small notify-reveal-btn" aria-label="显示或隐藏 openid" aria-pressed="false" onclick="toggleNotifySensitiveField('wh-qq-openid', this)">显示</button>
-                        </div>
-                    </div>
-                </div>
-                <div class="notify-form-actions">
-                    <button type="button" class="btn" onclick="saveNotifyWebhooks()">保存配置</button>
-                    <button type="button" class="btn secondary small" onclick="clearNotifySecret('qq')">清除密钥</button>
-                </div>
-            </div>
-            <div class="notify-link-hint">
-                <a href="https://open.feishu.cn/document/introduction" target="_blank" rel="noopener">飞书开放平台文档</a>
-                &nbsp;|&nbsp;
-                <a href="https://bot.q.qq.com/wiki/" target="_blank" rel="noopener">QQ 机器人开发文档</a>
+            <div id="alert-events-list" class="list-content"><div class="empty">加载中...</div></div>
+            <div id="alert-events-pagination" class="small-note list-pagination"></div>
+            <div class="small-note list-pagination" style="margin-top: 12px;">
+                提示：仅展示最近告警事件；红色=已触发，绿色=已恢复。规则为「首次超阈值告警一次」，持续超标不会重复记事件直至恢复。
             </div>
         </div>
-
     </div>
 
     <div id="toast" class="toast"></div>
@@ -1379,24 +1360,30 @@
         const U = window.TMDCore;
         const Ui = window.TMDUi;
         const API_BASE = window.location.origin;
-        const CURRENT_PAGE = (window.location.pathname.split('/').pop() || 'accounts.html').toLowerCase();
+        const CURRENT_PAGE = (window.location.pathname.split('/').pop() || 'alerts.html').toLowerCase();
         let authToken = localStorage.getItem('token');
         let currentUser = null;
         let accountsCache = [];
-        let currentViewingAccountId = 0;
+        let currentAlertAccountId = 0;
         const accountDetailCache = new Map();
-        let accountsListPage = 1;
-        const ACCOUNTS_PAGE_SIZE = 5;
-        const savingAccountNameIds = new Set();
-        const SYNC_COOLDOWN_MS = 3000;
-        const syncCooldownUntilByAccount = new Map();
-        let notifyWebhooksCache = null;
-
+        let alertReloadSeq = 0;
+        let alertEventsReloadSeq = 0;
+        let alertEventsPage = 1;
+        const ALERT_EVENTS_PAGE_SIZE = 5;
+        let alertRulesCache = [];
+        let alertRulesPage = 1;
+        const ALERT_RULES_PAGE_SIZE = 5;
         function showToast(msg, isError) {
             Ui.showToast(msg, isError);
         }
         function buildTopNavLinks(isAdmin) {
             return Ui.buildTopNavLinks(CURRENT_PAGE, { showAdminLink: !!isAdmin });
+        }
+        function bindCustomSelectById(selectId, options = {}) {
+            Ui.bindCustomSelectById(selectId, options);
+        }
+        function refreshCustomSelect(selectId) {
+            Ui.refreshCustomSelect(selectId);
         }
 
         function getAuthHeaders() {
@@ -1410,181 +1397,31 @@
             };
         }
 
-        function toggleNotifySensitiveField(inputId, btn) {
-            const el = document.getElementById(inputId);
-            if (!el || !btn) return;
-            if (el.type === 'password') {
-                el.type = 'text';
-                btn.textContent = '隐藏';
-                btn.setAttribute('aria-pressed', 'true');
-            } else {
-                el.type = 'password';
-                btn.textContent = '显示';
-                btn.setAttribute('aria-pressed', 'false');
+        function collectNotifyChannelsFromRuleForm(idx) {
+            const pairs = idx == null
+                ? [['log', 'alert-ch-log'], ['feishu', 'alert-ch-feishu'], ['qq', 'alert-ch-qq']]
+                : [['log', `rule-ch-log-${idx}`], ['feishu', `rule-ch-feishu-${idx}`], ['qq', `rule-ch-qq-${idx}`]];
+            const out = [];
+            for (const [key, elId] of pairs) {
+                const el = document.getElementById(elId);
+                if (el && el.checked) out.push(key);
             }
-        }
-
-        function maskAllNotifySensitiveFields() {
-            const ids = ['wh-feishu-app-id', 'wh-feishu-open-id', 'wh-qq-bot-app-id', 'wh-qq-openid'];
-            for (const id of ids) {
-                const el = document.getElementById(id);
-                if (!el) continue;
-                el.type = 'password';
-                const wrap = el.closest('.notify-sensitive-wrap');
-                const b = wrap && wrap.querySelector('.notify-reveal-btn');
-                if (b) {
-                    b.textContent = '显示';
-                    b.setAttribute('aria-pressed', 'false');
-                }
-            }
-        }
-
-        function _notifyFeishuChannelComplete(d) {
-            if (!d) return false;
-            return !!(
-                d.feishu_app_secret_configured &&
-                d.feishu_app_id &&
-                String(d.feishu_app_id).trim() &&
-                d.feishu_open_id &&
-                String(d.feishu_open_id).trim()
-            );
-        }
-
-        function _notifyQqChannelComplete(d) {
-            if (!d) return false;
-            return !!(
-                d.qq_bot_app_secret_configured &&
-                d.qq_bot_app_id &&
-                String(d.qq_bot_app_id).trim() &&
-                d.qq_openid &&
-                String(d.qq_openid).trim()
-            );
-        }
-
-        /** 与 setup.html 手动输入 loadManualServiceStatus 文案一致 */
-        function updateNotifyWebhookStatusBox() {
-            const el = document.getElementById('notify-webhook-status-box');
-            if (!el) return;
-            if (notifyWebhooksCache == null) {
-                el.innerHTML = '';
-                return;
-            }
-            const active = document.querySelector('.notify-tab.active');
-            const tab = active && active.getAttribute('data-tab') === 'qq' ? 'qq' : 'feishu';
-            const ok = tab === 'qq'
-                ? _notifyQqChannelComplete(notifyWebhooksCache)
-                : _notifyFeishuChannelComplete(notifyWebhooksCache);
-            el.innerHTML = ok
-                ? '<span style="color:#4CAF50;">✅ 已配置</span>'
-                : '<span style="color:#f44336;">❌ 未配置</span>';
-        }
-
-        function _applyNotifyWebhooksToForm(data) {
-            const oid = document.getElementById('wh-feishu-open-id');
-            const qo = document.getElementById('wh-qq-openid');
-            const faid = document.getElementById('wh-feishu-app-id');
-            const qbid = document.getElementById('wh-qq-bot-app-id');
-            const fsec = document.getElementById('wh-feishu-app-secret');
-            const qsec = document.getElementById('wh-qq-bot-app-secret');
-            const fh = document.getElementById('wh-feishu-secret-hint');
-            const qh = document.getElementById('wh-qq-secret-hint');
-            if (oid) oid.value = data.feishu_open_id || '';
-            if (qo) qo.value = data.qq_openid || '';
-            if (faid) faid.value = data.feishu_app_id || '';
-            if (qbid) qbid.value = data.qq_bot_app_id || '';
-            if (fsec) fsec.value = '';
-            if (qsec) qsec.value = '';
-            if (fh) fh.textContent = data.feishu_app_secret_configured ? '（已保存密钥）' : '';
-            if (qh) qh.textContent = data.qq_bot_app_secret_configured ? '（已保存密钥）' : '';
-            notifyWebhooksCache = data || {};
-            updateNotifyWebhookStatusBox();
-            maskAllNotifySensitiveFields();
-        }
-
-        async function loadNotifyWebhooks() {
-            try {
-                const resp = await fetch(`${API_BASE}/auth/notify-webhooks`, { headers: getAuthHeaders() });
-                if (!resp.ok) {
-                    notifyWebhooksCache = {};
-                    updateNotifyWebhookStatusBox();
-                    return;
-                }
-                const data = await resp.json();
-                _applyNotifyWebhooksToForm(data);
-            } catch (e) {
-                notifyWebhooksCache = {};
-                updateNotifyWebhookStatusBox();
-            }
-        }
-
-        async function saveNotifyWebhooks() {
-            const oid = document.getElementById('wh-feishu-open-id');
-            const qo = document.getElementById('wh-qq-openid');
-            const faid = document.getElementById('wh-feishu-app-id');
-            const qbid = document.getElementById('wh-qq-bot-app-id');
-            const fsec = document.getElementById('wh-feishu-app-secret');
-            const qsec = document.getElementById('wh-qq-bot-app-secret');
-            try {
-                const faidTrim = faid ? (faid.value || '').trim() : '';
-                const qbidTrim = qbid ? (qbid.value || '').trim() : '';
-                const fsecTrim = fsec ? (fsec.value || '').trim() : '';
-                const qsecTrim = qsec ? (qsec.value || '').trim() : '';
-                if (fsecTrim && !faidTrim) {
-                    showToast('填写飞书 App Secret 时请同时填写飞书 App ID', true);
-                    return;
-                }
-                if (qsecTrim && !qbidTrim) {
-                    showToast('填写 QQ App Secret 时请同时填写 QQ 机器人 App ID', true);
-                    return;
-                }
-                const body = {
-                    feishu_open_id: oid ? (oid.value || '').trim() : '',
-                    qq_openid: qo ? (qo.value || '').trim() : '',
-                    feishu_app_id: faidTrim,
-                    qq_bot_app_id: qbidTrim,
-                };
-                if (fsecTrim) body.feishu_app_secret = fsecTrim;
-                if (qsecTrim) body.qq_bot_app_secret = qsecTrim;
-                const resp = await fetch(`${API_BASE}/auth/notify-webhooks`, {
-                    method: 'PUT',
-                    headers: getJsonHeaders(),
-                    body: JSON.stringify(body),
-                });
-                const data = await resp.json();
-                if (!resp.ok) {
-                    showToast((typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) || '保存失败', true);
-                    return;
-                }
-                _applyNotifyWebhooksToForm(data);
-                showToast('通知配置已保存');
-            } catch (e) {
-                showToast('网络错误: ' + e.message, true);
-            }
-        }
-
-        async function clearNotifySecret(which) {
-            const patch = which === 'feishu'
-                ? { feishu_app_secret: null }
-                : { qq_bot_app_secret: null };
-            try {
-                const resp = await fetch(`${API_BASE}/auth/notify-webhooks`, {
-                    method: 'PUT',
-                    headers: getJsonHeaders(),
-                    body: JSON.stringify(patch),
-                });
-                const data = await resp.json();
-                if (!resp.ok) {
-                    showToast((typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) || '操作失败', true);
-                    return;
-                }
-                _applyNotifyWebhooksToForm(data);
-                showToast(which === 'feishu' ? '已清除飞书密钥' : '已清除 QQ 密钥');
-            } catch (e) {
-                showToast('网络错误: ' + e.message, true);
-            }
+            return out.length ? out : ['log'];
         }
 
         const escapeHtml = (text) => U.escapeHtml(text);
+
+        function toggleRuleEnabled(idx) {
+            const hidden = document.getElementById(`rule-enabled-${idx}`);
+            const toggle = document.getElementById(`rule-enabled-toggle-${idx}`);
+            if (!hidden || !toggle) return;
+            const isEnabled = String(hidden.value || 'true') === 'true';
+            const next = !isEnabled;
+            hidden.value = next ? 'true' : 'false';
+            toggle.classList.toggle('active', next);
+            toggle.setAttribute('aria-checked', next ? 'true' : 'false');
+            toggle.title = next ? '当前：启用，点击可停用' : '当前：停用，点击可启用';
+        }
 
         function formatDate(value) {
             if (!value) return '-';
@@ -1599,50 +1436,153 @@
             return dt.toLocaleString('zh-CN');
         }
 
-        function validateConfigName(name) {
-            const value = (name || '').trim();
-            if (!value) return '配置名称不能为空';
-            if (value.length > 20) return '配置名称长度需为 1-20 个字符';
-            if (!/^[\u4e00-\u9fffA-Za-z0-9_-]+$/.test(value)) {
-                return '配置名称仅支持中文、英文、数字、下划线(_)和横线(-)';
+        function updatePageTitle() {
+            document.title = 'Token Monitor - 规则与事件';
+        }
+
+        function setCurrentAlertAccount(account) {
+            currentAlertAccountId = Number(account?.id || 0);
+            const hint = document.getElementById('alert-account-hint');
+            if (!hint) return;
+            hint.textContent = currentAlertAccountId ? '' : '请先选择账号';
+            const select = document.getElementById('alert-account-select');
+            if (select && currentAlertAccountId) {
+                select.value = String(currentAlertAccountId);
+                refreshCustomSelect('alert-account-select');
             }
-            return '';
         }
 
-        function formatAccountStatus(item) {
-            if (!item.is_active) return { className: 'off', text: '已停用' };
-            if (!item.has_cookies) return { className: 'warn', text: '缺少凭证' };
-            return { className: 'ok', text: '正常' };
-        }
-
-        function updatePageTitle(detailName = '') {
-            const base = 'Token Monitor - 账号管理';
-            document.title = detailName ? `${base} - ${detailName}` : base;
-        }
-
-        function renderAccountDetailPanel(title, rows) {
-            const panel = document.getElementById('account-detail-panel');
-            if (!panel) return;
-            panel.style.display = 'block';
-            panel.innerHTML = `
-                <div class="detail-header">
-                    <div class="title">${escapeHtml(title)}</div>
-                    <button class="collapse-btn" onclick="hideAccountDetailPanel()">收起</button>
-                </div>
-                ${rows.map(row => `
-                    <div class="row">
-                        <span>${escapeHtml(row.label)}</span>
-                        <span>${row.valueHtml != null ? row.valueHtml : escapeHtml(row.value)}</span>
-                    </div>
-                `).join('')}
+        function renderAlertAccountOptions() {
+            const select = document.getElementById('alert-account-select');
+            const hint = document.getElementById('alert-account-hint');
+            if (!select) return;
+            if (!accountsCache.length) {
+                select.innerHTML = '<option value="">无可用账号</option>';
+                if (hint) hint.textContent = '当前无账号，请先在设置凭证页面完成账号配置';
+                currentAlertAccountId = 0;
+                setAlertMetricOptions([]);
+                refreshCustomSelect('alert-account-select');
+                return;
+            }
+            const previous = currentAlertAccountId;
+            select.innerHTML = `
+                ${accountsCache.map(item => {
+                    const label = `${item.service_name || item.service_id} - ${item.name || '-'}`;
+                    return `<option value="${item.id}">${escapeHtml(label)}</option>`;
+                }).join('')}
             `;
+            if (previous && accountsCache.some(item => item.id === previous)) {
+                select.value = String(previous);
+                const selected = accountsCache.find(item => item.id === previous);
+                if (selected) setCurrentAlertAccount(selected);
+            } else {
+                const first = accountsCache[0];
+                if (first) {
+                    select.value = String(first.id);
+                    setCurrentAlertAccount(first);
+                } else {
+                    select.value = '';
+                    currentAlertAccountId = 0;
+                }
+            }
+            if (hint && !currentAlertAccountId) {
+                hint.textContent = '请先选择账号';
+            }
+            refreshCustomSelect('alert-account-select');
         }
 
-        function hideAccountDetailPanel() {
-            const panel = document.getElementById('account-detail-panel');
-            if (panel) panel.style.display = 'none';
-            currentViewingAccountId = 0;
-            updatePageTitle();
+        function normalizeMetricDefs(rawMetricDefs) {
+            if (!Array.isArray(rawMetricDefs)) return [];
+            const result = [];
+            const seen = new Set();
+            for (const item of rawMetricDefs) {
+                if (!item || typeof item !== 'object') continue;
+                const key = String(item.key || '').trim();
+                if (!key || seen.has(key)) continue;
+                const lowerKey = key.toLowerCase();
+                if (!lowerKey.includes('percent') && !lowerKey.includes('usage')) continue;
+                seen.add(key);
+                const label = String(item.label || key).trim();
+                result.push({ key, label: label || key });
+            }
+            return result;
+        }
+
+        function setAlertMetricOptions(metricDefs) {
+            const select = document.getElementById('alert-metric-key');
+            if (!select) return;
+            const defs = normalizeMetricDefs(metricDefs);
+            if (!defs.length) {
+                select.innerHTML = '<option value="">该账号暂无可用指标</option>';
+                refreshCustomSelect('alert-metric-key');
+                return;
+            }
+            const prev = select.value;
+            select.innerHTML = defs.map(item => (
+                `<option value="${escapeHtml(item.key)}">${escapeHtml(item.label)} (${escapeHtml(item.key)})</option>`
+            )).join('');
+            if (prev && defs.some(item => item.key === prev)) {
+                select.value = prev;
+            }
+            refreshCustomSelect('alert-metric-key');
+        }
+
+        function renderAlertEmptyState(ruleText, eventText) {
+            const rulesContainer = document.getElementById('alert-rules-list');
+            const rulesPag = document.getElementById('alert-rules-pagination');
+            const eventsContainer = document.getElementById('alert-events-list');
+            const paginationContainer = document.getElementById('alert-events-pagination');
+            if (rulesContainer) rulesContainer.innerHTML = `<div class="empty">${escapeHtml(ruleText)}</div>`;
+            if (rulesPag) rulesPag.innerHTML = '';
+            alertRulesCache = [];
+            if (eventsContainer) eventsContainer.innerHTML = `<div class="empty">${escapeHtml(eventText)}</div>`;
+            if (paginationContainer) paginationContainer.innerHTML = '';
+        }
+
+        const ALERT_EVENT_STATUS_TEXT = {
+            triggered: '已触发',
+            recovered: '已恢复',
+            holding: '持续超标',
+            ok: '正常',
+            no_rule: '无规则',
+            rule_disabled: '规则停用',
+            no_metric: '缺少指标',
+            no_percent: '缺少使用率',
+            disabled: '已禁用',
+        };
+
+        function formatAlertEventStatus(status) {
+            const key = String(status || '').trim();
+            if (!key) return '-';
+            return ALERT_EVENT_STATUS_TEXT[key] || key;
+        }
+
+        function getAlertStatusTagClass(status) {
+            const key = String(status || '').trim().toLowerCase();
+            if (key === 'triggered' || key === 'alert' || key === 'firing' || key === '告警中') return 'warn';
+            if (key === 'holding') return 'warn';
+            if (key === 'recovered' || key === 'ok' || key === '已恢复') return 'ok';
+            return 'off';
+        }
+
+        function renderStatusTag(label, className = 'off') {
+            const safeClass = ['ok', 'warn', 'off'].includes(className) ? className : 'off';
+            return `<span class="account-status-tag ${safeClass}">${escapeHtml(label || '-')}</span>`;
+        }
+
+        function formatAlertEventMessage(item) {
+            const text = String(item?.message || '').trim();
+            if (!text) return '-';
+            const matched = text.match(/^\[(ALERT|RECOVERED)\]\s+account=(\d+)\s+service=([^\s]+)\s+metric=([^\s]+)\s+percent=([\d.]+)%\s+threshold=([\d.]+)%$/i);
+            if (!matched) return text;
+            const type = matched[1].toUpperCase();
+            const metricKey = matched[4];
+            const percent = Number(matched[5]);
+            const threshold = Number(matched[6]);
+            if (type === 'ALERT') {
+                return `指标 ${metricKey} 使用率 ${percent.toFixed(2)}%，达到阈值 ${threshold.toFixed(2)}%，已触发告警`;
+            }
+            return `指标 ${metricKey} 使用率 ${percent.toFixed(2)}%，已低于阈值 ${threshold.toFixed(2)}%，告警恢复`;
         }
 
         async function fetchAccountDetail(accountId) {
@@ -1653,6 +1593,19 @@
             }
             accountDetailCache.set(accountId, data);
             return data;
+        }
+
+        async function ensureAlertMetricDefsForAccount(accountId) {
+            if (!accountId) {
+                setAlertMetricOptions([]);
+                return;
+            }
+            let detail = accountDetailCache.get(accountId);
+            if (!detail) {
+                detail = await fetchAccountDetail(accountId);
+            }
+            const metricDefs = detail?.usage?.metric_defs || [];
+            setAlertMetricOptions(metricDefs);
         }
 
         async function checkAuth() {
@@ -1681,16 +1634,38 @@
             }
         }
 
-        function renderAccountsPagination() {
-            const container = document.getElementById('accounts-pagination');
+        async function loadAccounts() {
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts`, { headers: getAuthHeaders() });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '加载账号列表失败', true);
+                    accountsCache = [];
+                    renderAlertAccountOptions();
+                    await reloadAlertData();
+                    return;
+                }
+                accountsCache = Array.isArray(data) ? data : [];
+                renderAlertAccountOptions();
+                await reloadAlertData();
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+                accountsCache = [];
+                renderAlertAccountOptions();
+                await reloadAlertData();
+            }
+        }
+
+        function renderAlertRulesPagination() {
+            const container = document.getElementById('alert-rules-pagination');
             if (!container) return;
-            const total = accountsCache.length;
-            const totalPages = Math.max(1, Math.ceil(total / ACCOUNTS_PAGE_SIZE));
+            const total = alertRulesCache.length;
+            const totalPages = Math.max(1, Math.ceil(total / ALERT_RULES_PAGE_SIZE));
             if (totalPages <= 1) {
                 container.innerHTML = '';
                 return;
             }
-            const page = accountsListPage;
+            const page = alertRulesPage;
             const prevDisabled = page <= 1 ? 'disabled' : '';
             const nextDisabled = page >= totalPages ? 'disabled' : '';
             const pageItems = [];
@@ -1699,298 +1674,461 @@
                     ? 'background: rgba(102,126,234,0.45); border-color: rgba(102,126,234,0.8);'
                     : '';
                 pageItems.push(
-                    `<button type="button" class="btn secondary small" style="margin-right:4px;${activeStyle}" onclick="changeAccountsPage(${p})">${p}</button>`
+                    `<button type="button" class="btn secondary small" style="${activeStyle}" onclick="changeAlertRulesPage(${p})">${p}</button>`
                 );
             }
             container.innerHTML = `
-                <button type="button" class="btn secondary small" ${prevDisabled} onclick="changeAccountsPage(${page - 1})">上一页</button>
+                <button type="button" class="btn secondary small" ${prevDisabled} onclick="changeAlertRulesPage(${page - 1})">上一页</button>
                 ${pageItems.join('')}
-                <button type="button" class="btn secondary small" ${nextDisabled} onclick="changeAccountsPage(${page + 1})">下一页</button>
+                <button type="button" class="btn secondary small" ${nextDisabled} onclick="changeAlertRulesPage(${page + 1})">下一页</button>
+                <span class="alert-rules-page-total">共 ${total} 条规则</span>
+            `;
+        }
+
+        function changeAlertRulesPage(p) {
+            alertRulesPage = Math.max(1, Number(p) || 1);
+            renderAlertRulesFromCache();
+        }
+
+        function renderAlertRulesFromCache(expectedSeq = null) {
+            const container = document.getElementById('alert-rules-list');
+            if (!container) return;
+            if (expectedSeq != null && expectedSeq !== alertReloadSeq) return;
+            if (!alertRulesCache.length) {
+                container.innerHTML = '<div class="empty">暂无规则</div>';
+                renderAlertRulesPagination();
+                return;
+            }
+            const totalPages = Math.max(1, Math.ceil(alertRulesCache.length / ALERT_RULES_PAGE_SIZE));
+            alertRulesPage = Math.min(Math.max(1, alertRulesPage), totalPages);
+            const start = (alertRulesPage - 1) * ALERT_RULES_PAGE_SIZE;
+            const pageRows = alertRulesCache.slice(start, start + ALERT_RULES_PAGE_SIZE);
+            container.innerHTML = `
+                    <div class="rules-table-wrap">
+                    <table class="mini-table rules-table">
+                        <colgroup>
+                            <col class="rules-col-account">
+                            <col class="rules-col-metric">
+                            <col class="rules-col-threshold">
+                            <col class="rules-col-channels">
+                            <col class="rules-col-enabled">
+                            <col class="rules-col-status">
+                            <col class="rules-col-mute">
+                            <col class="rules-col-actions">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th class="rules-col-account">账号</th>
+                                <th class="rules-col-metric">指标</th>
+                                <th class="rules-col-threshold">阈值(%)</th>
+                                <th class="rules-col-channels" scope="col">
+                                    <div class="rule-channel-checks rules-channel-head-row" role="presentation">
+                                        <label class="inline-chk rules-channel-head-dummy" aria-hidden="true"><span class="chk-pill">日志</span></label>
+                                        <span class="rules-channel-head-mid">
+                                            <span class="chk-pill rules-channel-head-sizer" aria-hidden="true">飞书</span>
+                                            <span class="rules-channel-head-title">告警渠道</span>
+                                        </span>
+                                        <label class="inline-chk rules-channel-head-dummy" aria-hidden="true"><span class="chk-pill">QQ</span></label>
+                                    </div>
+                                </th>
+                                <th class="rules-col-enabled"><span class="rules-enabled-cell-shift">启用</span></th>
+                                <th class="rules-col-status"><span class="rules-status-cell-shift">状态</span></th>
+                                <th class="rules-col-mute"><span class="rules-mute-cell-shift">静默</span></th>
+                                <th class="rules-col-actions">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${pageRows.map((item, localIdx) => {
+                                const idx = start + localIdx;
+                                const chs = Array.isArray(item.notify_channels)
+                                    ? item.notify_channels.map(x => String(x).toLowerCase())
+                                    : ['log'];
+                                const rc = (k) => (chs.includes(k) ? 'checked' : '');
+                                const muteCell = item.muted_until ? `
+                                    <div class="rule-mute-stack">
+                                        <div class="rule-mute-meta">至 ${escapeHtml(formatDate(item.muted_until))}</div>
+                                        <button type="button" class="btn secondary small" onclick='clearAlertMute(${item.account_id}, ${JSON.stringify(item.metric_key)})'>解除</button>
+                                    </div>
+                                ` : `
+                                    <div class="rule-mute-stack">
+                                        <div class="rule-mute-hours-wrap">
+                                            <select id="rule-mute-hours-${idx}">
+                                                <option value="0">无静默</option>
+                                                <option value="1">1 小时</option>
+                                                <option value="8">8 小时</option>
+                                                <option value="24">24 小时</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                `;
+                                return `
+                                <tr>
+                                    <td class="rules-td-account">${escapeHtml(item.account_name || `账号#${item.account_id}`)}</td>
+                                    <td class="rules-td-metric"><span style="color:#a8b0d3;font-size:12px;">${escapeHtml(item.metric_key)}</span></td>
+                                    <td class="rules-col-threshold">
+                                        <input id="rule-threshold-${idx}" class="rule-inline-input" type="number" step="0.1" min="0" max="100" value="${Number(item.threshold ?? 0)}">
+                                    </td>
+                                    <td class="rules-col-channels">
+                                        <div class="rule-channel-checks">
+                                            <label class="inline-chk"><input type="checkbox" id="rule-ch-log-${idx}" ${rc('log')}><span class="chk-pill">日志</span></label>
+                                            <label class="inline-chk"><input type="checkbox" id="rule-ch-feishu-${idx}" ${rc('feishu')}><span class="chk-pill">飞书</span></label>
+                                            <label class="inline-chk"><input type="checkbox" id="rule-ch-qq-${idx}" ${rc('qq')}><span class="chk-pill">QQ</span></label>
+                                        </div>
+                                    </td>
+                                    <td class="rules-col-enabled">
+                                        <input id="rule-enabled-${idx}" type="hidden" value="${item.is_enabled ? 'true' : 'false'}">
+                                        <div class="rules-enabled-cell-shift">
+                                        <div id="rule-enabled-toggle-${idx}" class="toggle-switch ${item.is_enabled ? 'active' : ''}" role="switch" aria-checked="${item.is_enabled ? 'true' : 'false'}" title="${item.is_enabled ? '当前：启用，点击可停用' : '当前：停用，点击可启用'}" onclick="toggleRuleEnabled(${idx})"></div>
+                                        </div>
+                                    </td>
+                                    <td class="rules-col-status"><span class="rules-status-cell-shift">${renderStatusTag(item.is_firing ? '告警中' : '已恢复', item.is_firing ? 'warn' : 'ok')}</span></td>
+                                    <td class="rules-col-mute"><div class="rules-mute-cell-shift">${muteCell}</div></td>
+                                    <td class="rules-col-actions" style="white-space:nowrap;">
+                                        <div class="rule-actions-stack">
+                                            <span class="rule-link-btn" onclick='saveAlertRuleInline(${item.account_id}, ${JSON.stringify(item.metric_key)}, ${idx})'>保存</span>
+                                            <span class="rule-link-btn" onclick='deleteAlertRuleInline(${item.account_id}, ${JSON.stringify(item.metric_key)})' style="color:#e57373;">删除</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                    </div>
+                `;
+            pageRows.forEach((item, localIdx) => {
+                const idx = start + localIdx;
+                if (!item.muted_until) {
+                    bindCustomSelectById(`rule-mute-hours-${idx}`);
+                }
+            });
+            renderAlertRulesPagination();
+        }
+
+        async function loadAlertRules(seq) {
+            const container = document.getElementById('alert-rules-list');
+            const pagEl = document.getElementById('alert-rules-pagination');
+            if (!container) return;
+            if (!currentUser?.id) {
+                container.innerHTML = '<div class="empty">未登录</div>';
+                if (pagEl) pagEl.innerHTML = '';
+                alertRulesCache = [];
+                return;
+            }
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts/users/${currentUser.id}/alerts`, {
+                    headers: getAuthHeaders()
+                });
+                const raw = await resp.text();
+                let data;
+                try {
+                    data = raw ? JSON.parse(raw) : {};
+                } catch (parseErr) {
+                    const hint = raw.trim().startsWith('<') || raw.includes('Internal Server Error')
+                        ? '服务器错误。请检查后端是否已重启、MySQL 是否可达及表结构是否与当前代码一致（可看后端日志）。'
+                        : (raw.slice(0, 120) || parseErr.message);
+                    throw new Error(hint);
+                }
+                if (seq !== alertReloadSeq) return;
+                if (!resp.ok) throw new Error(data.detail || '加载规则失败');
+                const list = Array.isArray(data) ? data : [];
+                alertRulesCache = list;
+                alertRulesPage = 1;
+                if (!list.length) {
+                    container.innerHTML = '<div class="empty">暂无规则</div>';
+                    if (pagEl) pagEl.innerHTML = '';
+                    return;
+                }
+                if (seq !== alertReloadSeq) return;
+                renderAlertRulesFromCache(seq);
+            } catch (e) {
+                container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(e.message)}</div>`;
+                if (pagEl) pagEl.innerHTML = '';
+                alertRulesCache = [];
+            }
+        }
+
+        function renderAlertEventsPagination(total, currentPage) {
+            const container = document.getElementById('alert-events-pagination');
+            if (!container) return;
+            const totalPages = Math.max(1, Math.ceil((total || 0) / ALERT_EVENTS_PAGE_SIZE));
+            if (totalPages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+            const prevDisabled = currentPage <= 1 ? 'disabled' : '';
+            const nextDisabled = currentPage >= totalPages ? 'disabled' : '';
+            const pageItems = [];
+            for (let p = 1; p <= totalPages; p++) {
+                const activeStyle = p === currentPage
+                    ? 'background: rgba(102,126,234,0.45); border-color: rgba(102,126,234,0.8);'
+                    : '';
+                pageItems.push(
+                    `<button class="btn secondary small" style="margin-right:4px;${activeStyle}" onclick="changeAlertEventsPage(${p})">${p}</button>`
+                );
+            }
+            container.innerHTML = `
+                <button type="button" class="btn secondary small" ${prevDisabled} onclick="changeAlertEventsPage(${currentPage - 1})">上一页</button>
+                ${pageItems.join('')}
+                <button type="button" class="btn secondary small" ${nextDisabled} onclick="changeAlertEventsPage(${currentPage + 1})">下一页</button>
                 <span style="margin-left:8px;color:#888;">共 ${total} 条</span>
             `;
         }
 
-        function changeAccountsPage(p) {
-            accountsListPage = Math.max(1, Number(p) || 1);
-            renderAccountsTable();
-        }
-
-        function renderAccountsTable() {
-            const container = document.getElementById('accounts-list');
-            if (!container || !accountsCache.length) return;
-            const totalPages = Math.max(1, Math.ceil(accountsCache.length / ACCOUNTS_PAGE_SIZE));
-            accountsListPage = Math.min(Math.max(1, accountsListPage), totalPages);
-            const start = (accountsListPage - 1) * ACCOUNTS_PAGE_SIZE;
-            const pageItems = accountsCache.slice(start, start + ACCOUNTS_PAGE_SIZE);
-            container.innerHTML = `
-                    <table class="accounts-data-table">
+        /**
+         * @param {number} seq
+         * @param {number} [page=1]
+         * @param {string|undefined} statusFilterArg 若传入（含空字符串），以此为准；undefined 则从 #alert-events-status-filter 读取（分页等场景）
+         */
+        async function loadAlertEvents(seq, page = 1, statusFilterArg = undefined) {
+            const container = document.getElementById('alert-events-list');
+            const paginationContainer = document.getElementById('alert-events-pagination');
+            if (!container) return;
+            if (!currentUser?.id) {
+                container.innerHTML = '<div class="empty">未登录</div>';
+                if (paginationContainer) paginationContainer.innerHTML = '';
+                return;
+            }
+            try {
+                const safePage = Math.max(1, Number(page) || 1);
+                const offset = (safePage - 1) * ALERT_EVENTS_PAGE_SIZE;
+                const statusVal = statusFilterArg === undefined
+                    ? (document.getElementById('alert-events-status-filter')?.value ?? '').trim()
+                    : String(statusFilterArg ?? '').trim();
+                const statusQuery = statusVal ? `&status=${encodeURIComponent(statusVal)}` : '';
+                const bust = `&_=${Date.now()}`;
+                const resp = await fetch(
+                    `${API_BASE}/api/accounts/users/${currentUser.id}/alerts/events?limit=${ALERT_EVENTS_PAGE_SIZE}&offset=${offset}${statusQuery}${bust}`,
+                    { headers: getAuthHeaders(), cache: 'no-store' }
+                );
+                const data = await resp.json();
+                if (seq !== alertReloadSeq && seq !== alertEventsReloadSeq) return;
+                if (!resp.ok) throw new Error(data.detail || '加载事件失败');
+                const items = Array.isArray(data.items) ? data.items : [];
+                if (!items.length) {
+                    const emptyHint = statusVal ? '该筛选条件下暂无事件' : '暂无事件';
+                    container.innerHTML = `<div class="empty">${escapeHtml(emptyHint)}</div>`;
+                    if (paginationContainer) paginationContainer.innerHTML = '';
+                    return;
+                }
+                alertEventsPage = safePage;
+                container.innerHTML = `
+                    <table class="mini-table alert-events-table">
                         <thead>
                             <tr>
-                                <th>服务</th>
-                                <th>配置名称</th>
+                                <th>账号</th>
+                                <th>时间</th>
+                                <th>指标</th>
                                 <th>状态</th>
-                                <th>最后同步</th>
-                                <th>操作</th>
+                                <th>消息</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${pageItems.map(item => {
-                                const status = formatAccountStatus(item);
-                                return `
-                                    <tr data-account-id="${item.id}">
-                                        <td><span class="service-cell-inner">${U.renderServiceIconHtml(item.service_icon || '🧩')}<span>${escapeHtml(item.service_name || item.service_id || '-')}</span></span></td>
-                                        <td class="account-name-cell" onclick="event.stopPropagation(); startInlineAccountNameEdit(${item.id});">
-                                            <span id="account-name-display-${item.id}" class="account-name-display">${escapeHtml(item.name || '-')}</span>
-                                            <input
-                                                id="account-name-input-${item.id}"
-                                                class="account-name-input"
-                                                type="text"
-                                                value="${escapeHtml(item.name || '')}"
-                                                data-original="${escapeHtml(item.name || '')}"
-                                                onkeydown="handleInlineAccountNameKeydown(event, ${item.id})"
-                                                onblur="finishInlineAccountNameEdit(${item.id}, true)"
-                                            >
-                                        </td>
-                                        <td>
-                                            <span class="account-status-with-dot">
-                                                <span class="status-dot ${status.className}"></span>
-                                                <span class="account-status-text">${escapeHtml(status.text)}</span>
-                                            </span>
-                                        </td>
-                                        <td>${escapeHtml(formatDate(item.last_sync_at))}</td>
-                                        <td>
-                                            <button id="sync-btn-${item.id}" class="btn secondary small" onclick="event.stopPropagation(); syncAccount(${item.id})">同步</button>
-                                            <button class="btn secondary small" onclick="event.stopPropagation(); viewAccountDetail(${item.id})">详情</button>
-                                            <button class="btn danger small" onclick="event.stopPropagation(); deleteAccount(${item.id})">删除</button>
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
+                            ${items.map(item => `
+                                <tr>
+                                    <td>${escapeHtml(item.account_name || `账号#${item.account_id || '-'}`)}</td>
+                                    <td>${formatDate(item.created_at)}</td>
+                                    <td>${escapeHtml(item.metric_key || '-')}</td>
+                                    <td>${renderStatusTag(formatAlertEventStatus(item.status), getAlertStatusTagClass(item.status))}</td>
+                                    <td>${escapeHtml(formatAlertEventMessage(item))}</td>
+                                </tr>
+                            `).join('')}
                         </tbody>
                     </table>
                 `;
-            renderAccountsPagination();
-        }
-
-        async function loadAccounts() {
-            const container = document.getElementById('accounts-list');
-            const pagEl = document.getElementById('accounts-pagination');
-            try {
-                const resp = await fetch(`${API_BASE}/api/accounts`, { headers: getAuthHeaders() });
-                const data = await resp.json();
-                if (!resp.ok) {
-                    container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(data.detail || '请求失败')}</div>`;
-                    if (pagEl) pagEl.innerHTML = '';
-                    return;
-                }
-                accountsCache = Array.isArray(data) ? data : [];
-                accountsListPage = 1;
-                if (!accountsCache.length) {
-                    container.innerHTML = '<div class="empty">暂无账号</div>';
-                    if (pagEl) pagEl.innerHTML = '';
-                    return;
-                }
-                renderAccountsTable();
+                const total = Number(data.pagination?.total || items.length);
+                renderAlertEventsPagination(total, safePage);
             } catch (e) {
                 container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(e.message)}</div>`;
-                if (pagEl) pagEl.innerHTML = '';
+                if (paginationContainer) paginationContainer.innerHTML = '';
             }
         }
 
-        async function viewAccountDetail(accountId) {
-            const panel = document.getElementById('account-detail-panel');
-            if (panel && panel.style.display !== 'none' && currentViewingAccountId === accountId) {
-                hideAccountDetailPanel();
-                return;
-            }
-            try {
-                const data = await fetchAccountDetail(accountId);
-                const usage = data.usage || {};
-                const rows = [
-                    {
-                        label: '服务',
-                        value: '',
-                        valueHtml: `<span class="service-cell-inner">${U.renderServiceIconHtml(data.service_icon || '🧩')}<span>${escapeHtml(data.service_name || data.service_id || '-')}</span></span>`,
-                    },
-                    { label: '配置名称', value: data.name || '-' },
-                    { label: '已用额度', value: usage.used == null ? '-' : String(usage.used) },
-                    { label: '总额度', value: usage.total == null ? '-' : String(usage.total) },
-                    { label: '使用率', value: usage.percent == null ? '-' : `${Number(usage.percent).toFixed(1)}%` },
-                    { label: '到期时间', value: usage.expires_at || usage.expiresAt || '-' },
-                ];
-                let resetText = String(usage.reset_caption || usage.resetCaption || '').trim();
-                if (!resetText && data.service_id === 'xfyun') {
-                    resetText = '每日 00:00';
-                }
-                if (!resetText) {
-                    const h = Number(usage.reset_hours ?? usage.resetHours ?? 0) || 0;
-                    const m = Number(usage.reset_minutes ?? usage.resetMinutes ?? 0) || 0;
-                    resetText = (h || m) ? `${h}小时${m}分钟` : '-';
-                }
-                rows.push({ label: '重置时间', value: resetText });
-                rows.push({ label: '最后同步', value: formatDate(data.last_sync_at) });
-                renderAccountDetailPanel(`账号详情（ID: ${accountId}）`, rows);
-                currentViewingAccountId = accountId;
-                updatePageTitle(data.name || `账号${accountId}`);
-            } catch (e) {
-                showToast('网络错误: ' + e.message, true);
-            }
+        function changeAlertEventsPage(page) {
+            const nextPage = Math.max(1, Number(page) || 1);
+            if (nextPage === alertEventsPage) return;
+            alertEventsPage = nextPage;
+            reloadAlertEventsOnly(nextPage);
         }
 
-        async function syncAccount(accountId) {
-            const now = Date.now();
-            const cooldownUntil = Number(syncCooldownUntilByAccount.get(accountId) || 0);
-            if (now < cooldownUntil) {
-                showToast('操作太频繁，请稍后再试', true);
+        async function reloadAlertEventsOnly(page = alertEventsPage, statusFilterArg = undefined) {
+            alertEventsReloadSeq += 1;
+            const seq = alertEventsReloadSeq;
+            await loadAlertEvents(seq, page, statusFilterArg);
+        }
+
+        async function reloadAlertData() {
+            const select = document.getElementById('alert-account-select');
+            if (select) {
+                currentAlertAccountId = Number(select.value || 0);
+                if (currentAlertAccountId) {
+                    const account = accountsCache.find(item => item.id === currentAlertAccountId);
+                    if (account) setCurrentAlertAccount(account);
+                } else {
+                    const hint = document.getElementById('alert-account-hint');
+                    if (hint) hint.textContent = '请先选择账号';
+                    await ensureAlertMetricDefsForAccount(0);
+                }
+            }
+            alertReloadSeq += 1;
+            const seq = alertReloadSeq;
+            alertEventsReloadSeq = seq;
+            await ensureAlertMetricDefsForAccount(currentAlertAccountId);
+            await Promise.all([loadAlertRules(seq), loadAlertEvents(seq, alertEventsPage)]);
+        }
+
+        async function saveAlertRule() {
+            if (!currentAlertAccountId) {
+                showToast('请先选择账号', true);
                 return;
             }
-            const btn = document.getElementById(`sync-btn-${accountId}`);
-            syncCooldownUntilByAccount.set(accountId, now + SYNC_COOLDOWN_MS);
-            if (btn) {
-                btn.disabled = true;
-                btn.dataset.syncOriginalText = btn.textContent || '同步';
-                btn.textContent = '同步中...';
+            const metricKey = (document.getElementById('alert-metric-key').value || '').trim();
+            const thresholdRaw = (document.getElementById('alert-threshold').value || '').trim();
+            if (!thresholdRaw) {
+                showToast('阈值不能为空', true);
+                return;
+            }
+            const threshold = Number(thresholdRaw);
+            const enabled = true;
+            if (!metricKey) {
+                showToast('该账号暂无可用指标，无法保存规则', true);
+                return;
+            }
+            if (!Number.isFinite(threshold) || threshold < 0 || threshold > 100) {
+                showToast('阈值需在 0-100 之间', true);
+                return;
             }
             try {
-                const resp = await fetch(`${API_BASE}/api/accounts/${accountId}/sync`, {
-                    method: 'POST',
-                    headers: getAuthHeaders()
+                const resp = await fetch(`${API_BASE}/api/accounts/${currentAlertAccountId}/alerts/${encodeURIComponent(metricKey)}`, {
+                    method: 'PUT',
+                    headers: getJsonHeaders(),
+                    body: JSON.stringify({
+                        threshold,
+                        is_enabled: enabled,
+                        notify_channels: collectNotifyChannelsFromRuleForm(null)
+                    })
                 });
                 const data = await resp.json();
                 if (!resp.ok) {
-                    showToast(data.detail || '同步失败', true);
+                    showToast(data.detail || '保存规则失败', true);
                     return;
                 }
-                showToast(data.message || `账号 ${accountId} 同步成功`);
-                await loadAccounts();
-                await viewAccountDetail(accountId);
+                showToast('规则已保存');
+                alertEventsPage = 1;
+                await reloadAlertData();
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);
-            } finally {
-                setTimeout(() => {
-                    const rowBtn = document.getElementById(`sync-btn-${accountId}`);
-                    if (rowBtn) {
-                        rowBtn.disabled = false;
-                        rowBtn.textContent = rowBtn.dataset.syncOriginalText || '同步';
-                    }
-                }, SYNC_COOLDOWN_MS);
             }
         }
 
-        async function deleteAccount(accountId) {
-            if (!confirm('确认删除该账号吗？删除后不可恢复。')) return;
+        async function saveAlertRuleInline(accountId, metricKey, idx) {
+            const thresholdRaw = (document.getElementById(`rule-threshold-${idx}`)?.value || '').trim();
+            if (!thresholdRaw) {
+                showToast('阈值不能为空', true);
+                return;
+            }
+            const threshold = Number(thresholdRaw);
+            const enabled = (document.getElementById(`rule-enabled-${idx}`)?.value || 'true') === 'true';
+            if (!Number.isFinite(threshold) || threshold < 0 || threshold > 100) {
+                showToast('阈值需在 0-100 之间', true);
+                return;
+            }
             try {
-                const resp = await fetch(`${API_BASE}/api/accounts/${accountId}`, {
+                const resp = await fetch(`${API_BASE}/api/accounts/${accountId}/alerts/${encodeURIComponent(metricKey)}`, {
+                    method: 'PUT',
+                    headers: getJsonHeaders(),
+                    body: JSON.stringify({
+                        threshold,
+                        is_enabled: enabled,
+                        notify_channels: collectNotifyChannelsFromRuleForm(idx)
+                    })
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '保存规则失败', true);
+                    return;
+                }
+                const sel = document.getElementById(`rule-mute-hours-${idx}`);
+                const hours = sel ? Number(sel.value) : 0;
+                if (Number.isFinite(hours) && hours > 0) {
+                    const until = _muteUntilIsoFromHours(hours);
+                    if (!until) {
+                        showToast('静默时长无效', true);
+                        alertEventsPage = 1;
+                        await reloadAlertData();
+                        return;
+                    }
+                    const payload = { muted_until: until };
+                    const mresp = await fetch(
+                        `${API_BASE}/api/accounts/${accountId}/alerts/${encodeURIComponent(metricKey)}/mute`,
+                        {
+                            method: 'PATCH',
+                            headers: getJsonHeaders(),
+                            body: JSON.stringify(payload)
+                        }
+                    );
+                    const mdata = await mresp.json();
+                    if (!mresp.ok) {
+                        showToast(mdata.detail || '规则已保存，但设置静默失败', true);
+                        alertEventsPage = 1;
+                        await reloadAlertData();
+                        return;
+                    }
+                }
+                showToast(hours > 0 ? `规则与静默已保存：${metricKey}` : `规则已保存：${metricKey}`);
+                alertEventsPage = 1;
+                await reloadAlertData();
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            }
+        }
+
+        function _muteUntilIsoFromHours(hours) {
+            const h = Number(hours);
+            if (!Number.isFinite(h) || h <= 0) return null;
+            return new Date(Date.now() + h * 3600000).toISOString();
+        }
+
+        async function clearAlertMute(accountId, metricKey) {
+            try {
+                const resp = await fetch(
+                    `${API_BASE}/api/accounts/${accountId}/alerts/${encodeURIComponent(metricKey)}/mute`,
+                    {
+                        method: 'PATCH',
+                        headers: getJsonHeaders(),
+                        body: JSON.stringify({ muted_until: null })
+                    }
+                );
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '解除静默失败', true);
+                    return;
+                }
+                showToast('已解除静默');
+                alertEventsPage = 1;
+                await reloadAlertData();
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            }
+        }
+
+        async function deleteAlertRuleInline(accountId, metricKey) {
+            if (!confirm(`确认删除规则 ${metricKey} 吗？`)) return;
+            try {
+                const resp = await fetch(`${API_BASE}/api/accounts/${accountId}/alerts/${encodeURIComponent(metricKey)}`, {
                     method: 'DELETE',
                     headers: getAuthHeaders()
                 });
                 const data = await resp.json();
                 if (!resp.ok) {
-                    showToast(data.detail || '删除失败', true);
+                    showToast(data.detail || '删除规则失败', true);
                     return;
                 }
-                showToast('账号已删除');
-                hideAccountDetailPanel();
-                accountDetailCache.delete(accountId);
-                await loadAccounts();
+                showToast('规则已删除');
+                alertEventsPage = 1;
+                await reloadAlertData();
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);
-            }
-        }
-
-        function startInlineAccountNameEdit(accountId) {
-            const display = document.getElementById(`account-name-display-${accountId}`);
-            const input = document.getElementById(`account-name-input-${accountId}`);
-            if (!display || !input) return;
-            if (savingAccountNameIds.has(accountId)) return;
-            const currentName = display.textContent === '-' ? '' : (display.textContent || '');
-            input.value = currentName;
-            input.dataset.original = currentName;
-            display.style.display = 'none';
-            input.style.display = 'inline-block';
-            input.focus();
-            input.select();
-        }
-
-        function handleInlineAccountNameKeydown(event, accountId) {
-            if (event.key === 'Enter') {
-                event.preventDefault();
-                finishInlineAccountNameEdit(accountId, true);
-                return;
-            }
-            if (event.key === 'Escape') {
-                event.preventDefault();
-                finishInlineAccountNameEdit(accountId, false);
-            }
-        }
-
-        async function finishInlineAccountNameEdit(accountId, shouldSave) {
-            const display = document.getElementById(`account-name-display-${accountId}`);
-            const input = document.getElementById(`account-name-input-${accountId}`);
-            if (!display || !input) return;
-            if (input.style.display === 'none') return;
-            if (savingAccountNameIds.has(accountId)) return;
-
-            const restore = (name) => {
-                const safeName = (name || '').trim();
-                display.textContent = safeName || '-';
-                input.value = safeName;
-                input.dataset.original = safeName;
-                input.style.display = 'none';
-                display.style.display = 'inline-block';
-            };
-
-            const original = (input.dataset.original || '').trim();
-            if (!shouldSave) {
-                restore(original);
-                return;
-            }
-
-            const nextName = (input.value || '').trim();
-            const err = validateConfigName(nextName);
-            if (err) {
-                showToast(err, true);
-                setTimeout(() => {
-                    input.focus();
-                    input.select();
-                }, 0);
-                return;
-            }
-            if (nextName === original) {
-                restore(original);
-                return;
-            }
-
-            savingAccountNameIds.add(accountId);
-            try {
-                const resp = await fetch(`${API_BASE}/api/accounts/${accountId}`, {
-                    method: 'PUT',
-                    headers: getJsonHeaders(),
-                    body: JSON.stringify({ name: nextName })
-                });
-                const data = await resp.json();
-                if (!resp.ok) {
-                    showToast(data.detail || '更新配置名称失败', true);
-                    setTimeout(() => {
-                        input.focus();
-                        input.select();
-                    }, 0);
-                    return;
-                }
-                const cacheItem = accountsCache.find(item => item.id === accountId);
-                if (cacheItem) cacheItem.name = nextName;
-                const cachedDetail = accountDetailCache.get(accountId);
-                if (cachedDetail) cachedDetail.name = nextName;
-                restore(nextName);
-                showToast('配置名称更新成功');
-            } catch (e) {
-                showToast('网络错误: ' + e.message, true);
-                setTimeout(() => {
-                    input.focus();
-                    input.select();
-                }, 0);
-            } finally {
-                savingAccountNameIds.delete(accountId);
             }
         }
 
@@ -2000,22 +2138,19 @@
             window.location.href = 'login.html';
         }
 
-        function switchNotifyTab(tab) {
-            maskAllNotifySensitiveFields();
-            document.querySelectorAll('.notify-tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.notify-tab-content').forEach(c => { c.style.display = 'none'; });
-            const btn = document.querySelector(`.notify-tab[data-tab="${tab}"]`);
-            const pane = document.getElementById(`notify-${tab}-form`);
-            if (btn) btn.classList.add('active');
-            if (pane) pane.style.display = 'block';
-            updateNotifyWebhookStatusBox();
-        }
-
         checkAuth().then(ok => {
             if (ok) {
                 updatePageTitle();
-                loadNotifyWebhooks();
+                bindCustomSelectById('alert-account-select');
+                bindCustomSelectById('alert-metric-key');
+                bindCustomSelectById('alert-events-status-filter');
                 loadAccounts();
+                document.getElementById('alert-account-select')?.addEventListener('change', reloadAlertData);
+                document.getElementById('alert-events-status-filter')?.addEventListener('change', (e) => {
+                    alertEventsPage = 1;
+                    const raw = e.target && 'value' in e.target ? e.target.value : '';
+                    reloadAlertEventsOnly(1, raw);
+                });
             }
         });
     </script>

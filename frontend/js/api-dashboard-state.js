@@ -4,8 +4,8 @@
  * 加载本文件 + api-dashboard-core.js 的页面：api.html，以及 accounts / admin / history / setup 等
  * （共用 TMDCore：escapeHtml、extractApiErrorMessage、指标与数字工具等）。
  *
- * 仅监控看板完整链路须再加载 api-dashboard-app.js：
- *   state → core → app
+ * 仅监控看板完整链路须再加载 ui-shared.js 与 api-dashboard-app.js：
+ *   state → core → ui-shared → app
  */
 (function (w) {
     w.TMD = {

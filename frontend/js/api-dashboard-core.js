@@ -2,7 +2,7 @@
  * 共享工具与监控指标解析（window.TMDCore）
  *
  * 依赖：先加载 api-dashboard-state.js（window.TMD）。
- * api.html 再加载 api-dashboard-app.js；其它页面仅 state + core 即可。
+ * api.html：state → core → ui-shared → app；其它页面在 state + core 之后按需加载 ui-shared.js。
  * 账号/管理页等可再加载 ui-shared.js（window.TMDUi）。
  */
 (function (w) {

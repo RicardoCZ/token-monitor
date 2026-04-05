@@ -36,10 +36,35 @@
         
         h1 { font-size: 28px; font-weight: 500; text-align: center; margin-bottom: 10px; }
         .subtitle { text-align: center; color: #888; font-size: 13px; margin-bottom: 30px; }
+        .header-user-bar {
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: center;
+            justify-content: safe center;
+            gap: 8px 10px;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 2px;
+        }
+        .header-user-bar--setup {
+            margin-top: -14px;
+            margin-bottom: 18px;
+        }
+        .header-user-bar > * {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
         .header-top-link {
             color: #667eea;
             text-decoration: none;
             font-size: 14px;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
         .header-top-link:hover {
             color: #8b9cff;
@@ -622,7 +647,7 @@
     <div class="container">
         <h1>✨ 凭证设置</h1>
         <p class="subtitle">设置登录凭证后才能查询用量</p>
-        <div id="user-info" style="margin-top: -14px; margin-bottom: 18px; font-size: 12px; color: #888; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 10px;"></div>
+        <div id="user-info" class="header-user-bar header-user-bar--setup"></div>
         
         <div class="tabs">
             <div class="tab active" data-tab="cdp">🤖 浏览器连接</div>
@@ -763,8 +788,10 @@
     
     <script src="js/api-dashboard-state.js"></script>
     <script src="js/api-dashboard-core.js"></script>
+    <script src="js/ui-shared.js"></script>
     <script>
         const U = window.TMDCore;
+        const Ui = window.TMDUi;
         const API_BASE = window.location.hostname === 'localhost' 
             ? 'http://localhost:5188' 
             : '';
@@ -788,19 +815,35 @@
         const escapeHtml = (text) => U.escapeHtml(text);
 
         function buildTopNavLinks(isAdmin) {
-            const links = [
-                { path: 'api.html', label: '📊 实时监控' },
-                { path: 'history.html', label: '📈 历史趋势' },
-                { path: 'setup.html', label: '🔧 设置凭证' },
-                { path: 'accounts.html', label: '🧾 账号管理' },
-            ];
-            if (isAdmin) {
-                links.push({ path: 'admin.html', label: '⚙️ 管理后台' });
+            return Ui.buildTopNavLinks(CURRENT_PAGE, { showAdminLink: !!isAdmin });
+        }
+
+        /** 登录页写入的缓存，用于首屏立即画出顶栏（不必等 /auth/me） */
+        function readCachedUserForHeader() {
+            try {
+                const raw = localStorage.getItem('user');
+                if (!raw) return null;
+                const u = JSON.parse(raw);
+                if (!u || typeof u.username !== 'string') return null;
+                return {
+                    username: u.username,
+                    role: u.role === 'admin' ? 'admin' : 'user',
+                };
+            } catch (e) {
+                return null;
             }
-            return links
-                .filter(item => item.path.toLowerCase() !== CURRENT_PAGE)
-                .map(item => `<a href="${item.path}" class="header-top-link">${item.label}</a>`)
-                .join('');
+        }
+
+        function paintUserHeaderBar(user) {
+            const userInfo = document.getElementById('user-info');
+            if (!userInfo || !user) return;
+            const name = (user.username && String(user.username).trim()) || '…';
+            const isAdmin = user.role === 'admin';
+            userInfo.innerHTML = `
+                <span>👤 ${escapeHtml(name)}</span>
+                ${buildTopNavLinks(isAdmin)}
+                <span class="header-top-link" style="cursor: pointer;" role="button" tabindex="0" onclick="logout()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout();}">退出</span>
+            `;
         }
 
         function initCustomBrowserTypeSelect() {
@@ -867,7 +910,10 @@
                 window.location.href = 'login.html';
                 return false;
             }
-            
+
+            const cached = readCachedUserForHeader();
+            paintUserHeaderBar(cached || { username: '…', role: 'user' });
+
             try {
                 const resp = await fetch(`${API_BASE}/auth/me`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
@@ -880,14 +926,17 @@
                     return false;
                 }
                 currentUser = await resp.json();
-                const userInfo = document.getElementById('user-info');
-                if (userInfo) {
-                    userInfo.innerHTML = `
-                        <span>👤 ${escapeHtml(currentUser.username)}</span>
-                        ${buildTopNavLinks(currentUser.role === 'admin')}
-                        <span class="header-top-link" style="cursor: pointer;" role="button" tabindex="0" onclick="logout()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout();}">退出</span>
-                    `;
-                }
+                try {
+                    localStorage.setItem('user', JSON.stringify({
+                        id: currentUser.id,
+                        username: currentUser.username,
+                        role: currentUser.role,
+                    }));
+                } catch (e2) { /* ignore */ }
+                paintUserHeaderBar({
+                    username: currentUser.username,
+                    role: currentUser.role === 'admin' ? 'admin' : 'user',
+                });
                 return true;
             } catch (e) {
                 console.error('Auth check failed:', e);

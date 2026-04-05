@@ -473,10 +473,32 @@
         .modal-btn.secondary { background: rgba(255, 255, 255, 0.1); color: #888; }
 
         /** 监控页顶栏：设置凭证 / 管理后台 / 退出 同一套文字链风格 */
+        .header-user-bar {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: center;
+            justify-content: safe center;
+            gap: 8px 10px;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 2px;
+        }
+        .header-user-bar > * {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
         .header-top-link {
             color: #667eea;
             text-decoration: none;
             font-size: 14px;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .header-top-link:hover {
@@ -646,7 +668,7 @@
     <div class="header">
         <h1>✨ Token Monitor</h1>
         <p>API 额度实时监控</p>
-        <div id="user-info" style="margin-top: 10px; font-size: 12px; color: #888; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 10px;"></div>
+        <div id="user-info" class="header-user-bar"></div>
     </div>
 
     <div class="dashboard-wrap">
@@ -690,9 +712,10 @@
         </div>
     </div>
     
-    <!-- 监控页脚本顺序：state → core → app（勿调序；详见各 js 文件头注释） -->
+    <!-- 监控页脚本顺序：state → core → ui-shared → app（勿调序；详见各 js 文件头注释） -->
     <script src="js/api-dashboard-state.js"></script>
     <script src="js/api-dashboard-core.js"></script>
+    <script src="js/ui-shared.js"></script>
     <script src="js/api-dashboard-app.js"></script>
 </body>
 </html>

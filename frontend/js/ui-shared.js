@@ -115,11 +115,22 @@
         }, 3000);
     }
 
+    /** 与 location 片段对齐，便于正确隐藏「当前页」链接（如 history ↔ history.html） */
+    function normalizeNavPageKey(raw) {
+        const s = String(raw || "").trim().toLowerCase().split(/[?#]/)[0];
+        const parts = s.split("/").filter(Boolean);
+        const leaf = parts[parts.length - 1] || "";
+        if (!leaf) return "";
+        if (leaf.endsWith(".html")) return leaf;
+        return `${leaf}.html`;
+    }
+
     function buildTopNavLinks(currentPageLower, opts = {}) {
         const showAdminLink = !!opts.showAdminLink;
-        const page = String(currentPageLower || "").toLowerCase();
+        const page = normalizeNavPageKey(currentPageLower);
         const links = [
             { path: "api.html", label: "📊 实时监控" },
+            { path: "alerts.html", label: "🚨 规则与事件" },
             { path: "history.html", label: "📈 历史趋势" },
             { path: "setup.html", label: "🔧 设置凭证" },
             { path: "accounts.html", label: "🧾 账号管理" },

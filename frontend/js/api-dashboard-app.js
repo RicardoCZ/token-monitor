@@ -10,19 +10,12 @@
 
     const App = {
         buildTopNavLinks(isAdmin) {
-            const links = [
-                { path: "api.html", label: "📊 实时监控" },
-                { path: "history.html", label: "📈 历史趋势" },
-                { path: "setup.html", label: "🔧 设置凭证" },
-                { path: "accounts.html", label: "🧾 账号管理" },
-            ];
-            if (isAdmin) {
-                links.push({ path: "admin.html", label: "⚙️ 管理后台" });
+            const Ui = w.TMDUi;
+            if (!Ui || typeof Ui.buildTopNavLinks !== "function") {
+                console.warn("[api-dashboard-app] 请先加载 js/ui-shared.js（TMDUi.buildTopNavLinks）");
+                return "";
             }
-            return links
-                .filter(item => item.path.toLowerCase() !== S.CURRENT_PAGE)
-                .map(item => `<a href="${item.path}" class="header-top-link">${item.label}</a>`)
-                .join("");
+            return Ui.buildTopNavLinks(S.CURRENT_PAGE, { showAdminLink: !!isAdmin });
         },
 
         _refreshFeedbackClearTimer: null,

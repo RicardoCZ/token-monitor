@@ -49,10 +49,32 @@
         .header h1 { font-size: 28px; font-weight: 500; color: #e0e0e0; margin-bottom: 5px; }
         .header p { font-size: 12px; color: var(--text-muted); }
 
+        .header-user-bar {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: center;
+            justify-content: safe center;
+            gap: 8px 10px;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 2px;
+        }
+        .header-user-bar > * {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
         .header-top-link {
             color: var(--primary);
             text-decoration: none;
             font-size: 14px;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .header-top-link:hover { color: #8b9cff; }
@@ -162,7 +184,7 @@
     <div class="header">
         <h1>📈 历史趋势</h1>
         <p>按账号查看 24h/7d 用量变化</p>
-        <div id="user-info" style="margin-top: 10px; font-size: 12px; color: #888; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 10px;"></div>
+        <div id="user-info" class="header-user-bar"></div>
     </div>
 
     <div class="cards">
@@ -200,8 +222,10 @@
     </script>
     <script src="js/api-dashboard-state.js"></script>
     <script src="js/api-dashboard-core.js"></script>
+    <script src="js/ui-shared.js"></script>
     <script>
         const U = window.TMDCore;
+        const Ui = window.TMDUi;
         const API_BASE = window.location.origin;
         const CURRENT_PAGE = (window.location.pathname.split('/').pop() || 'history.html').toLowerCase();
 
@@ -225,19 +249,7 @@
         }
 
         function buildTopNavLinks(isAdmin) {
-            const links = [
-                { path: 'api.html', label: '📊 实时监控' },
-                { path: 'history.html', label: '📈 历史趋势' },
-                { path: 'setup.html', label: '🔧 设置凭证' },
-                { path: 'accounts.html', label: '🧾 账号管理' },
-            ];
-            if (isAdmin) {
-                links.push({ path: 'admin.html', label: '⚙️ 管理后台' });
-            }
-            return links
-                .filter(item => item.path.toLowerCase() !== CURRENT_PAGE)
-                .map(item => `<a href="${item.path}" class="header-top-link">${item.label}</a>`)
-                .join('');
+            return Ui.buildTopNavLinks(CURRENT_PAGE, { showAdminLink: !!isAdmin });
         }
 
         function logout() {

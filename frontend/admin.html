@@ -61,10 +61,32 @@
             margin-top: 8px;
         }
         
+        .header-user-bar {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: center;
+            justify-content: safe center;
+            gap: 8px 10px;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 2px;
+        }
+        .header-user-bar > * {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
         .header-top-link {
             color: #667eea;
             text-decoration: none;
             font-size: 14px;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .header-top-link:hover {
@@ -398,7 +420,7 @@
     <div class="container">
         <div class="header">
             <h1>⚙️ 管理后台</h1>
-            <div id="user-info" style="margin-top: 10px; font-size: 12px; color: #888; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 10px;"></div>
+            <div id="user-info" class="header-user-bar"></div>
         </div>
 
         <!-- 平台用户 -->
