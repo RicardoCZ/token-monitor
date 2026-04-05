@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """从设计预览目录的 PNG 生成 1024 母版与各密度 mipmap。
 
+仓库内通常只保留源图（默认 `012607IIRawT7WfnUxIfHY.png`）；运行后在本地生成
+`app_icon_1024_launcher_master.png`，并更新 Android mipmap、`mobile-app/public/welcome-logo.png`。
+
 - 抠图（带透明）：裁边、补成正方形、按比例置于透明画布；母版与 ic_launcher_foreground 保留 PNG 透明区。
   仅 ic_launcher / ic_launcher_round（无自适应图标时的兜底）在 ic_launcher_background 色上铺底，以免旧机型上出现透明洞。
 - 整版位图（基本不透明）：--mode artboard + --crop-frac 做中心裁剪。

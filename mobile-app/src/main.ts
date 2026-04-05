@@ -470,9 +470,6 @@ function clearToken(): void {
   localStorage.removeItem('token')
 }
 
-/** 首屏欢迎页仅展示一次（文案由代码维护，避免 AI 导出的乱码字） */
-const WELCOME_SEEN_KEY = 'tm_welcome_seen'
-
 // 检查登录状态
 async function checkAuth(): Promise<boolean> {
   const token = getToken()
@@ -1509,32 +1506,103 @@ async function startApp(): Promise<void> {
   renderLogin()
 }
 
+const WELCOME_AUTO_ENTER_SEC = 5
+
 function renderWelcome(): void {
+  let welcomeTimer: ReturnType<typeof setInterval> | null = null
+  let welcomeLeft = WELCOME_AUTO_ENTER_SEC
+  let welcomeDone = false
+
+  const leaveWelcome = (): void => {
+    if (welcomeDone) return
+    welcomeDone = true
+    if (welcomeTimer !== null) {
+      clearInterval(welcomeTimer)
+      welcomeTimer = null
+    }
+    void startApp()
+  }
+
   app.innerHTML = `
     <div class="welcome-screen">
+      <div class="welcome-countdown-wrap" style="--welcome-sec:${WELCOME_AUTO_ENTER_SEC}" aria-live="polite" aria-atomic="true">
+        <svg class="welcome-countdown-ring" viewBox="0 0 40 40" aria-hidden="true">
+          <defs>
+            <linearGradient id="wcRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#c084fc"/>
+              <stop offset="45%" stop-color="#6366f1"/>
+              <stop offset="100%" stop-color="#22d3ee"/>
+            </linearGradient>
+          </defs>
+          <circle class="welcome-countdown-ring-track" cx="20" cy="20" r="17" pathLength="100"/>
+          <circle class="welcome-countdown-ring-progress" cx="20" cy="20" r="17" pathLength="100"/>
+        </svg>
+        <div class="welcome-countdown-inner">
+          <span class="welcome-countdown-num" id="welcome-countdown">${WELCOME_AUTO_ENTER_SEC}</span>
+          <span class="welcome-countdown-unit">s</span>
+        </div>
+      </div>
       <div class="welcome-inner">
         <div class="welcome-brand">
-          <img class="welcome-logo-img" src="/welcome-logo.png" width="80" height="80" alt="" decoding="async" />
+          <div class="welcome-logo-wrap">
+            <div class="welcome-logo-frame">
+              <img class="welcome-logo-img" src="/welcome-logo.png" width="96" height="96" alt="" decoding="async" />
+            </div>
+          </div>
           <h1 class="welcome-title">Token Monitor</h1>
           <p class="welcome-tagline">API Quota Monitoring</p>
         </div>
         <ul class="welcome-features" aria-label="功能介绍">
           <li class="welcome-card">
-            <span class="welcome-card-icon" aria-hidden="true">📈</span>
+            <span class="welcome-card-icon" aria-hidden="true">
+              <svg class="welcome-feature-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="wfg1" x1="2" y1="20" x2="22" y2="4" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#c084fc"/><stop offset="0.55" stop-color="#6366f1"/><stop offset="1" stop-color="#22d3ee"/>
+                  </linearGradient>
+                </defs>
+                <path d="M3 17.5V6.5L7 11l3.5-5L14 10l4-6.5v14" stroke="url(#wfg1)" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="3" cy="17.5" r="1.35" fill="url(#wfg1)"/>
+                <circle cx="7" cy="11" r="1.35" fill="url(#wfg1)"/>
+                <circle cx="10.5" cy="6" r="1.35" fill="url(#wfg1)"/>
+                <circle cx="14" cy="10" r="1.35" fill="url(#wfg1)"/>
+                <circle cx="18" cy="3.5" r="1.35" fill="url(#wfg1)"/>
+              </svg>
+            </span>
             <div class="welcome-card-text">
               <h2>实时监控</h2>
               <p>实时追踪 API 用量，图形化展示统计数据。</p>
             </div>
           </li>
           <li class="welcome-card">
-            <span class="welcome-card-icon" aria-hidden="true">🔔</span>
+            <span class="welcome-card-icon" aria-hidden="true">
+              <svg class="welcome-feature-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="wfg2" x1="4" y1="3" x2="20" y2="21" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#a855f7"/><stop offset="0.5" stop-color="#6366f1"/><stop offset="1" stop-color="#38bdf8"/>
+                  </linearGradient>
+                </defs>
+                <path d="M12 22a2.5 2.5 0 002.45-2H9.55A2.5 2.5 0 0012 22z" fill="url(#wfg2)" opacity="0.9"/>
+                <path d="M18 8a6 6 0 10-12 0c0 6.5-2.5 7.5-2.5 7.5h17S18 14.5 18 8z" stroke="url(#wfg2)" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </span>
             <div class="welcome-card-text">
               <h2>智能告警</h2>
               <p>设置额度阈值，当用量接近上限时接收及时提醒。</p>
             </div>
           </li>
           <li class="welcome-card">
-            <span class="welcome-card-icon" aria-hidden="true">🛡️</span>
+            <span class="welcome-card-icon" aria-hidden="true">
+              <svg class="welcome-feature-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="wfg3" x1="4" y1="21" x2="20" y2="4" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#c084fc"/><stop offset="0.6" stop-color="#4f46e5"/><stop offset="1" stop-color="#22d3ee"/>
+                  </linearGradient>
+                </defs>
+                <path d="M12 21.5S5 18.5 5 10.5V6l7-3 7 3v4.5c0 8-7 11-7 11z" stroke="url(#wfg3)" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 11.5v4M10 13.5h4" stroke="url(#wfg3)" stroke-width="1.4" stroke-linecap="round"/>
+              </svg>
+            </span>
             <div class="welcome-card-text">
               <h2>安全存储</h2>
               <p>安全存储和管理您的 API 密钥，保障数据安全。</p>
@@ -1545,18 +1613,35 @@ function renderWelcome(): void {
       </div>
     </div>
   `
-  document.getElementById('welcome-continue')?.addEventListener('click', async () => {
-    localStorage.setItem(WELCOME_SEEN_KEY, '1')
-    await startApp()
+
+  const cdEl = document.getElementById('welcome-countdown')
+
+  welcomeTimer = window.setInterval(() => {
+    welcomeLeft -= 1
+    if (welcomeLeft <= 0) {
+      leaveWelcome()
+      return
+    }
+    if (cdEl) cdEl.textContent = String(welcomeLeft)
+  }, 1000)
+
+  document.getElementById('welcome-continue')?.addEventListener('click', () => {
+    leaveWelcome()
   })
 }
 
+/** 未登录才显示欢迎页；已登录且 token 有效则直进首页 */
 async function bootstrap(): Promise<void> {
-  if (localStorage.getItem(WELCOME_SEEN_KEY) !== '1') {
-    renderWelcome()
-    return
+  const token = getToken()
+  if (token) {
+    const ok = await checkAuth()
+    if (ok) {
+      await renderHome()
+      return
+    }
+    clearToken()
   }
-  await startApp()
+  renderWelcome()
 }
 
 bootstrap()
