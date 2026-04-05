@@ -61,6 +61,12 @@ async def init_db():
         except Exception:
             pass
         try:
+            await conn.execute(
+                text("ALTER TABLE users ADD COLUMN token_version INT NOT NULL DEFAULT 0")
+            )
+        except Exception:
+            pass
+        try:
             await conn.execute(text("ALTER TABLE alerts DROP COLUMN mute_reason"))
         except Exception:
             pass

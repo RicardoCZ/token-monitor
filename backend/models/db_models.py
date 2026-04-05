@@ -18,6 +18,8 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), default="user")  # admin / user
     is_active = Column(Boolean, default=True)
+    # JWT 版本：logout 时递增，使此前签发的访问令牌全部失效（声明 tv 须与此一致）
+    token_version = Column(Integer, default=0, nullable=False)
     # 告警外发 JSON：收件人 feishu_open_id、qq_openid；每人机器人 feishu_app_id/feishu_app_secret_enc、qq_bot_app_id/qq_bot_app_secret_enc
     notify_webhooks = Column(JSON, nullable=True)
     created_at = Column(DateTime, server_default=func.now())

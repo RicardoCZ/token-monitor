@@ -879,10 +879,8 @@
             });
         }
 
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.href = 'login.html';
+        async function logout() {
+            await TMDAuth.logout({ apiBase: S.API_BASE });
         }
         
         let cdpConnected = false;

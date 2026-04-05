@@ -159,11 +159,49 @@
         }
     }
 
+    /**
+     * 调用 POST /auth/logout 吊销服务端会话，再清理本地并跳转登录页。
+     * @param {object} [options]
+     * @param {string} [options.apiBase]
+     * @param {string} [options.loginPath] 默认 login.html
+     * @param {() => void} [options.onAfterClear] 清理 localStorage 之后调用（如 api 页清 sessionStorage）
+     */
+    async function logout(options) {
+        const opts = options || {};
+        const base =
+            opts.apiBase !== undefined && opts.apiBase !== null ? opts.apiBase : S.API_BASE;
+        const loginPath = opts.loginPath || "login.html";
+        const raw = localStorage.getItem("token");
+        if (raw) {
+            try {
+                await fetch(`${base}/auth/logout`, {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${raw}` },
+                });
+            } catch (e) {
+                /* 网络异常：仍执行本地清理 */
+            }
+        }
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        S.authToken = null;
+        S.currentUser = null;
+        if (typeof opts.onAfterClear === "function") {
+            try {
+                opts.onAfterClear();
+            } catch (e2) {
+                /* ignore */
+            }
+        }
+        w.location.href = loginPath;
+    }
+
     w.TMDAuth = {
         syncTokenFromStorage,
         getAuthHeaders,
         getJsonHeaders,
         checkAuth,
+        logout,
         paintUserHeaderBar,
         readCachedUserFromLocalStorage,
     };

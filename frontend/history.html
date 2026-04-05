@@ -252,10 +252,8 @@
             return Ui.buildTopNavLinks(CURRENT_PAGE, { showAdminLink: !!isAdmin });
         }
 
-        function logout() {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            window.location.href = "login.html";
+        async function logout() {
+            await TMDAuth.logout();
         }
 
         async function checkAuth() {

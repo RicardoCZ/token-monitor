@@ -81,6 +81,24 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
+def create_user_access_token(user: User) -> str:
+    """登录/注册用户访问令牌，含 tv 与库中 token_version 对齐（logout 递增后旧令牌失效）。"""
+    ver = int(user.token_version or 0)
+    return create_access_token(data={"sub": user.username, "tv": ver})
+
+
+def jwt_payload_matches_user_token_version(payload: dict, user: User) -> bool:
+    """校验 JWT 的 tv 是否与用户当前 token_version 一致；兼容无 tv 的旧令牌（仅当用户从未 logout 过）。"""
+    claim = payload.get("tv")
+    uver = int(user.token_version or 0)
+    if claim is None:
+        return uver == 0
+    try:
+        return int(claim) == uver
+    except (TypeError, ValueError):
+        return False
+
+
 def decode_token(token: str) -> Optional[dict]:
     """解码 JWT Token"""
     try:
@@ -116,6 +134,9 @@ async def get_current_user(
 
     if not user.is_active:
         _raise_forbidden("用户已被禁用")
+
+    if not jwt_payload_matches_user_token_version(payload, user):
+        _raise_unauthorized("登录已失效，请重新登录")
 
     return user
 
@@ -180,6 +201,9 @@ async def get_auth_context(
             _raise_unauthorized()
         if not user.is_active:
             _raise_forbidden("用户已被禁用")
+
+        if not jwt_payload_matches_user_token_version(payload, user):
+            _raise_unauthorized("登录已失效，请重新登录")
 
         # JWT 请求保持与现有行为一致：不做 scope 限制
         return AuthContext(auth_type="user", user=user, scopes={"*"})

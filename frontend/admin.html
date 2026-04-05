@@ -376,29 +376,42 @@
 
         .toast {
             position: fixed;
-            bottom: 30px;
+            top: max(20px, env(safe-area-inset-top, 0px));
             left: 50%;
-            transform: translateX(-50%);
-            background: rgba(76, 175, 80, 0.9);
+            transform: translateX(-50%) translateY(-10px);
+            z-index: 9998;
+            background: rgba(76, 175, 80, 0.92);
             color: #fff;
             padding: 12px 24px;
             border-radius: 8px;
             font-size: 14px;
-            display: none;
-        }
-        
-        .toast.error {
-            background: rgba(244, 67, 54, 0.9);
-        }
-        
-        .toast.show {
             display: block;
-            animation: fadeIn 0.3s;
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            max-width: min(420px, calc(100vw - 32px));
+            text-align: center;
+            box-sizing: border-box;
+            transition:
+                opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.38s cubic-bezier(0.34, 1.1, 0.64, 1),
+                visibility 0s linear 0.38s;
         }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        .toast.error {
+            background: rgba(244, 67, 54, 0.92);
+        }
+
+        .toast.show {
+            visibility: visible;
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+            pointer-events: auto;
+            transition:
+                opacity 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.42s cubic-bezier(0.34, 1.12, 0.64, 1),
+                visibility 0s;
         }
     </style>
 </head>
@@ -867,10 +880,8 @@
         }
         
         // 退出登录
-        function logout() {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.href = 'login.html';
+        async function logout() {
+            await TMDAuth.logout();
         }
         
         // 初始化

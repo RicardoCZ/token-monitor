@@ -68,7 +68,16 @@
             });
         },
 
-        logout() {
+        async logout() {
+            const Ta = w.TMDAuth;
+            if (Ta && typeof Ta.logout === "function") {
+                await Ta.logout({
+                    onAfterClear() {
+                        sessionStorage.removeItem(S.DASHBOARD_CACHE_KEY);
+                    },
+                });
+                return;
+            }
             localStorage.removeItem("token");
             localStorage.removeItem("user");
             sessionStorage.removeItem(S.DASHBOARD_CACHE_KEY);
@@ -700,7 +709,7 @@
 
     w.TMDApp = App;
     w.refreshAll = (t) => App.refreshAll(t);
-    w.logout = () => App.logout();
+    w.logout = () => void App.logout();
     w.closeModal = () => App.closeModal();
     w.showLoginModal = (service) => App.showLoginModal(service);
 

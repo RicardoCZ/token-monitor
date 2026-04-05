@@ -23,9 +23,9 @@ from core.credential_crypto import encrypt_credential
 from core.security import (
     verify_password,
     get_password_hash,
-    create_access_token,
+    create_user_access_token,
     get_current_user,
-    get_current_admin
+    get_current_admin,
 )
 
 router = APIRouter(prefix="/auth", tags=["认证"])
@@ -422,7 +422,7 @@ async def setup_first_admin(
     await db.commit()
     await db.refresh(user)
 
-    access_token = create_access_token(data={"sub": user.username})
+    access_token = create_user_access_token(user)
     return TokenResponse(
         access_token=access_token,
         user_id=user.id,
@@ -481,9 +481,9 @@ async def register(
     
     await db.commit()
     
-    # 5. 生成 Token
-    access_token = create_access_token(data={"sub": user.username})
-    
+    await db.refresh(user)
+    access_token = create_user_access_token(user)
+
     return TokenResponse(
         access_token=access_token,
         user_id=user.id,
@@ -519,15 +519,30 @@ async def login(
             detail="用户已被禁用"
         )
     
-    # 生成 Token
-    access_token = create_access_token(data={"sub": user.username})
-    
+    access_token = create_user_access_token(user)
+
     return TokenResponse(
         access_token=access_token,
         user_id=user.id,
         username=user.username,
         role=user.role
     )
+
+
+class LogoutResponse(BaseModel):
+    success: bool = True
+    message: str = "已退出登录"
+
+
+@router.post("/logout", response_model=LogoutResponse)
+async def logout(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """服务端吊销当前会话：递增 token_version，已签发的 JWT 立即失效。"""
+    current_user.token_version = int(current_user.token_version or 0) + 1
+    await db.commit()
+    return LogoutResponse()
 
 
 @router.get("/me", response_model=UserInfo)
