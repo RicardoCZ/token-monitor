@@ -338,20 +338,6 @@
             margin-bottom: 16px;
         }
 
-        .key-once {
-            margin-top: 12px;
-            padding: 12px;
-            border-radius: 10px;
-            background: rgba(102, 126, 234, 0.2);
-            border: 1px solid rgba(102, 126, 234, 0.4);
-        }
-
-        .key-once .code {
-            display: inline-block;
-            margin: 8px 0;
-            word-break: break-all;
-        }
-
         .sub-title {
             color: #a8b0d3;
             font-size: 13px;
@@ -476,36 +462,6 @@
             <div id="codes-pagination" class="small-note" style="margin-top: 8px;"></div>
         </div>
 
-        <!-- 接口密钥管理 -->
-        <div class="card">
-            <h2>🔑 接口密钥管理</h2>
-            <p class="hint">明文密钥只会在创建或轮换时展示一次，请立即复制保存。</p>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>名称</label>
-                    <input id="api-key-name" type="text" placeholder="例如：运维脚本密钥">
-                </div>
-                <div class="form-group">
-                    <label>权限范围（逗号分隔）</label>
-                    <input id="api-key-scopes" type="text" placeholder="cookie:read,cookie:write">
-                </div>
-                <div class="form-group">
-                    <label>过期时间（可选）</label>
-                    <input id="api-key-expires" type="datetime-local">
-                </div>
-                <button id="api-key-create-btn" class="btn" onclick="createApiKey()">创建密钥</button>
-            </div>
-            <div id="api-key-once" class="key-once" style="display:none;"></div>
-        </div>
-
-        <div class="card">
-            <h2>🗂️ 接口密钥列表</h2>
-            <div id="api-keys-list">
-                <div class="empty">加载中...</div>
-            </div>
-            <div id="api-keys-pagination" class="small-note" style="margin-top: 8px;"></div>
-        </div>
-
     </div>
     
     <div id="toast" class="toast"></div>
@@ -524,9 +480,6 @@
         let inviteStatusFilter = 'all';
         let inviteCurrentPage = 1;
         const INVITE_PAGE_SIZE = 5;
-        let apiKeysCache = [];
-        let apiKeysPage = 1;
-        const API_KEYS_PAGE_SIZE = 5;
         let adminUsersCache = [];
         let adminUsersPage = 1;
         const ADMIN_USERS_PAGE_SIZE = 8;
@@ -822,252 +775,6 @@
             }
         }
 
-        function parseScopesInput(text) {
-            return (text || '')
-                .split(',')
-                .map(v => v.trim())
-                .filter(Boolean);
-        }
-
-        function formatDate(value) {
-            if (!value) return '-';
-            return new Date(value).toLocaleString('zh-CN');
-        }
-
-        function formatScopes(scopes) {
-            if (!Array.isArray(scopes) || scopes.length === 0) return '-';
-            return scopes.join(', ');
-        }
-
-        function getApiKeyStatus(item) {
-            if (!item.is_active) {
-                return { className: 'used', text: '已撤销' };
-            }
-            if (item.expires_at && new Date(item.expires_at) <= new Date()) {
-                return { className: 'expired', text: '已过期' };
-            }
-            return { className: 'unused', text: '可用' };
-        }
-
-        async function copyText(text) {
-            try {
-                await navigator.clipboard.writeText(text);
-                showToast('已复制到剪贴板');
-            } catch (e) {
-                showToast('复制失败，请手动复制', true);
-            }
-        }
-
-        function showOneTimeApiKey(data, actionText) {
-            const panel = document.getElementById('api-key-once');
-            const rawKey = data.api_key || '';
-            const safeKey = escapeHtml(rawKey);
-            const safeName = escapeHtml(data.name || '');
-            panel.style.display = 'block';
-            panel.innerHTML = `
-                <div><strong>${actionText}成功：</strong>${safeName}</div>
-                <div class="code">${safeKey}</div>
-                <div>
-                    <button class="btn secondary small" onclick='copyText(${JSON.stringify(rawKey)})'>复制密钥</button>
-                    <span class="hint">该明文不会再次显示</span>
-                </div>
-            `;
-        }
-
-        async function createApiKey() {
-            const nameInput = document.getElementById('api-key-name');
-            const scopesInput = document.getElementById('api-key-scopes');
-            const expiresInput = document.getElementById('api-key-expires');
-            const btn = document.getElementById('api-key-create-btn');
-
-            const name = nameInput.value.trim();
-            if (!name) {
-                showToast('请输入接口密钥名称', true);
-                return;
-            }
-
-            const body = {
-                name,
-                scopes: parseScopesInput(scopesInput.value),
-                expires_at: expiresInput.value ? new Date(expiresInput.value).toISOString() : null
-            };
-
-            btn.disabled = true;
-            btn.textContent = '创建中...';
-            try {
-                const resp = await fetch(`${API_BASE}/auth/api-keys`, {
-                    method: 'POST',
-                    headers: getJsonHeaders(),
-                    body: JSON.stringify(body)
-                });
-                const data = await resp.json();
-                if (!resp.ok) {
-                    showToast(data.detail || '创建接口密钥失败', true);
-                    return;
-                }
-
-                showOneTimeApiKey(data, '创建');
-                nameInput.value = '';
-                scopesInput.value = '';
-                expiresInput.value = '';
-                showToast('接口密钥创建成功');
-                loadApiKeys();
-            } catch (e) {
-                showToast('网络错误: ' + e.message, true);
-            } finally {
-                btn.disabled = false;
-                btn.textContent = '创建密钥';
-            }
-        }
-
-        function renderApiKeysPagination() {
-            const container = document.getElementById('api-keys-pagination');
-            if (!container) return;
-            const total = apiKeysCache.length;
-            const totalPages = Math.max(1, Math.ceil(total / API_KEYS_PAGE_SIZE));
-            if (totalPages <= 1) {
-                container.innerHTML = '';
-                return;
-            }
-            const page = apiKeysPage;
-            const prevDisabled = page <= 1 ? 'disabled' : '';
-            const nextDisabled = page >= totalPages ? 'disabled' : '';
-            const pageItems = [];
-            for (let p = 1; p <= totalPages; p++) {
-                const activeStyle = p === page
-                    ? 'background: rgba(102,126,234,0.45); border-color: rgba(102,126,234,0.8);'
-                    : '';
-                pageItems.push(
-                    `<button type="button" class="btn secondary small" style="margin-right:4px;${activeStyle}" onclick="changeApiKeysPage(${p})">${p}</button>`
-                );
-            }
-            container.innerHTML = `
-                <button type="button" class="btn secondary small" ${prevDisabled} onclick="changeApiKeysPage(${page - 1})">上一页</button>
-                ${pageItems.join('')}
-                <button type="button" class="btn secondary small" ${nextDisabled} onclick="changeApiKeysPage(${page + 1})">下一页</button>
-                <span style="margin-left:8px;color:#888;">共 ${total} 条</span>
-            `;
-        }
-
-        function changeApiKeysPage(p) {
-            apiKeysPage = Math.max(1, Number(p) || 1);
-            renderApiKeysTable();
-        }
-
-        function renderApiKeysTable() {
-            const container = document.getElementById('api-keys-list');
-            if (!container || !apiKeysCache.length) return;
-            const totalPages = Math.max(1, Math.ceil(apiKeysCache.length / API_KEYS_PAGE_SIZE));
-            apiKeysPage = Math.min(Math.max(1, apiKeysPage), totalPages);
-            const start = (apiKeysPage - 1) * API_KEYS_PAGE_SIZE;
-            const pageItems = apiKeysCache.slice(start, start + API_KEYS_PAGE_SIZE);
-            container.innerHTML = `
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>名称</th>
-                                <th>前缀</th>
-                                <th>权限范围</th>
-                                <th>状态</th>
-                                <th>最后使用</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${pageItems.map(item => {
-                                const status = getApiKeyStatus(item);
-                                const scopes = escapeHtml(formatScopes(item.scopes));
-                                return `
-                                    <tr>
-                                        <td>${escapeHtml(item.name)}</td>
-                                        <td><span class="code">${escapeHtml(item.key_prefix)}</span></td>
-                                        <td>${scopes}</td>
-                                        <td><span class="status ${status.className}">${status.text}</span></td>
-                                        <td>${formatDate(item.last_used_at)}</td>
-                                        <td>
-                                            <button type="button" class="btn secondary small" onclick="rotateApiKey(${item.id})">轮换</button>
-                                            <button type="button" class="btn danger small" onclick="revokeApiKey(${item.id})">撤销</button>
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
-                        </tbody>
-                    </table>
-                `;
-            renderApiKeysPagination();
-        }
-
-        async function loadApiKeys() {
-            const container = document.getElementById('api-keys-list');
-            const pagEl = document.getElementById('api-keys-pagination');
-            try {
-                const resp = await fetch(`${API_BASE}/auth/api-keys`, {
-                    headers: getAuthHeaders()
-                });
-                const keys = await resp.json();
-                if (!resp.ok) {
-                    container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(keys.detail || '请求失败')}</div>`;
-                    if (pagEl) pagEl.innerHTML = '';
-                    apiKeysCache = [];
-                    return;
-                }
-
-                const list = Array.isArray(keys) ? keys : [];
-                apiKeysCache = list;
-                apiKeysPage = 1;
-                if (!list.length) {
-                    container.innerHTML = '<div class="empty">暂无接口密钥</div>';
-                    if (pagEl) pagEl.innerHTML = '';
-                    return;
-                }
-
-                renderApiKeysTable();
-            } catch (e) {
-                container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(e.message)}</div>`;
-                if (pagEl) pagEl.innerHTML = '';
-                apiKeysCache = [];
-            }
-        }
-
-        async function revokeApiKey(id) {
-            if (!confirm('确认撤销该接口密钥吗？撤销后无法恢复。')) return;
-            try {
-                const resp = await fetch(`${API_BASE}/auth/api-keys/${id}`, {
-                    method: 'DELETE',
-                    headers: getAuthHeaders()
-                });
-                const data = await resp.json();
-                if (!resp.ok) {
-                    showToast(data.detail || '撤销失败', true);
-                    return;
-                }
-                showToast('接口密钥已撤销');
-                loadApiKeys();
-            } catch (e) {
-                showToast('网络错误: ' + e.message, true);
-            }
-        }
-
-        async function rotateApiKey(id) {
-            if (!confirm('确认轮换该接口密钥吗？旧密钥会立即失效。')) return;
-            try {
-                const resp = await fetch(`${API_BASE}/auth/api-keys/${id}/rotate`, {
-                    method: 'POST',
-                    headers: getAuthHeaders()
-                });
-                const data = await resp.json();
-                if (!resp.ok) {
-                    showToast(data.detail || '轮换失败', true);
-                    return;
-                }
-                showOneTimeApiKey(data, '轮换');
-                showToast('接口密钥已轮换');
-                loadApiKeys();
-            } catch (e) {
-                showToast('网络错误: ' + e.message, true);
-            }
-        }
-
         async function loadAdminUsers() {
             const container = document.getElementById('admin-users-list');
             const pagEl = document.getElementById('admin-users-pagination');
@@ -1202,7 +909,6 @@
                 Ui.bindCustomSelectById('invite-status-filter');
                 loadAdminUsers();
                 loadInviteCodes();
-                loadApiKeys();
             }
         });
     </script>

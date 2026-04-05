@@ -342,17 +342,18 @@ def _parse_api_key_scopes(raw_scopes: str) -> list[str]:
         return []
 
 
+_ALLOWED_API_KEY_SCOPES: tuple[str, ...] = ("cookie:read", "cookie:write")
+
+
 def _normalize_scopes(scopes: list[str]) -> list[str]:
-    """清洗 scopes，去重并保持稳定顺序"""
-    normalized = []
-    seen = set()
+    """仅保留系统支持的 scope，固定为 read → write 顺序。"""
+    allowed = set(_ALLOWED_API_KEY_SCOPES)
+    picked: set[str] = set()
     for scope in scopes:
         item = (scope or "").strip()
-        if not item or item in seen:
-            continue
-        seen.add(item)
-        normalized.append(item)
-    return normalized
+        if item in allowed:
+            picked.add(item)
+    return [s for s in _ALLOWED_API_KEY_SCOPES if s in picked]
 
 
 def _to_api_key_response(row: ApiKey) -> ApiKeyResponse:
@@ -777,6 +778,8 @@ async def create_api_key(
 ):
     """创建 API Key（明文仅本次返回）"""
     scopes = _normalize_scopes(req.scopes)
+    if not scopes:
+        raise HTTPException(status_code=400, detail="请至少选择一个权限范围")
 
     # 极小概率哈希冲突时重试
     for _ in range(3):
@@ -834,6 +837,19 @@ async def revoke_api_key(
     row.is_active = False
     await db.commit()
     return {"message": "API Key 已撤销", "success": True}
+
+
+@router.delete("/api-keys/{api_key_id}/permanent")
+async def delete_api_key_permanent(
+    api_key_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """永久删除 API Key 记录（不可恢复）"""
+    row = await _get_visible_api_key(api_key_id, current_user, db)
+    await db.delete(row)
+    await db.commit()
+    return {"message": "接口密钥已删除", "success": True}
 
 
 @router.post("/api-keys/{api_key_id}/rotate", response_model=ApiKeyCreateResponse)

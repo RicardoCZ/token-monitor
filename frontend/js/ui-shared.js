@@ -1,5 +1,6 @@
 /**
  * 多页面共享 UI：Toast、顶部导航链接、原生 <select> 自定义下拉。
+ * 确认弹窗见 js/confirm-modal.js → window.TMDUi.showConfirmModal（与下文 Object.assign 合并，任意顺序加载均可）。
  * 依赖：先加载 api-dashboard-state.js、api-dashboard-core.js（window.TMDCore）。
  */
 (function (w) {
@@ -144,11 +145,11 @@
             .join("");
     }
 
-    w.TMDUi = {
+    w.TMDUi = Object.assign({}, w.TMDUi || {}, {
         showToast,
         buildTopNavLinks,
         bindCustomSelectById,
         bindCustomSelectElement,
         refreshCustomSelect,
-    };
+    });
 })(window);
