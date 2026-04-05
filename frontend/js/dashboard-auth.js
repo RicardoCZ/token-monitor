@@ -2,6 +2,7 @@
  * 仪表盘子页共享：鉴权、Authorization 请求头、顶栏用户区。
  *
  * 依赖（须先于本文件）：api-dashboard-state.js（TMD）、api-dashboard-core.js（TMDCore）、ui-shared.js（TMDUi）
+ * 退出确认弹窗：建议在 ui-shared 之后加载 confirm-modal.js（否则 logout 会退回浏览器 confirm）
  *
  * 用法：
  *   TMDAuth.syncTokenFromStorage();
@@ -164,10 +165,24 @@
      * @param {object} [options]
      * @param {string} [options.apiBase]
      * @param {string} [options.loginPath] 默认 login.html
+     * @param {boolean} [options.skipConfirm] 为 true 时不询问（仅脚本内部等特殊场景）
      * @param {() => void} [options.onAfterClear] 清理 localStorage 之后调用（如 api 页清 sessionStorage）
      */
     async function logout(options) {
         const opts = options || {};
+        if (!opts.skipConfirm) {
+            if (Ui && typeof Ui.showConfirmModal === "function") {
+                const ok = await Ui.showConfirmModal({
+                    title: "退出登录",
+                    message: "确定要退出当前账号吗？退出后需重新登录。",
+                    confirmText: "退出",
+                    cancelText: "取消",
+                });
+                if (!ok) return;
+            } else if (!w.confirm("确定要退出当前账号吗？退出后需重新登录。")) {
+                return;
+            }
+        }
         const base =
             opts.apiBase !== undefined && opts.apiBase !== null ? opts.apiBase : S.API_BASE;
         const loginPath = opts.loginPath || "login.html";
