@@ -4,8 +4,10 @@
  *
  * 用法（建议在 ui-shared.js 之后加载）：
  *   if (!(await window.TMDUi.showConfirmModal({ title, message, confirmText: '删除', danger: true }))) return;
+ *   await window.TMDUi.showAlertModal({ title: '保存成功', message: '…', okText: '确定' });
  *
  * 选项：title, message, confirmText, cancelText, danger（危险操作用红色主按钮）
+ * showAlertModal：单按钮提示（如保存成功），点确定或 Esc 或点遮罩后关闭。
  */
 (function (w) {
     const STYLE_ID = "tmd-confirm-modal-style";
@@ -112,6 +114,12 @@
 #${ROOT_ID} .tmd-cm__btn--danger:hover:not(:disabled) {
     box-shadow: 0 4px 12px rgba(244, 67, 54, 0.45);
 }
+#${ROOT_ID}.tmd-cm--alert .tmd-cm__actions [data-tmd-cm-cancel] {
+    display: none !important;
+}
+#${ROOT_ID}.tmd-cm--alert .tmd-cm__actions {
+    justify-content: center;
+}
 `;
 
     function injectStyles() {
@@ -155,6 +163,7 @@
 
         return new Promise((resolve) => {
             const overlay = ensureRoot();
+            overlay.classList.remove("tmd-cm--alert");
             const backdropEl = overlay.querySelector(".tmd-cm__backdrop");
             const titleEl = overlay.querySelector(".tmd-cm__title");
             const msgEl = overlay.querySelector(".tmd-cm__msg");
@@ -199,7 +208,62 @@
         });
     }
 
+    function showAlertModal(options) {
+        const o = options || {};
+        const title = o.title != null ? o.title : "提示";
+        const message = o.message != null ? o.message : "";
+        const okText = o.okText != null ? o.okText : "确定";
+
+        return new Promise((resolve) => {
+            const overlay = ensureRoot();
+            overlay.classList.add("tmd-cm--alert");
+            overlay.classList.remove("tmd-cm--open");
+            const backdropEl = overlay.querySelector(".tmd-cm__backdrop");
+            const titleEl = overlay.querySelector(".tmd-cm__title");
+            const msgEl = overlay.querySelector(".tmd-cm__msg");
+            const okBtn = overlay.querySelector("[data-tmd-cm-ok]");
+            const cancelBtn = overlay.querySelector("[data-tmd-cm-cancel]");
+            if (!backdropEl || !titleEl || !msgEl || !okBtn || !cancelBtn) {
+                overlay.classList.remove("tmd-cm--alert");
+                resolve();
+                return;
+            }
+
+            titleEl.textContent = title;
+            msgEl.textContent = message;
+            okBtn.textContent = okText;
+            okBtn.className = "tmd-cm__btn tmd-cm__btn--primary";
+
+            const done = () => {
+                okBtn.onclick = null;
+                cancelBtn.onclick = null;
+                backdropEl.onclick = null;
+                document.removeEventListener("keydown", onKey);
+                overlay.classList.remove("tmd-cm--open", "tmd-cm--alert");
+                overlay.setAttribute("aria-hidden", "true");
+                resolve();
+            };
+            const onKey = (e) => {
+                if (e.key === "Escape") {
+                    e.preventDefault();
+                    done();
+                }
+            };
+
+            okBtn.onclick = () => done();
+            cancelBtn.onclick = null;
+            backdropEl.onclick = () => done();
+            document.addEventListener("keydown", onKey);
+            overlay.setAttribute("aria-hidden", "false");
+            overlay.classList.add("tmd-cm--open");
+            w.requestAnimationFrame(() => {
+                w.requestAnimationFrame(() => okBtn.focus());
+            });
+        });
+    }
+
     const Ui = w.TMDUi || {};
     Ui.showConfirmModal = showConfirmModal;
+    Ui.showAlertModal = showAlertModal;
     w.TMDUi = Ui;
 })(window);

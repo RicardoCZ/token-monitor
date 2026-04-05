@@ -1973,8 +1973,11 @@
                     status.className = 'status success';
                     status.textContent = '✅ Cookie 保存成功！';
                     loadCurrentConfig();
-                    
                     document.getElementById('auto-fill-hint').style.display = 'none';
+                    await Ui.showAlertModal({
+                        title: '保存成功',
+                        message: 'Cookie 已保存到当前账号。',
+                    });
                 } else {
                     status.className = 'status error';
                     status.textContent = '❌ 保存失败: ' + (data.detail || '未知错误');

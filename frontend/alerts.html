@@ -2002,7 +2002,10 @@
                     showToast(data.detail || '保存规则失败', true);
                     return;
                 }
-                showToast('规则已保存');
+                await Ui.showAlertModal({
+                    title: '保存成功',
+                    message: '规则已保存。',
+                });
                 alertEventsPage = 1;
                 await reloadAlertData();
             } catch (e) {
@@ -2064,7 +2067,13 @@
                         return;
                     }
                 }
-                showToast(hours > 0 ? `规则与静默已保存：${metricKey}` : `规则已保存：${metricKey}`);
+                await Ui.showAlertModal({
+                    title: '保存成功',
+                    message:
+                        hours > 0
+                            ? `规则与静默已保存（指标：${metricKey}）。`
+                            : `规则已保存（指标：${metricKey}）。`,
+                });
                 alertEventsPage = 1;
                 await reloadAlertData();
             } catch (e) {

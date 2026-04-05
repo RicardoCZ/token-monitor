@@ -871,7 +871,10 @@
                     showToast(data.detail || '保存失败', true);
                     return;
                 }
-                showToast('用户已更新');
+                await Ui.showAlertModal({
+                    title: '保存成功',
+                    message: '用户信息已更新。',
+                });
                 if (pwEl) pwEl.value = '';
                 loadAdminUsers();
             } catch (e) {

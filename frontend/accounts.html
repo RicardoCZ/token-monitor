@@ -1815,7 +1815,10 @@
                     return;
                 }
                 _applyNotifyWebhooksToForm(data);
-                showToast('通知配置已保存');
+                await Ui.showAlertModal({
+                    title: '保存成功',
+                    message: '通知配置已保存。',
+                });
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);
             }
@@ -1837,7 +1840,10 @@
                     return;
                 }
                 _applyNotifyWebhooksToForm(data);
-                showToast(which === 'feishu' ? '已清除飞书密钥' : '已清除 QQ 密钥');
+                await Ui.showAlertModal({
+                    title: '已更新',
+                    message: which === 'feishu' ? '已清除飞书 App Secret。' : '已清除 QQ 机器人 App Secret。',
+                });
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);
             }
@@ -2094,7 +2100,10 @@
                     showToast(data.detail || '同步失败', true);
                     return;
                 }
-                showToast(data.message || `账号 ${accountId} 同步成功`);
+                await Ui.showAlertModal({
+                    title: '同步成功',
+                    message: data.message || `账号 ${accountId} 已同步。`,
+                });
                 await loadAccounts();
                 await viewAccountDetail(accountId);
             } catch (e) {
@@ -2220,7 +2229,10 @@
                 const cachedDetail = accountDetailCache.get(accountId);
                 if (cachedDetail) cachedDetail.name = nextName;
                 restore(nextName);
-                showToast('配置名称更新成功');
+                await Ui.showAlertModal({
+                    title: '保存成功',
+                    message: '配置名称已更新。',
+                });
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);
                 setTimeout(() => {
@@ -2401,7 +2413,10 @@
                 if (nameInput) nameInput.value = '';
                 resetApiKeyScopeCheckboxes();
                 if (expiresInput) expiresInput.value = '';
-                showToast('接口密钥创建成功');
+                await Ui.showAlertModal({
+                    title: '创建成功',
+                    message: '接口密钥已创建，请尽快复制并保存明文密钥。',
+                });
                 loadApiKeys();
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);
