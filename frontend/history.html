@@ -223,14 +223,14 @@
     <script src="js/api-dashboard-state.js"></script>
     <script src="js/api-dashboard-core.js"></script>
     <script src="js/ui-shared.js"></script>
+    <script src="js/dashboard-auth.js"></script>
     <script>
         const U = window.TMDCore;
         const Ui = window.TMDUi;
-        const API_BASE = window.location.origin;
-        const CURRENT_PAGE = (window.location.pathname.split('/').pop() || 'history.html').toLowerCase();
-
-        let authToken = localStorage.getItem("token");
-        let currentUser = null;
+        const S = window.TMD;
+        const TMDAuth = window.TMDAuth;
+        const API_BASE = S.API_BASE;
+        const CURRENT_PAGE = S.CURRENT_PAGE;
         const state = {
             accounts: [],
             accountId: null,
@@ -259,32 +259,11 @@
         }
 
         async function checkAuth() {
-            if (!authToken) {
-                window.location.href = "login.html";
-                return false;
-            }
-            try {
-                const resp = await fetch(`${API_BASE}/auth/me`, {
-                    headers: { "Authorization": `Bearer ${authToken}` },
-                });
-                if (!resp.ok) {
-                    localStorage.removeItem("token");
-                    localStorage.removeItem("user");
-                    window.location.href = "login.html";
-                    return false;
-                }
-                currentUser = await resp.json();
-                const userInfo = document.getElementById("user-info");
-                userInfo.innerHTML = `
-                    <span>👤 ${escapeHtml(currentUser.username)}</span>
-                    ${buildTopNavLinks(currentUser.role === "admin")}
-                    <span class="header-top-link" style="cursor: pointer;" role="button" tabindex="0" onclick="logout()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout();}">退出</span>
-                `;
-                return true;
-            } catch (e) {
-                setHistoryStatus("登录态检查失败，请稍后重试。", true);
-                return false;
-            }
+            return TMDAuth.checkAuth({
+                onNetworkError() {
+                    setHistoryStatus("登录态检查失败，请稍后重试。", true);
+                },
+            });
         }
 
         const extractApiErrorMessage = (data) => U.extractApiErrorMessage(data);
@@ -355,7 +334,7 @@
             const resp = await fetch(`${API_BASE}/api/accounts?_=${Date.now()}`, {
                 cache: "no-store",
                 headers: {
-                    "Authorization": `Bearer ${authToken}`,
+                    ...TMDAuth.getAuthHeaders(),
                     "Cache-Control": "no-cache",
                     Pragma: "no-cache",
                 },
@@ -401,7 +380,7 @@
                 const resp = await fetch(url, {
                     cache: "no-store",
                     headers: {
-                        "Authorization": `Bearer ${authToken}`,
+                        ...TMDAuth.getAuthHeaders(),
                         "Cache-Control": "no-cache",
                         Pragma: "no-cache",
                     },

@@ -469,13 +469,15 @@
     <script src="js/api-dashboard-state.js"></script>
     <script src="js/api-dashboard-core.js"></script>
     <script src="js/ui-shared.js"></script>
+    <script src="js/dashboard-auth.js"></script>
+    <script src="js/confirm-modal.js"></script>
     <script>
         const U = window.TMDCore;
         const Ui = window.TMDUi;
-        const API_BASE = window.location.origin;
-        const CURRENT_PAGE = (window.location.pathname.split('/').pop() || 'admin.html').toLowerCase();
-        let authToken = localStorage.getItem('token');
-        let currentUser = null;
+        const S = window.TMD;
+        const TMDAuth = window.TMDAuth;
+        const API_BASE = S.API_BASE;
+        const CURRENT_PAGE = S.CURRENT_PAGE;
         let inviteCodesCache = [];
         let inviteStatusFilter = 'all';
         let inviteCurrentPage = 1;
@@ -484,16 +486,8 @@
         let adminUsersPage = 1;
         const ADMIN_USERS_PAGE_SIZE = 8;
 
-        function getAuthHeaders() {
-            return { 'Authorization': `Bearer ${authToken}` };
-        }
-
-        function getJsonHeaders() {
-            return {
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json'
-            };
-        }
+        const getAuthHeaders = () => TMDAuth.getAuthHeaders();
+        const getJsonHeaders = () => TMDAuth.getJsonHeaders();
 
         const escapeHtml = (text) => U.escapeHtml(text);
 
@@ -501,45 +495,17 @@
             Ui.showToast(msg, isError);
         }
 
-        // 检查登录状态和管理员权限
         async function checkAuth() {
-            if (!authToken) {
-                window.location.href = 'login.html';
-                return false;
-            }
-            
-            try {
-                const resp = await fetch(`${API_BASE}/auth/me`, {
-                    headers: getAuthHeaders()
-                });
-                
-                if (resp.ok) {
-                    currentUser = await resp.json();
-                    
-                    if (currentUser.role !== 'admin') {
-                        showToast('需要管理员权限', true);
-                        setTimeout(() => {
-                            window.location.href = 'api.html';
-                        }, 1500);
-                        return false;
-                    }
-                    
-                    document.getElementById('user-info').innerHTML = `
-                        <span>👤 ${escapeHtml(currentUser.username)}</span>
-                        ${Ui.buildTopNavLinks(CURRENT_PAGE, { showAdminLink: true })}
-                        <span class="header-top-link" style="cursor: pointer;" role="button" tabindex="0" onclick="logout()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout();}">退出</span>
-                    `;
-                    
-                    return true;
-                } else {
-                    localStorage.removeItem('token');
-                    window.location.href = 'login.html';
-                    return false;
-                }
-            } catch (e) {
-                showToast('网络错误: ' + e.message, true);
-                return false;
-            }
+            return TMDAuth.checkAuth({
+                requireAdmin: true,
+                forceShowAdminLink: true,
+                onNotAdmin() {
+                    showToast('需要管理员权限', true);
+                    setTimeout(() => {
+                        window.location.href = 'api.html';
+                    }, 1500);
+                },
+            });
         }
         
         // 创建邀请码
@@ -748,7 +714,12 @@
                 showToast('邀请码无效', true);
                 return;
             }
-            if (!confirm(`确认删除邀请码 ${normalized} 吗？删除后不可恢复。`)) return;
+            if (!(await Ui.showConfirmModal({
+                title: '删除邀请码',
+                message: `确认删除邀请码 ${normalized} 吗？删除后不可恢复。`,
+                confirmText: '删除',
+                danger: true,
+            }))) return;
 
             try {
                 let resp = await fetch(`${API_BASE}/auth/invite-codes/${encodeURIComponent(normalized)}`, {

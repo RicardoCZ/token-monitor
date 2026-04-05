@@ -789,61 +789,25 @@
     <script src="js/api-dashboard-state.js"></script>
     <script src="js/api-dashboard-core.js"></script>
     <script src="js/ui-shared.js"></script>
+    <script src="js/dashboard-auth.js"></script>
     <script>
         const U = window.TMDCore;
         const Ui = window.TMDUi;
-        const API_BASE = window.location.hostname === 'localhost' 
-            ? 'http://localhost:5188' 
+        const S = window.TMD;
+        const TMDAuth = window.TMDAuth;
+        S.API_BASE = window.location.hostname === 'localhost'
+            ? 'http://localhost:5188'
             : '';
-        const CURRENT_PAGE = (window.location.pathname.split('/').pop() || 'setup.html').toLowerCase();
-        
-        // 用户认证
-        let authToken = localStorage.getItem('token');
-        let currentUser = null;
+        const API_BASE = S.API_BASE;
+        const CURRENT_PAGE = S.CURRENT_PAGE;
 
-        function getAuthHeaders() {
-            return { 'Authorization': `Bearer ${authToken}` };
-        }
-
-        function getJsonAuthHeaders() {
-            return {
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json'
-            };
-        }
+        const getAuthHeaders = () => TMDAuth.getAuthHeaders();
+        const getJsonAuthHeaders = () => TMDAuth.getJsonHeaders();
 
         const escapeHtml = (text) => U.escapeHtml(text);
 
         function buildTopNavLinks(isAdmin) {
             return Ui.buildTopNavLinks(CURRENT_PAGE, { showAdminLink: !!isAdmin });
-        }
-
-        /** 登录页写入的缓存，用于首屏立即画出顶栏（不必等 /auth/me） */
-        function readCachedUserForHeader() {
-            try {
-                const raw = localStorage.getItem('user');
-                if (!raw) return null;
-                const u = JSON.parse(raw);
-                if (!u || typeof u.username !== 'string') return null;
-                return {
-                    username: u.username,
-                    role: u.role === 'admin' ? 'admin' : 'user',
-                };
-            } catch (e) {
-                return null;
-            }
-        }
-
-        function paintUserHeaderBar(user) {
-            const userInfo = document.getElementById('user-info');
-            if (!userInfo || !user) return;
-            const name = (user.username && String(user.username).trim()) || '…';
-            const isAdmin = user.role === 'admin';
-            userInfo.innerHTML = `
-                <span>👤 ${escapeHtml(name)}</span>
-                ${buildTopNavLinks(isAdmin)}
-                <span class="header-top-link" style="cursor: pointer;" role="button" tabindex="0" onclick="logout()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout();}">退出</span>
-            `;
         }
 
         function initCustomBrowserTypeSelect() {
@@ -904,44 +868,15 @@
             });
         }
         
-        // 检查登录状态
         async function checkAuth() {
-            if (!authToken) {
-                window.location.href = 'login.html';
-                return false;
-            }
-
-            const cached = readCachedUserForHeader();
-            paintUserHeaderBar(cached || { username: '…', role: 'user' });
-
-            try {
-                const resp = await fetch(`${API_BASE}/auth/me`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
-                });
-                
-                if (!resp.ok) {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    window.location.href = 'login.html';
-                    return false;
-                }
-                currentUser = await resp.json();
-                try {
-                    localStorage.setItem('user', JSON.stringify({
-                        id: currentUser.id,
-                        username: currentUser.username,
-                        role: currentUser.role,
-                    }));
-                } catch (e2) { /* ignore */ }
-                paintUserHeaderBar({
-                    username: currentUser.username,
-                    role: currentUser.role === 'admin' ? 'admin' : 'user',
-                });
-                return true;
-            } catch (e) {
-                console.error('Auth check failed:', e);
-                return false;
-            }
+            return TMDAuth.checkAuth({
+                apiBase: S.API_BASE,
+                prefillHeaderFromCache: true,
+                persistUserToLocalStorage: true,
+                onNetworkError(e) {
+                    console.error('Auth check failed:', e);
+                },
+            });
         }
 
         function logout() {
@@ -1879,11 +1814,11 @@
         
         // ============ 页面加载时获取配置 ============
         async function loadCurrentConfig() {
-            if (!authToken) return;
-            
+            if (!TMDAuth.syncTokenFromStorage()) return;
+
             try {
                 const resp = await fetch(`${API_BASE}/api/accounts`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: getAuthHeaders(),
                 });
                 const accounts = await resp.json();
                 
@@ -1909,11 +1844,11 @@
             const statusDisplay = document.getElementById(`${serviceId}-status-display`);
             if (!statusDisplay) return;
             
-            if (!authToken) return;
-            
+            if (!TMDAuth.syncTokenFromStorage()) return;
+
             try {
                 const resp = await fetch(`${API_BASE}/api/accounts`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: getAuthHeaders(),
                 });
                 if (!resp.ok) {
                     statusDisplay.innerHTML = `<span style="color:#f44336;">❌ 状态加载失败</span>`;
@@ -1933,7 +1868,7 @@
         
         async function saveCookie(service) {
             // 检查登录状态
-            if (!authToken) {
+            if (!TMDAuth.syncTokenFromStorage()) {
                 alert('请先登录');
                 window.location.href = 'login.html';
                 return;
@@ -1994,7 +1929,7 @@
             try {
                 // 先检查是否已有账号
                 const listResp = await fetch(`${API_BASE}/api/accounts`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: getAuthHeaders(),
                 });
                 const accounts = await listResp.json();
                 
@@ -2012,10 +1947,7 @@
                     // 更新现有账号
                     resp = await fetch(`${API_BASE}/api/accounts/${existingAccount.id}`, {
                         method: 'PUT',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${authToken}`
-                        },
+                        headers: getJsonAuthHeaders(),
                         body: JSON.stringify({ 
                             name: accountName,
                             cookies,
@@ -2026,10 +1958,7 @@
                     // 创建新账号
                     resp = await fetch(`${API_BASE}/api/accounts`, {
                         method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${authToken}`
-                        },
+                        headers: getJsonAuthHeaders(),
                         body: JSON.stringify({ 
                             service_id: service,
                             name: accountName,

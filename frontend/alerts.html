@@ -1356,13 +1356,15 @@
     <script src="js/api-dashboard-state.js"></script>
     <script src="js/api-dashboard-core.js"></script>
     <script src="js/ui-shared.js"></script>
+    <script src="js/dashboard-auth.js"></script>
+    <script src="js/confirm-modal.js"></script>
     <script>
         const U = window.TMDCore;
         const Ui = window.TMDUi;
-        const API_BASE = window.location.origin;
-        const CURRENT_PAGE = (window.location.pathname.split('/').pop() || 'alerts.html').toLowerCase();
-        let authToken = localStorage.getItem('token');
-        let currentUser = null;
+        const S = window.TMD;
+        const TMDAuth = window.TMDAuth;
+        const API_BASE = S.API_BASE;
+        const CURRENT_PAGE = S.CURRENT_PAGE;
         let accountsCache = [];
         let currentAlertAccountId = 0;
         const accountDetailCache = new Map();
@@ -1386,16 +1388,8 @@
             Ui.refreshCustomSelect(selectId);
         }
 
-        function getAuthHeaders() {
-            return { 'Authorization': `Bearer ${authToken}` };
-        }
-
-        function getJsonHeaders() {
-            return {
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json'
-            };
-        }
+        const getAuthHeaders = () => TMDAuth.getAuthHeaders();
+        const getJsonHeaders = () => TMDAuth.getJsonHeaders();
 
         function collectNotifyChannelsFromRuleForm(idx) {
             const pairs = idx == null
@@ -1608,32 +1602,6 @@
             setAlertMetricOptions(metricDefs);
         }
 
-        async function checkAuth() {
-            if (!authToken) {
-                window.location.href = 'login.html';
-                return false;
-            }
-            try {
-                const resp = await fetch(`${API_BASE}/auth/me`, { headers: getAuthHeaders() });
-                if (!resp.ok) {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    window.location.href = 'login.html';
-                    return false;
-                }
-                currentUser = await resp.json();
-                document.getElementById('user-info').innerHTML = `
-                    <span>👤 ${escapeHtml(currentUser.username)}</span>
-                    ${buildTopNavLinks(currentUser.role === 'admin')}
-                    <span class="header-top-link" style="cursor: pointer;" role="button" tabindex="0" onclick="logout()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout();}">退出</span>
-                `;
-                return true;
-            } catch (e) {
-                showToast('网络错误: ' + e.message, true);
-                return false;
-            }
-        }
-
         async function loadAccounts() {
             try {
                 const resp = await fetch(`${API_BASE}/api/accounts`, { headers: getAuthHeaders() });
@@ -1809,14 +1777,14 @@
             const container = document.getElementById('alert-rules-list');
             const pagEl = document.getElementById('alert-rules-pagination');
             if (!container) return;
-            if (!currentUser?.id) {
+            if (!S.currentUser?.id) {
                 container.innerHTML = '<div class="empty">未登录</div>';
                 if (pagEl) pagEl.innerHTML = '';
                 alertRulesCache = [];
                 return;
             }
             try {
-                const resp = await fetch(`${API_BASE}/api/accounts/users/${currentUser.id}/alerts`, {
+                const resp = await fetch(`${API_BASE}/api/accounts/users/${S.currentUser.id}/alerts`, {
                     headers: getAuthHeaders()
                 });
                 const raw = await resp.text();
@@ -1884,7 +1852,7 @@
             const container = document.getElementById('alert-events-list');
             const paginationContainer = document.getElementById('alert-events-pagination');
             if (!container) return;
-            if (!currentUser?.id) {
+            if (!S.currentUser?.id) {
                 container.innerHTML = '<div class="empty">未登录</div>';
                 if (paginationContainer) paginationContainer.innerHTML = '';
                 return;
@@ -1898,7 +1866,7 @@
                 const statusQuery = statusVal ? `&status=${encodeURIComponent(statusVal)}` : '';
                 const bust = `&_=${Date.now()}`;
                 const resp = await fetch(
-                    `${API_BASE}/api/accounts/users/${currentUser.id}/alerts/events?limit=${ALERT_EVENTS_PAGE_SIZE}&offset=${offset}${statusQuery}${bust}`,
+                    `${API_BASE}/api/accounts/users/${S.currentUser.id}/alerts/events?limit=${ALERT_EVENTS_PAGE_SIZE}&offset=${offset}${statusQuery}${bust}`,
                     { headers: getAuthHeaders(), cache: 'no-store' }
                 );
                 const data = await resp.json();
@@ -2113,7 +2081,12 @@
         }
 
         async function deleteAlertRuleInline(accountId, metricKey) {
-            if (!confirm(`确认删除规则 ${metricKey} 吗？`)) return;
+            if (!(await Ui.showConfirmModal({
+                title: '删除规则',
+                message: `确认删除规则 ${metricKey} 吗？`,
+                confirmText: '删除',
+                danger: true,
+            }))) return;
             try {
                 const resp = await fetch(`${API_BASE}/api/accounts/${accountId}/alerts/${encodeURIComponent(metricKey)}`, {
                     method: 'DELETE',
@@ -2138,7 +2111,7 @@
             window.location.href = 'login.html';
         }
 
-        checkAuth().then(ok => {
+        TMDAuth.checkAuth().then(ok => {
             if (ok) {
                 updatePageTitle();
                 bindCustomSelectById('alert-account-select');

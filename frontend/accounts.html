@@ -1615,14 +1615,15 @@
     <script src="js/api-dashboard-state.js"></script>
     <script src="js/api-dashboard-core.js"></script>
     <script src="js/ui-shared.js"></script>
+    <script src="js/dashboard-auth.js"></script>
     <script src="js/confirm-modal.js"></script>
     <script>
         const U = window.TMDCore;
         const Ui = window.TMDUi;
-        const API_BASE = window.location.origin;
-        const CURRENT_PAGE = (window.location.pathname.split('/').pop() || 'accounts.html').toLowerCase();
-        let authToken = localStorage.getItem('token');
-        let currentUser = null;
+        const S = window.TMD;
+        const TMDAuth = window.TMDAuth;
+        const API_BASE = S.API_BASE;
+        const CURRENT_PAGE = S.CURRENT_PAGE;
         let accountsCache = [];
         let currentViewingAccountId = 0;
         const accountDetailCache = new Map();
@@ -1644,16 +1645,8 @@
             return Ui.buildTopNavLinks(CURRENT_PAGE, { showAdminLink: !!isAdmin });
         }
 
-        function getAuthHeaders() {
-            return { 'Authorization': `Bearer ${authToken}` };
-        }
-
-        function getJsonHeaders() {
-            return {
-                'Authorization': `Bearer ${authToken}`,
-                'Content-Type': 'application/json'
-            };
-        }
+        const getAuthHeaders = () => TMDAuth.getAuthHeaders();
+        const getJsonHeaders = () => TMDAuth.getJsonHeaders();
 
         function toggleNotifySensitiveField(inputId, btn) {
             const el = document.getElementById(inputId);
@@ -1898,32 +1891,6 @@
             }
             accountDetailCache.set(accountId, data);
             return data;
-        }
-
-        async function checkAuth() {
-            if (!authToken) {
-                window.location.href = 'login.html';
-                return false;
-            }
-            try {
-                const resp = await fetch(`${API_BASE}/auth/me`, { headers: getAuthHeaders() });
-                if (!resp.ok) {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('user');
-                    window.location.href = 'login.html';
-                    return false;
-                }
-                currentUser = await resp.json();
-                document.getElementById('user-info').innerHTML = `
-                    <span>👤 ${escapeHtml(currentUser.username)}</span>
-                    ${buildTopNavLinks(currentUser.role === 'admin')}
-                    <span class="header-top-link" style="cursor: pointer;" role="button" tabindex="0" onclick="logout()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout();}">退出</span>
-                `;
-                return true;
-            } catch (e) {
-                showToast('网络错误: ' + e.message, true);
-                return false;
-            }
         }
 
         function renderAccountsPagination() {
@@ -2659,7 +2626,7 @@
         initApiKeyScopeMultiselect();
         initApiKeysListDelegation();
 
-        checkAuth().then(ok => {
+        TMDAuth.checkAuth().then(ok => {
             if (ok) {
                 updatePageTitle();
                 loadNotifyWebhooks();

@@ -1,7 +1,7 @@
 /**
  * 监控看板 — 鉴权、注册表同步、卡片渲染、刷新（api.html）
  *
- * 依赖：依次加载 api-dashboard-state.js、api-dashboard-core.js 后再加载本文件。
+ * 依赖：依次加载 api-dashboard-state.js、api-dashboard-core.js、ui-shared.js、js/dashboard-auth.js 后再加载本文件。
  * 全局：向 window 暴露 refreshAll、logout、closeModal、showLoginModal（供 HTML onclick 等使用）。
  */
 (function (w) {
@@ -56,37 +56,16 @@
         },
 
         async checkAuth() {
-            const userInfo = document.getElementById("user-info");
-
-            if (!S.authToken) {
-                w.location.href = "login.html";
+            const TMDAuth = w.TMDAuth;
+            if (!TMDAuth || typeof TMDAuth.checkAuth !== "function") {
+                console.warn("[api-dashboard-app] 请先加载 js/dashboard-auth.js");
                 return false;
             }
-
-            try {
-                const resp = await fetch(`${S.API_BASE}/auth/me`, {
-                    headers: { Authorization: `Bearer ${S.authToken}` },
-                });
-
-                if (resp.ok) {
-                    S.currentUser = await resp.json();
-
-                    userInfo.innerHTML = `
-                        <span>👤 ${U.escapeHtml(S.currentUser.username)}</span>
-                        ${this.buildTopNavLinks(S.currentUser.role === "admin")}
-                        <span class="header-top-link" style="cursor: pointer;" role="button" tabindex="0"
-                              onclick="logout()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logout();}">退出</span>
-                    `;
-                    return true;
-                }
-                localStorage.removeItem("token");
-                localStorage.removeItem("user");
-                w.location.href = "login.html";
-                return false;
-            } catch (e) {
-                console.error("Auth check failed:", e);
-                return false;
-            }
+            return TMDAuth.checkAuth({
+                onNetworkError(e) {
+                    console.error("Auth check failed:", e);
+                },
+            });
         },
 
         logout() {
