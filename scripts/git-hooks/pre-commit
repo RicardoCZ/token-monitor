@@ -1,8 +1,13 @@
 #!/bin/sh
-# 禁止将本地文档目录与任务清单提交进仓库（与 .gitignore 一致）。
-bad=$(git diff --cached --name-only | grep -E '^docs/|^TODO\.md$' || true)
+# 禁止提交被 .gitignore 忽略的路径（与 README 约定一致，防 git add -f 误加）。
+bad=$(git diff --cached --name-only | while IFS= read -r f; do
+	[ -z "$f" ] && continue
+	if git check-ignore -q "$f" 2>/dev/null; then
+		printf '%s\n' "$f"
+	fi
+done)
 if [ -n "$bad" ]; then
-	printf '%s\n' "" "拒绝提交：下列路径仅允许留在本地，不得进入 Git 对象库：" "$bad" "" "若确为误加入暂存区，请： git restore --staged -- <路径>" >&2
+	printf '%s\n' "" "拒绝提交：下列路径被 .gitignore 忽略，不得进入 Git 对象库：" "$bad" "" "若确为误加入暂存区，请： git restore --staged -- <路径>" >&2
 	exit 1
 fi
 exit 0

@@ -7,6 +7,7 @@ set -euo pipefail
 BACKEND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$BACKEND_DIR/.env"
 EXAMPLE="$BACKEND_DIR/.env.example"
+VENV_DIR="$BACKEND_DIR/.venv"
 
 show_help() {
   cat <<'EOF'
@@ -35,6 +36,16 @@ show_help() {
 EOF
 }
 
+get_python_path() {
+  if [[ -f "$VENV_DIR/bin/python" ]]; then
+    echo "$VENV_DIR/bin/python"
+    return
+  fi
+  echo "==> 创建虚拟环境: $VENV_DIR"
+  python3 -m venv "$VENV_DIR"
+  echo "$VENV_DIR/bin/python"
+}
+
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   show_help
   exit 0
@@ -55,7 +66,9 @@ if [[ ! -f "$EXAMPLE" ]]; then
   exit 1
 fi
 
-python3 <<PY
+PYTHON_PATH="$(get_python_path)"
+
+"$PYTHON_PATH" <<PY
 import secrets
 import shutil
 from pathlib import Path
@@ -89,7 +102,7 @@ PY
 
 # 读取 .env 中的 DB_*（供连接检测）
 load_env_kv() {
-  python3 <<'PY'
+  "$PYTHON_PATH" <<'PY'
 from pathlib import Path
 import os
 p = Path(os.environ["ENV_FILE"])
@@ -138,7 +151,7 @@ if [[ -n "${INIT_MYSQL_ADMIN_PASSWORD:-}" ]]; then
     exit 1
   fi
   export _INIT_SQL_DB_NAME="$DB_NAME" _INIT_SQL_DB_USER="$DB_USER" _INIT_SQL_DB_PASSWORD="$DB_PASSWORD"
-  python3 <<'PY' | MYSQL_PWD="$INIT_MYSQL_ADMIN_PASSWORD" mysql -h"$INIT_MYSQL_HOST" -P"$INIT_MYSQL_PORT" -u"$INIT_MYSQL_ADMIN_USER"
+  "$PYTHON_PATH" <<'PY' | MYSQL_PWD="$INIT_MYSQL_ADMIN_PASSWORD" mysql -h"$INIT_MYSQL_HOST" -P"$INIT_MYSQL_PORT" -u"$INIT_MYSQL_ADMIN_USER"
 import os
 
 def esc(s: str) -> str:

@@ -2,9 +2,6 @@ __pycache__/
 *.pyc
 .env
 *.log
-# 本地数据（Cookie、admin 初始口令等）
-data/**
-!data/.gitkeep
 .DS_Store
 
 # 含内网/本机路径的运维笔记，勿提交公开仓库

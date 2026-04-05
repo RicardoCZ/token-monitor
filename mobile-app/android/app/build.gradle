@@ -17,8 +17,26 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+
+    // 签名配置（Release 包需要）
+    // 敏感信息在 local.properties 中（已 gitignore，不会推送）
+    def keystoreProperties = new Properties()
+    def keystoreFile = rootProject.file('local.properties')
+    if (keystoreFile.exists()) {
+        keystoreProperties.load(new FileInputStream(keystoreFile))
+    }
+    signingConfigs {
+        release {
+            storeFile keystoreProperties['keystore.file'] ? file(keystoreProperties['keystore.file']) : null
+            storePassword keystoreProperties['keystore.password'] ?: ''
+            keyAlias keystoreProperties['keystore.alias'] ?: ''
+            keyPassword keystoreProperties['keystore.keypassword'] ?: ''
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

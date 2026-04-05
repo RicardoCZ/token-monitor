@@ -7,7 +7,6 @@ P2-3 告警服务（usage_snapshots 单轨）
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from typing import Any
 
@@ -16,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
 from models.db_models import Alert, AlertEvent, UsageSnapshot
+from services.notify_delivery import dispatch_alert_trigger_notifications
+from utils.notify_channels import normalize_notify_channels
 
 
 def _extract_percent(snapshot: UsageSnapshot) -> float | None:
@@ -30,29 +31,6 @@ def _extract_percent(snapshot: UsageSnapshot) -> float | None:
             except (TypeError, ValueError):
                 return None
     return None
-
-
-def _normalize_channels(raw: Any) -> list[str]:
-    if not raw:
-        return ["log"]
-    if isinstance(raw, list):
-        channels = [str(item).strip() for item in raw if str(item).strip()]
-        return channels or ["log"]
-    if isinstance(raw, str):
-        text = raw.strip()
-        if not text:
-            return ["log"]
-        if text.startswith("["):
-            try:
-                parsed = json.loads(text)
-                if isinstance(parsed, list):
-                    channels = [str(item).strip() for item in parsed if str(item).strip()]
-                    return channels or ["log"]
-            except json.JSONDecodeError:
-                pass
-        channels = [item.strip() for item in text.split(",") if item.strip()]
-        return channels or ["log"]
-    return ["log"]
 
 
 async def _find_rule(
@@ -132,8 +110,8 @@ async def evaluate_alert_for_snapshot(
         rule.mute_reason = None
         await db.commit()
     threshold = float(rule.threshold or 0)
-    channels = _normalize_channels(rule.notify_channels)
-    channel = channels[0] if channels else "log"
+    channels = normalize_notify_channels(rule.notify_channels)
+    channel_label = ",".join(channels)
 
     if observed >= threshold:
         if not rule.is_firing:
@@ -151,9 +129,16 @@ async def evaluate_alert_for_snapshot(
                 observed_percent=observed,
                 status="triggered",
                 message=message,
-                notify_channel=channel,
+                notify_channel=channel_label,
             )
             await db.commit()
+            await dispatch_alert_trigger_notifications(
+                db,
+                rule=rule,
+                snapshot=snapshot,
+                plain_message=message,
+                channels=channels,
+            )
             return {"enabled": True, "status": "triggered", "metric_key": metric_key}
 
         return {"enabled": True, "status": "holding", "metric_key": metric_key}
@@ -173,7 +158,7 @@ async def evaluate_alert_for_snapshot(
             observed_percent=observed,
             status="recovered",
             message=message,
-            notify_channel=channel,
+            notify_channel=channel_label,
         )
         await db.commit()
         return {"enabled": True, "status": "recovered", "metric_key": metric_key}

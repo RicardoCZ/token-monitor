@@ -400,6 +400,16 @@
             <h1>⚙️ 管理后台</h1>
             <div id="user-info" style="margin-top: 10px; font-size: 12px; color: #888; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 10px;"></div>
         </div>
+
+        <!-- 平台用户 -->
+        <div class="card">
+            <h2>👥 平台用户</h2>
+            <p class="hint">管理用户角色、启用状态和登录密码（重置密码后立即生效）。勿禁用最后一个管理员。</p>
+            <div id="admin-users-list">
+                <div class="empty">加载中...</div>
+            </div>
+            <div id="admin-users-pagination" class="small-note" style="margin-top: 8px;"></div>
+        </div>
         
         <!-- 创建邀请码 -->
         <div class="card">
@@ -495,6 +505,9 @@
         let apiKeysCache = [];
         let apiKeysPage = 1;
         const API_KEYS_PAGE_SIZE = 5;
+        let adminUsersCache = [];
+        let adminUsersPage = 1;
+        const ADMIN_USERS_PAGE_SIZE = 8;
 
         function getAuthHeaders() {
             return { 'Authorization': `Bearer ${authToken}` };
@@ -1032,6 +1045,126 @@
                 showToast('网络错误: ' + e.message, true);
             }
         }
+
+        async function loadAdminUsers() {
+            const container = document.getElementById('admin-users-list');
+            const pagEl = document.getElementById('admin-users-pagination');
+            try {
+                const resp = await fetch(`${API_BASE}/api/admin/users?page=${adminUsersPage}&page_size=${ADMIN_USERS_PAGE_SIZE}`, {
+                    headers: getAuthHeaders()
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    container.innerHTML = `<div class="empty">${escapeHtml(data.detail || '加载失败')}</div>`;
+                    if (pagEl) pagEl.innerHTML = '';
+                    return;
+                }
+                adminUsersCache = Array.isArray(data.items) ? data.items : [];
+                const total = Number(data.total || 0);
+                const totalPages = Math.max(1, Math.ceil(total / ADMIN_USERS_PAGE_SIZE));
+                adminUsersPage = Math.min(Math.max(1, adminUsersPage), totalPages);
+                if (!adminUsersCache.length) {
+                    container.innerHTML = '<div class="empty">暂无用户</div>';
+                    renderAdminUsersPagination(total, adminUsersPage);
+                    return;
+                }
+                container.innerHTML = `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>用户名</th>
+                                <th>角色</th>
+                                <th>状态</th>
+                                <th>新密码</th>
+                                <th>注册时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${adminUsersCache.map(u => `
+                                <tr>
+                                    <td>${u.id}</td>
+                                    <td>${escapeHtml(u.username)}</td>
+                                    <td>
+                                        <select id="admin-user-role-${u.id}">
+                                            <option value="user" ${u.role === 'user' ? 'selected' : ''}>user</option>
+                                            <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option>
+                                        </select>
+                                    </td>
+                                    <td><label><input type="checkbox" id="admin-user-active-${u.id}" ${u.is_active ? 'checked' : ''}> 启用</label></td>
+                                    <td><input type="password" id="admin-user-pw-${u.id}" placeholder="不改请留空" autocomplete="new-password" style="min-width:120px;"></td>
+                                    <td>${new Date(u.created_at).toLocaleString('zh-CN')}</td>
+                                    <td><button type="button" class="btn secondary small" onclick="patchAdminUser(${u.id})">保存</button></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+                renderAdminUsersPagination(total, adminUsersPage);
+            } catch (e) {
+                container.innerHTML = `<div class="empty">加载失败: ${escapeHtml(e.message)}</div>`;
+                if (pagEl) pagEl.innerHTML = '';
+            }
+        }
+
+        function renderAdminUsersPagination(total, page) {
+            const pagEl = document.getElementById('admin-users-pagination');
+            if (!pagEl) return;
+            const totalPages = Math.max(1, Math.ceil(total / ADMIN_USERS_PAGE_SIZE));
+            if (totalPages <= 1) {
+                pagEl.innerHTML = total ? `<span style="color:#888;">共 ${total} 人</span>` : '';
+                return;
+            }
+            const prev = page <= 1 ? 'disabled' : '';
+            const next = page >= totalPages ? 'disabled' : '';
+            let btns = '';
+            for (let p = 1; p <= totalPages; p++) {
+                const st = p === page ? 'background: rgba(102,126,234,0.45);' : '';
+                btns += `<button type="button" class="btn secondary small" style="margin-right:4px;${st}" onclick="changeAdminUsersPage(${p})">${p}</button>`;
+            }
+            pagEl.innerHTML = `
+                <button type="button" class="btn secondary small" ${prev} onclick="changeAdminUsersPage(${page - 1})">上一页</button>
+                ${btns}
+                <button type="button" class="btn secondary small" ${next} onclick="changeAdminUsersPage(${page + 1})">下一页</button>
+                <span style="margin-left:8px;color:#888;">共 ${total} 人</span>
+            `;
+        }
+
+        function changeAdminUsersPage(p) {
+            adminUsersPage = Math.max(1, Number(p) || 1);
+            loadAdminUsers();
+        }
+
+        async function patchAdminUser(userId) {
+            const roleEl = document.getElementById(`admin-user-role-${userId}`);
+            const actEl = document.getElementById(`admin-user-active-${userId}`);
+            const pwEl = document.getElementById(`admin-user-pw-${userId}`);
+            if (!roleEl || !actEl) return;
+            const payload = {
+                role: roleEl.value,
+                is_active: actEl.checked
+            };
+            const pw = (pwEl && pwEl.value) ? pwEl.value.trim() : '';
+            if (pw) payload.new_password = pw;
+            try {
+                const resp = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
+                    method: 'PATCH',
+                    headers: getJsonHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '保存失败', true);
+                    return;
+                }
+                showToast('用户已更新');
+                if (pwEl) pwEl.value = '';
+                loadAdminUsers();
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            }
+        }
         
         // 退出登录
         function logout() {
@@ -1045,6 +1178,7 @@
             if (ok) {
                 initCustomMaxUsesSelect();
                 Ui.bindCustomSelectById('invite-status-filter');
+                loadAdminUsers();
                 loadInviteCodes();
                 loadApiKeys();
             }

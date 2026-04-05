@@ -7,25 +7,59 @@ $Port = 5188
 $BackendDir = $PSScriptRoot
 $LogDir = Join-Path $BackendDir 'logs'
 $LogFile = Join-Path $LogDir 'backend.log'
+$VenvDir = Join-Path $BackendDir '.venv'
+$ReqFile = Join-Path $BackendDir 'requirements.txt'
 
 Set-Location -LiteralPath $BackendDir
 Write-Host "==> 工作目录: $BackendDir"
 
-function Get-PythonLaunchInfo {
+function Get-SystemPython {
     if (Get-Command py -ErrorAction SilentlyContinue) {
-        return @{
-            FilePath = (Get-Command py).Source
-            ArgumentPrefix = @('-3')
-        }
+        return @{ FilePath = (Get-Command py).Source; Args = @('-3') }
     }
     if (Get-Command python -ErrorAction SilentlyContinue) {
-        return @{
-            FilePath = (Get-Command python).Source
-            ArgumentPrefix = @()
-        }
+        return @{ FilePath = (Get-Command python).Source; Args = @() }
     }
     Write-Host '==> 错误: 未找到 Python（需要 PATH 中有 py 或 python）' -ForegroundColor Red
     exit 1
+}
+
+function New-VenvIfMissing {
+    if (Test-Path -LiteralPath $VenvDir) {
+        Write-Host "==> 虚拟环境已存在: $VenvDir"
+        return
+    }
+    Write-Host "==> 创建虚拟环境: $VenvDir"
+    $sysPy = Get-SystemPython
+    $venvArgs = $sysPy.Args + @('-m', 'venv', $VenvDir)
+    & $sysPy.FilePath $venvArgs
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host '==> 错误: 创建虚拟环境失败' -ForegroundColor Red
+        exit 1
+    }
+}
+
+function Install-DepsIfMissing {
+    $pipPath = Join-Path $VenvDir 'Scripts\pip.exe'
+    $pythonPath = Join-Path $VenvDir 'Scripts\python.exe'
+    
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    $checkOut = & $pythonPath -c 'import app' 2>&1
+    $checkExit = $LASTEXITCODE
+    $ErrorActionPreference = $prevEap
+    
+    if ($checkExit -eq 0) {
+        Write-Host "==> 依赖已安装"
+        return
+    }
+    
+    Write-Host '==> 安装依赖: pip install -r requirements.txt'
+    & $pipPath 'install' '-r' $ReqFile
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host '==> 错误: pip install 失败' -ForegroundColor Red
+        exit 1
+    }
 }
 
 function Get-ListenerPids([int] $LocalPort) {
@@ -83,40 +117,11 @@ Write-Host "==> 端口 $Port 可用"
 
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
-$py = Get-PythonLaunchInfo
+New-VenvIfMissing
+Install-DepsIfMissing
 
-# Ensure same interpreter as uvicorn can import the app (avoids fresh Windows env without pip deps)
-$reqFile = Join-Path $BackendDir 'requirements.txt'
-$depCheckArgs = if ($py.ArgumentPrefix.Count -gt 0) {
-    @('-3', '-c', 'import app')
-} else {
-    @('-c', 'import app')
-}
-& $py.FilePath $depCheckArgs 2>$null | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    Write-Host '==> 缺少依赖，正在 pip install -r requirements.txt ...'
-    $pipArgs = if ($py.ArgumentPrefix.Count -gt 0) {
-        @('-3', '-m', 'pip', 'install', '-r', $reqFile)
-    } else {
-        @('-m', 'pip', 'install', '-r', $reqFile)
-    }
-    & $py.FilePath $pipArgs
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host '==> 错误: pip install 失败，请在 backend 目录手动执行 py -3 -m pip install -r requirements.txt' -ForegroundColor Red
-        exit 1
-    }
-    & $py.FilePath $depCheckArgs 2>$null | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host '==> 错误: 依赖已安装但仍无法 import app，请查看日志或手动运行 py -3 -c "import app"' -ForegroundColor Red
-        exit 1
-    }
-}
-
-$pyCmdLine = if ($py.ArgumentPrefix.Count -gt 0) {
-    "py -3 -m uvicorn app:app --host 0.0.0.0 --port $Port"
-} else {
-    "python -m uvicorn app:app --host 0.0.0.0 --port $Port"
-}
+$pythonPath = Join-Path $VenvDir 'Scripts\python.exe'
+$pyCmdLine = "`"$pythonPath`" -m uvicorn app:app --host 0.0.0.0 --port $Port"
 
 # Combined stdout/stderr into one log (same as start.sh); cmd avoids nested PowerShell quoting
 $runCmd = "cd /d `"$BackendDir`" && set PYTHONUNBUFFERED=1 && $pyCmdLine > `"$LogFile`" 2>&1"
@@ -125,13 +130,36 @@ Write-Host "==> 启动: $pyCmdLine（日志: $LogFile）"
 $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/c', $runCmd) -WindowStyle Hidden -PassThru
 Write-Host "==> 已后台启动，CMD 包装 PID=$($proc.Id)，日志: $LogFile"
 
-Start-Sleep -Seconds 2
+# lifespan 内会先 await init_db() 等，完成后 Uvicorn 才 bind；2s 在 Windows/远端 MySQL 上常误判失败，故轮询等待。
+$maxWaitSec = 45
+$listenAfter = @()
+for ($i = 0; $i -lt $maxWaitSec; $i++) {
+    Start-Sleep -Seconds 1
+    $listenAfter = Get-ListenerPids -LocalPort $Port
+    if ($listenAfter.Count -gt 0) { break }
+    if (($i + 1) % 5 -eq 0) {
+        Write-Host "==> 仍在等待端口 $Port 监听… ($($i + 1)s / ${maxWaitSec}s，应用启动中或数据库较慢)" -ForegroundColor DarkGray
+    }
+}
 
-$listenAfter = Get-ListenerPids -LocalPort $Port
 if ($listenAfter.Count -eq 0) {
-    Write-Host '==> 警告: 暂未检测到端口监听，可能启动失败。日志尾部:' -ForegroundColor Yellow
+    $cmdAlive = $false
+    try {
+        $null = Get-Process -Id $proc.Id -ErrorAction Stop
+        $cmdAlive = $true
+    } catch {
+        $cmdAlive = $false
+    }
+    Write-Host '==> 警告: 等待超时仍未检测到端口监听。日志尾部:' -ForegroundColor Yellow
     if (Test-Path -LiteralPath $LogFile) {
-        Get-Content -LiteralPath $LogFile -Tail 30 -ErrorAction SilentlyContinue
+        Get-Content -LiteralPath $LogFile -Tail 40 -ErrorAction SilentlyContinue
+    } else {
+        Write-Host '(日志文件尚不存在或路径无效)'
+    }
+    if (-not $cmdAlive) {
+        Write-Host '==> CMD 包装进程已退出，多半是启动崩溃。请根据上方日志排查（常见：MySQL 未启动、.env 库连不上）。' -ForegroundColor Red
+    } else {
+        Write-Host '==> CMD 仍在运行但未监听端口，请查看日志是否卡在数据库或 lifespan。' -ForegroundColor Red
     }
     exit 1
 }

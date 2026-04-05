@@ -4,6 +4,7 @@
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
 httpx>=0.27.0
+lark-oapi>=1.4.0
 pydantic>=2.4.0
 pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
@@ -21,6 +22,10 @@ python-multipart>=0.0.18
 
 # ============ 加密 ============
 cryptography>=46.0.5
+
+# ============ CDP / Chrome 远程调试（api/cdp、MiniMax 等）============
+# 提供 import websocket（create_connection）；包名是 websocket-client
+websocket-client>=1.6.0
 
 # ============ 旧依赖 (过渡期保留) ============
 Flask==3.0.0

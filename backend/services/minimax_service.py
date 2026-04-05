@@ -22,44 +22,24 @@ class MiniMaxService(BaseHTTPService):
     
     def __init__(self):
         super().__init__(timeout=10)
-        # 项目根目录是 backend 的上两级 (services/ -> backend/ -> new/)
-        self.cookie_file = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            "data",
-            "minimax_cookies.json"
-        )
-    
-    def get_cookies(self) -> Optional[str]:
-        """从文件读取 Cookie（兼容旧版本）"""
-        if os.path.exists(self.cookie_file):
-            try:
-                with open(self.cookie_file, "r") as f:
-                    data = json.load(f)
-                return data.get("cookies", "")
-            except:
-                return None
-        return None
     
     async def get_usage(self, cookies: str = None, group_id: str = None) -> dict:
         """
         获取 MiniMax 用量
         
         Args:
-            cookies: Cookie 字符串，如果不传则从文件读取
-            group_id: MiniMax GroupId，如果不传则从文件读取
+            cookies: Cookie 字符串（必填，由账号库解密后传入）
+            group_id: MiniMax GroupId；不传则根据 Cookie 向平台拉取
         
         Returns:
             包含 page_info 的响应字典
         """
-        # 获取 Cookie
-        if not cookies:
-            cookies = self.get_cookies()
         if not cookies:
             return {"error": "Cookie not found", "code": "NO_COOKIE"}
         
         # 获取 GroupId
         if not group_id:
-            group_id = self._get_group_id(cookies)
+            group_id = self._fetch_group_id(cookies)
         if not group_id:
             return {"error": "GroupId not found", "code": "NO_GROUP_ID"}
         
@@ -287,27 +267,6 @@ class MiniMaxService(BaseHTTPService):
             _log(f"[MiniMax] 订阅到期时间获取失败: {e}")
             return ""
     
-    def _get_group_id(self, cookies: str = None) -> Optional[str]:
-        """获取 GroupId，优先从文件读取，否则自动从 API 获取"""
-        # 先尝试从文件读取
-        if os.path.exists(self.cookie_file):
-            try:
-                with open(self.cookie_file, "r") as f:
-                    data = json.load(f)
-                group_id = data.get("group_id", "")
-                if group_id:
-                    return group_id
-            except:
-                pass
-        
-        # 文件没有或为空，自动从 API 获取
-        if not cookies:
-            cookies = self.get_cookies()
-        if not cookies:
-            return ""
-        
-        return self._fetch_group_id(cookies)
-    
     def _fetch_group_id(self, cookies: str) -> str:
         """从 MiniMax API 获取用户的 GroupId"""
         import httpx
@@ -339,13 +298,6 @@ class MiniMaxService(BaseHTTPService):
                 if data.get("base_resp", {}).get("status_code") == 0:
                     group_id = data.get("group_id", "")
                     _log(f"[MiniMax] 获取到 GroupId: {group_id}")
-                    # 保存到文件
-                    if group_id and os.path.exists(self.cookie_file):
-                        with open(self.cookie_file, "r") as f:
-                            file_data = json.load(f)
-                        file_data["group_id"] = group_id
-                        with open(self.cookie_file, "w") as f:
-                            json.dump(file_data, f)
                     return group_id
                 else:
                     _log(f"[MiniMax] API 返回错误: {data.get('base_resp')}")

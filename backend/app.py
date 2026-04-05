@@ -21,7 +21,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # 导入路由
-from api import common, minimax, xfyun, cookie, cdp, auth, accounts, services
+from api import common, minimax, xfyun, cdp, auth, accounts, services, admin_users
 
 # 导入数据库
 from models.database import init_db
@@ -109,6 +109,8 @@ async def redirect_to_first_setup():
 # 认证接口
 app.include_router(auth.router)
 
+app.include_router(admin_users.router)
+
 # 账号管理接口
 app.include_router(accounts.router)
 
@@ -121,9 +123,6 @@ app.include_router(services.router)
 # 平台专用接口
 app.include_router(minimax.router)
 app.include_router(xfyun.router)
-
-# Cookie 管理接口
-app.include_router(cookie.router)
 
 # CDP 浏览器连接接口
 app.include_router(cdp.router)

@@ -10,6 +10,7 @@ $ErrorActionPreference = "Stop"
 $BackendDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $EnvFile = Join-Path $BackendDir ".env"
 $Example = Join-Path $BackendDir ".env.example"
+$VenvDir = Join-Path $BackendDir ".venv"
 
 function Show-Help {
     @'
@@ -39,6 +40,33 @@ function Show-Help {
 '@ | Write-Host
 }
 
+function Get-SystemPython {
+    if (Get-Command py -ErrorAction SilentlyContinue) {
+        return @{ FilePath = (Get-Command py).Source; Args = @('-3') }
+    }
+    if (Get-Command python -ErrorAction SilentlyContinue) {
+        return @{ FilePath = (Get-Command python).Source; Args = @() }
+    }
+    Write-Host '==> 错误: 未找到 Python（需要 PATH 中有 py 或 python）' -ForegroundColor Red
+    exit 1
+}
+
+function Get-PythonPath {
+    $venvPy = Join-Path $VenvDir 'Scripts\python.exe'
+    if (Test-Path -LiteralPath $venvPy) {
+        return $venvPy
+    }
+    $sysPy = Get-SystemPython
+    $venvArgs = $sysPy.Args + @('-m', 'venv', $VenvDir)
+    Write-Host "==> 创建虚拟环境: $VenvDir"
+    & $sysPy.FilePath $venvArgs
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host '==> 错误: 创建虚拟环境失败' -ForegroundColor Red
+        exit 1
+    }
+    return $venvPy
+}
+
 if ($Help) {
     Show-Help
     exit 0
@@ -53,6 +81,8 @@ if (-not (Test-Path -LiteralPath $Example)) {
     Write-Error "缺少 $Example"
     exit 1
 }
+
+$PythonPath = Get-PythonPath
 
 $bdirPy = $BackendDir.Replace('\', '/')
 $fillPy = @'
@@ -86,7 +116,7 @@ target.write_text("\n".join(out) + "\n", encoding="utf-8")
 print("OK", target)
 '@.Replace('__BDIR__', $bdirPy)
 
-$fillPy | python -
+$fillPy | & $PythonPath -
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Python 生成 .env 失败"
     exit 1
@@ -167,7 +197,7 @@ print("FLUSH PRIVILEGES;")
     $env:_P = $dbPass
     try {
         $env:MYSQL_PWD = $env:INIT_MYSQL_ADMIN_PASSWORD
-        $sqlPy | python - | & mysql -h$adminHost -P$adminPort -u$adminUser
+        $sqlPy | & $PythonPath - | & mysql -h$adminHost -P$adminPort -u$adminUser
         if ($LASTEXITCODE -ne 0) {
             Write-Error "建库 SQL 执行失败"
             exit 1

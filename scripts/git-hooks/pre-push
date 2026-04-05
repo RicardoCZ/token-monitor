@@ -1,5 +1,5 @@
 #!/bin/sh
-# 禁止推送包含 docs/ 或 TODO.md 的提交（防止 history 或 -f 误提交）。
+# 禁止推送包含「当前 .gitignore 会忽略」的路径的提交（与 pre-commit 一致）。
 remote="$1"
 url="$2"
 z40=0000000000000000000000000000000000000000
@@ -16,9 +16,14 @@ do
 	fi
 	for commit in $(git rev-list $range 2>/dev/null)
 	do
-		names=$(git diff-tree --no-commit-id --name-only -r "$commit" 2>/dev/null | grep -E '^docs/|^TODO\.md$' || true)
+		names=$(git diff-tree --no-commit-id --name-only -r "$commit" 2>/dev/null | while IFS= read -r f; do
+			[ -z "$f" ] && continue
+			if git check-ignore -q "$f" 2>/dev/null; then
+				printf '%s\n' "$f"
+			fi
+		done)
 		if [ -n "$names" ]; then
-			printf '%s\n' "" "拒绝推送：提交 $commit 包含仅本地允许的路径：" "$names" "" "请从历史中移除相关提交或重写分支（docs/ 与 TODO.md 不应入库）。" >&2
+			printf '%s\n' "" "拒绝推送：提交 $commit 包含被 .gitignore 忽略的路径：" "$names" "" "请从历史中移除相关文件或重写分支（此类路径不应入库）。" >&2
 			exit 1
 		fi
 	done

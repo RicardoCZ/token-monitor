@@ -1,7 +1,5 @@
 # Token Monitor 部署指南
 
-> **说明**：详细运维手册（完整 `.env` 表、Runbook、发布回归清单等）在本地维护的 **`docs/OPERATIONS.md`** 中；该 **`docs/` 目录不参与远端仓库**，仅供本地或内部分发。
-
 面向**全新环境**的最低限度流程如下。配置项仍以 `backend/.env.example` 为准。
 
 ---
@@ -44,5 +42,9 @@ INIT_MYSQL_ADMIN_PASSWORD='你的MySQL密码' ./init_env.sh
 
 ## 更多
 
-- 产品说明、**Web 前端脚本约定**、**Android 打包与 adb 安装**见根目录 **[README.md](./README.md)**。
-- 完整运维手册（`.env` 全表、Runbook、发布回归）见 **`docs/OPERATIONS.md`**（与仓库一同维护时；若你沿用「docs 不入库」策略，以本地副本为准）。
+- 产品说明、**Web 前端脚本约定**、**Android 打包**（含 `pack.sh`、设计预览里 `prepare_launcher_icons.py`、`public/welcome-logo`）、**adb 安装**见 **[README.md](./README.md)**。
+
+### 手机端 APK 与图标（摘要）
+
+- 更新壳内 H5：**在 `mobile-app/`** 执行 `npm run build` 与 `npx cap sync android` 后再打 APK；或直接 **`bash pack.sh`**。
+- 更换**应用图标**或欢迎页顶图：见 README「启动器图标与 welcome-logo」；依赖 Pillow，在 `design-preview` 运行 `python3 prepare_launcher_icons.py`。

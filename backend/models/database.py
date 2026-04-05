@@ -56,3 +56,7 @@ async def init_db():
         await conn.execute(
             text("ALTER TABLE services MODIFY COLUMN icon VARCHAR(128) NULL")
         )
+        try:
+            await conn.execute(text("ALTER TABLE users ADD COLUMN notify_webhooks JSON NULL"))
+        except Exception:
+            pass

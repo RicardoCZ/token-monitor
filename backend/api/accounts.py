@@ -17,6 +17,7 @@ from models.db_models import User, Account, Service, UsageSnapshot, Alert, Alert
 from core.security import get_current_user
 from core.encryption import encrypt_data
 from services.account_collector import collect_account_usage
+from utils.notify_channels import normalize_notify_channels
 
 router = APIRouter(prefix="/api/accounts", tags=["账号管理"])
 
@@ -229,27 +230,6 @@ def _format_history_collected_at(value: Optional[datetime]) -> Optional[str]:
     return utc_dt.isoformat().replace("+00:00", "Z")
 
 
-def _normalize_notify_channels(raw: Any) -> list[str]:
-    if isinstance(raw, list):
-        channels = [str(item).strip() for item in raw if str(item).strip()]
-        return channels or ["log"]
-    if isinstance(raw, str):
-        text = raw.strip()
-        if not text:
-            return ["log"]
-        if text.startswith("["):
-            try:
-                parsed = json.loads(text)
-                if isinstance(parsed, list):
-                    channels = [str(item).strip() for item in parsed if str(item).strip()]
-                    return channels or ["log"]
-            except json.JSONDecodeError:
-                pass
-        channels = [item.strip() for item in text.split(",") if item.strip()]
-        return channels or ["log"]
-    return ["log"]
-
-
 def _serialize_alert_rule(rule: Alert) -> AlertRuleResponse:
     return AlertRuleResponse(
         id=rule.id,
@@ -257,7 +237,7 @@ def _serialize_alert_rule(rule: Alert) -> AlertRuleResponse:
         threshold=float(rule.threshold or 0),
         is_enabled=bool(rule.is_enabled),
         is_firing=bool(rule.is_firing),
-        notify_channels=_normalize_notify_channels(rule.notify_channels),
+        notify_channels=normalize_notify_channels(rule.notify_channels),
         last_triggered_at=rule.last_triggered_at,
         last_recovered_at=rule.last_recovered_at,
         muted_until=rule.muted_until,
@@ -729,7 +709,7 @@ async def upsert_account_alert_rule(
         )
     )
     rule = result.scalar_one_or_none()
-    channels = _normalize_notify_channels(req.notify_channels)
+    channels = normalize_notify_channels(req.notify_channels)
 
     if rule is None:
         rule = Alert(

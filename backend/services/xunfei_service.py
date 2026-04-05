@@ -4,8 +4,6 @@ Token Monitor - 讯飞服务
 """
 
 import json
-import os
-from typing import Optional
 from .base_service import BaseHTTPService
 
 
@@ -14,37 +12,17 @@ class XunFeiService(BaseHTTPService):
     
     def __init__(self):
         super().__init__(timeout=10)
-        # 项目根目录是 backend 的上两级 (services/ -> backend/ -> new/)
-        self.cookie_file = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-            "data",
-            "xfyun_cookies.json"
-        )
-    
-    def get_cookies(self) -> Optional[str]:
-        """从文件读取 Cookie（兼容旧版本）"""
-        if os.path.exists(self.cookie_file):
-            try:
-                with open(self.cookie_file, "r") as f:
-                    data = json.load(f)
-                return data.get("cookies", "")
-            except:
-                return None
-        return None
     
     async def get_usage(self, cookies: str = None) -> dict:
         """
         获取讯飞用量
         
         Args:
-            cookies: Cookie 字符串，如果不传则从文件读取
+            cookies: Cookie 字符串（必填，由账号库解密后传入）
         
         Returns:
             包含 page_info 的响应字典
         """
-        # 获取 Cookie
-        if not cookies:
-            cookies = self.get_cookies()
         if not cookies:
             return {"error": "Cookie not found", "code": "NO_COOKIE"}
         

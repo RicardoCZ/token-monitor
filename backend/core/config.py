@@ -68,5 +68,12 @@ class Settings(BaseSettings):
     alert_eval_enabled: bool = True
     alert_default_threshold: float = 80.0
 
+    # 飞书 Open API 域名（告警私聊凭证由各用户在 notify_webhooks 中配置）
+    # 国内默认 https://open.feishu.cn ；国际版 Lark 可改为 https://open.larksuite.com
+    feishu_open_api_base: str = "https://open.feishu.cn"
+
+    # QQ OpenAPI v2 是否走沙箱根路径（机器人 AppId/Secret 由各用户在 notify_webhooks 中配置）
+    qq_bot_use_sandbox: bool = False
+
 
 settings = Settings()

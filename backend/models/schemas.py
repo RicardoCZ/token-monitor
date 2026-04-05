@@ -46,19 +46,6 @@ class XunFeiResponse(BaseModel):
 
 # ============ 通用响应模型 ============
 
-class StatusResponse(BaseModel):
-    """状态查询响应"""
-    minimax: Optional[MiniMaxPageInfo] = None
-    xfyun: Optional[XunFeiPageInfo] = None
-    status: str = "ok"
-
-
-class SetCookieRequest(BaseModel):
-    """设置 Cookie 请求"""
-    service: str  # minimax / xfyun
-    cookies: str
-
-
 class MessageResponse(BaseModel):
     """通用消息响应"""
     message: str

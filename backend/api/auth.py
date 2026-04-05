@@ -13,11 +13,13 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm.attributes import flag_modified
 
 from models.database import get_db
 from models.db_models import ApiKey, User, InviteCode
 from core.api_keys import generate_api_key, get_api_key_prefix, hash_api_key
 from core.config import settings
+from core.credential_crypto import encrypt_credential
 from core.security import (
     verify_password,
     get_password_hash,
@@ -133,6 +135,149 @@ class UserInfo(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class NotifyWebhooksPayload(BaseModel):
+    """
+    仅出现在 body 的字段会更新。
+    App Secret 仅写入：不要在 GET 中回显；更新时若省略字段则不改密文，传 null 则清除密文。
+    """
+
+    qq_openid: Optional[str] = None
+    feishu_open_id: Optional[str] = None
+    feishu_app_id: Optional[str] = None
+    feishu_app_secret: Optional[str] = None
+    qq_bot_app_id: Optional[str] = None
+    qq_bot_app_secret: Optional[str] = None
+
+
+class NotifyWebhooksResponse(BaseModel):
+    qq_openid: Optional[str] = None
+    feishu_open_id: Optional[str] = None
+    feishu_app_id: Optional[str] = None
+    feishu_app_secret_configured: bool = False
+    qq_bot_app_id: Optional[str] = None
+    qq_bot_app_secret_configured: bool = False
+
+
+_NOTIFY_WEBHOOKS_STORAGE_KEYS = frozenset(
+    {
+        "qq_openid",
+        "feishu_open_id",
+        "feishu_app_id",
+        "feishu_app_secret_enc",
+        "qq_bot_app_id",
+        "qq_bot_app_secret_enc",
+    }
+)
+
+
+def _coerce_notify_webhooks_storage_val(v: object) -> Optional[str]:
+    """JSON 列中值可能非 str（驱动/历史数据）；统一成可入库的非空字符串。"""
+    if v is None:
+        return None
+    if isinstance(v, str):
+        s = v.strip()
+        return s if s else None
+    if isinstance(v, bytes):
+        try:
+            s = v.decode("utf-8").strip()
+        except Exception:
+            return None
+        return s if s else None
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, int):
+        return str(v)
+    if isinstance(v, float):
+        if not v.is_integer():
+            return None
+        return str(int(v))
+    return None
+
+
+def _normalize_qq_openid(value: Optional[str]) -> Optional[str]:
+    """QQ 单聊用户 openid，来自官方机器人事件等；格式由平台分配，只做长度与空白校验。"""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return ""
+    if len(s) > 128:
+        raise HTTPException(status_code=400, detail="qq_openid 过长")
+    if len(s) < 4:
+        raise HTTPException(
+            status_code=400,
+            detail="qq_openid 过短，请从机器人事件或开放平台调试信息中复制完整 openid",
+        )
+    if any(c in s for c in (" ", "\n", "\r", "\t")):
+        raise HTTPException(status_code=400, detail="qq_openid 不能包含空白字符")
+    return s
+
+
+def _normalize_feishu_open_id(value: Optional[str]) -> Optional[str]:
+    """飞书用户 Open ID，用于应用机器人私聊；一般以 ou_ 开头。"""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return ""
+    if len(s) > 128:
+        raise HTTPException(status_code=400, detail="feishu_open_id 过长")
+    if not s.startswith("ou_"):
+        raise HTTPException(
+            status_code=400,
+            detail="feishu_open_id 须为飞书 Open ID（一般以 ou_ 开头），参见开放平台调试台复制成员 ID",
+        )
+    return s
+
+
+def _normalize_feishu_app_id(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return ""
+    if len(s) > 64:
+        raise HTTPException(status_code=400, detail="feishu_app_id 过长")
+    return s
+
+
+def _normalize_qq_bot_app_id(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return ""
+    if len(s) > 64:
+        raise HTTPException(status_code=400, detail="qq_bot_app_id 过长")
+    return s
+
+
+def _clamp_integration_secret(plain: str, label: str) -> str:
+    s = (plain or "").strip()
+    if not s:
+        raise HTTPException(status_code=400, detail=f"{label} 不能为空")
+    if len(s) > 512:
+        raise HTTPException(status_code=400, detail=f"{label} 过长")
+    return s
+
+
+def _notify_response_from_raw(raw: dict) -> NotifyWebhooksResponse:
+    def gs(key: str) -> Optional[str]:
+        v = raw.get(key)
+        return v if isinstance(v, str) else None
+
+    fe = gs("feishu_app_secret_enc")
+    qe = gs("qq_bot_app_secret_enc")
+    return NotifyWebhooksResponse(
+        qq_openid=gs("qq_openid"),
+        feishu_open_id=gs("feishu_open_id"),
+        feishu_app_id=gs("feishu_app_id"),
+        feishu_app_secret_configured=bool(fe and fe.strip()),
+        qq_bot_app_id=gs("qq_bot_app_id"),
+        qq_bot_app_secret_configured=bool(qe and qe.strip()),
+    )
 
 
 class InviteCodeCreate(BaseModel):
@@ -388,6 +533,129 @@ async def login(
 async def get_me(current_user: User = Depends(get_current_user)):
     """获取当前用户信息"""
     return current_user
+
+
+def _notify_webhooks_as_dict(raw: object) -> Optional[dict]:
+    """
+    MySQL JSON + 部分驱动下，列可能被读成 str；统一解析为 dict，避免 GET/合并失效导致前端回显为空。
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):
+        s = raw.strip()
+        if not s:
+            return None
+        try:
+            parsed = json.loads(s)
+        except json.JSONDecodeError:
+            return None
+        return parsed if isinstance(parsed, dict) else None
+    return None
+
+
+@router.get("/notify-webhooks", response_model=NotifyWebhooksResponse)
+async def get_notify_webhooks(current_user: User = Depends(get_current_user)):
+    """飞书/QQ 机器人：每人自用 AppId + 密文 Secret；Open ID / openid 收件人。"""
+    raw = _notify_webhooks_as_dict(current_user.notify_webhooks)
+    if not raw:
+        return NotifyWebhooksResponse()
+    return _notify_response_from_raw(raw)
+
+
+@router.put("/notify-webhooks", response_model=NotifyWebhooksResponse)
+async def put_notify_webhooks(
+    body: NotifyWebhooksPayload,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """更新每人自用飞书/QQ 机器人凭证（Secret 加密存储）及收件人 ID。"""
+    raw: dict[str, str] = {}
+    prev = _notify_webhooks_as_dict(current_user.notify_webhooks)
+    # 勿用 `if prev:`：空 dict 在 Python 中为假，会跳过合并导致已有密文丢失。
+    if isinstance(prev, dict):
+        for k, v in prev.items():
+            if k not in _NOTIFY_WEBHOOKS_STORAGE_KEYS:
+                continue
+            coerced = _coerce_notify_webhooks_storage_val(v)
+            if coerced:
+                raw[k] = coerced
+
+    fs = body.model_fields_set
+    if "qq_openid" in fs:
+        if body.qq_openid is None:
+            raw.pop("qq_openid", None)
+        else:
+            u = _normalize_qq_openid(body.qq_openid)
+            if u == "":
+                raw.pop("qq_openid", None)
+            elif u is not None:
+                raw["qq_openid"] = u
+    if "feishu_open_id" in fs:
+        if body.feishu_open_id is None:
+            raw.pop("feishu_open_id", None)
+        else:
+            u = _normalize_feishu_open_id(body.feishu_open_id)
+            if u == "":
+                raw.pop("feishu_open_id", None)
+            elif u is not None:
+                raw["feishu_open_id"] = u
+    if "feishu_app_id" in fs:
+        if body.feishu_app_id is None:
+            raw.pop("feishu_app_id", None)
+            raw.pop("feishu_app_secret_enc", None)
+        else:
+            u = _normalize_feishu_app_id(body.feishu_app_id)
+            if u == "":
+                raw.pop("feishu_app_id", None)
+                raw.pop("feishu_app_secret_enc", None)
+            elif u is not None:
+                raw["feishu_app_id"] = u
+    if "feishu_app_secret" in fs:
+        if body.feishu_app_secret is None:
+            raw.pop("feishu_app_secret_enc", None)
+        elif (body.feishu_app_secret or "").strip():
+            plain = _clamp_integration_secret(body.feishu_app_secret, "feishu_app_secret")
+            try:
+                raw["feishu_app_secret_enc"] = encrypt_credential(plain)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="飞书 App Secret 无法加密存储",
+                ) from None
+    if "qq_bot_app_id" in fs:
+        if body.qq_bot_app_id is None:
+            raw.pop("qq_bot_app_id", None)
+            raw.pop("qq_bot_app_secret_enc", None)
+        else:
+            u = _normalize_qq_bot_app_id(body.qq_bot_app_id)
+            if u == "":
+                raw.pop("qq_bot_app_id", None)
+                raw.pop("qq_bot_app_secret_enc", None)
+            elif u is not None:
+                raw["qq_bot_app_id"] = u
+    if "qq_bot_app_secret" in fs:
+        if body.qq_bot_app_secret is None:
+            raw.pop("qq_bot_app_secret_enc", None)
+        elif (body.qq_bot_app_secret or "").strip():
+            plain = _clamp_integration_secret(body.qq_bot_app_secret, "qq_bot_app_secret")
+            try:
+                raw["qq_bot_app_secret_enc"] = encrypt_credential(plain)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail="QQ App Secret 无法加密存储",
+                ) from None
+
+    current_user.notify_webhooks = raw if raw else None
+    flag_modified(current_user, "notify_webhooks")
+    await db.commit()
+    await db.refresh(current_user)
+    stored = _notify_webhooks_as_dict(current_user.notify_webhooks)
+    if not isinstance(stored, dict):
+        stored = {}
+    return _notify_response_from_raw(stored)
 
 
 @router.post("/invite-codes", response_model=InviteCodeResponse)
