@@ -1922,6 +1922,12 @@
                 alert('请先输入 Cookie');
                 return;
             }
+
+            if (!(await Ui.showConfirmModal({
+                title: '确认保存',
+                message: '确定将当前 Cookie 保存到账号吗？',
+                confirmText: '保存',
+            }))) return;
             
             const status = document.getElementById(service + '-status');
             
@@ -1974,10 +1980,6 @@
                     status.textContent = '✅ Cookie 保存成功！';
                     loadCurrentConfig();
                     document.getElementById('auto-fill-hint').style.display = 'none';
-                    await Ui.showAlertModal({
-                        title: '保存成功',
-                        message: 'Cookie 已保存到当前账号。',
-                    });
                 } else {
                     status.className = 'status error';
                     status.textContent = '❌ 保存失败: ' + (data.detail || '未知错误');

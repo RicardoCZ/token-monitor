@@ -860,6 +860,11 @@
             };
             const pw = (pwEl && pwEl.value) ? pwEl.value.trim() : '';
             if (pw) payload.new_password = pw;
+            if (!(await Ui.showConfirmModal({
+                title: '确认保存',
+                message: '确定保存对该用户的修改吗？' + (pw ? '（将更新登录密码）' : ''),
+                confirmText: '保存',
+            }))) return;
             try {
                 const resp = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
                     method: 'PATCH',
@@ -871,10 +876,7 @@
                     showToast(data.detail || '保存失败', true);
                     return;
                 }
-                await Ui.showAlertModal({
-                    title: '保存成功',
-                    message: '用户信息已更新。',
-                });
+                showToast('用户已更新');
                 if (pwEl) pwEl.value = '';
                 loadAdminUsers();
             } catch (e) {

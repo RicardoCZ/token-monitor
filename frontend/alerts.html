@@ -1987,6 +1987,11 @@
                 showToast('阈值需在 0-100 之间', true);
                 return;
             }
+            if (!(await Ui.showConfirmModal({
+                title: '确认保存',
+                message: '确定保存当前告警规则吗？将覆盖该账号下该指标的现有规则。',
+                confirmText: '保存',
+            }))) return;
             try {
                 const resp = await fetch(`${API_BASE}/api/accounts/${currentAlertAccountId}/alerts/${encodeURIComponent(metricKey)}`, {
                     method: 'PUT',
@@ -2002,10 +2007,7 @@
                     showToast(data.detail || '保存规则失败', true);
                     return;
                 }
-                await Ui.showAlertModal({
-                    title: '保存成功',
-                    message: '规则已保存。',
-                });
+                showToast('规则已保存');
                 alertEventsPage = 1;
                 await reloadAlertData();
             } catch (e) {
@@ -2025,6 +2027,11 @@
                 showToast('阈值需在 0-100 之间', true);
                 return;
             }
+            if (!(await Ui.showConfirmModal({
+                title: '确认保存',
+                message: `确定保存指标「${escapeHtml(metricKey)}」的告警规则吗？`,
+                confirmText: '保存',
+            }))) return;
             try {
                 const resp = await fetch(`${API_BASE}/api/accounts/${accountId}/alerts/${encodeURIComponent(metricKey)}`, {
                     method: 'PUT',
@@ -2067,13 +2074,7 @@
                         return;
                     }
                 }
-                await Ui.showAlertModal({
-                    title: '保存成功',
-                    message:
-                        hours > 0
-                            ? `规则与静默已保存（指标：${metricKey}）。`
-                            : `规则已保存（指标：${metricKey}）。`,
-                });
+                showToast(hours > 0 ? `规则与静默已保存：${metricKey}` : `规则已保存：${metricKey}`);
                 alertEventsPage = 1;
                 await reloadAlertData();
             } catch (e) {

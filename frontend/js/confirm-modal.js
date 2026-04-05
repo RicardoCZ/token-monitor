@@ -4,10 +4,9 @@
  *
  * 用法（建议在 ui-shared.js 之后加载）：
  *   if (!(await window.TMDUi.showConfirmModal({ title, message, confirmText: '删除', danger: true }))) return;
- *   await window.TMDUi.showAlertModal({ title: '保存成功', message: '…', okText: '确定' });
+ * showAlertModal：单按钮提示（只读结果等），点确定或 Esc 或点遮罩后关闭。
  *
  * 选项：title, message, confirmText, cancelText, danger（危险操作用红色主按钮）
- * showAlertModal：单按钮提示（如保存成功），点确定或 Esc 或点遮罩后关闭。
  */
 (function (w) {
     const STYLE_ID = "tmd-confirm-modal-style";

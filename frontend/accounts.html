@@ -1796,6 +1796,11 @@
                     showToast('填写 QQ App Secret 时请同时填写 QQ 机器人 App ID', true);
                     return;
                 }
+                if (!(await Ui.showConfirmModal({
+                    title: '确认保存',
+                    message: '确定保存当前通知配置吗？',
+                    confirmText: '保存',
+                }))) return;
                 const body = {
                     feishu_open_id: oid ? (oid.value || '').trim() : '',
                     qq_openid: qo ? (qo.value || '').trim() : '',
@@ -1815,16 +1820,21 @@
                     return;
                 }
                 _applyNotifyWebhooksToForm(data);
-                await Ui.showAlertModal({
-                    title: '保存成功',
-                    message: '通知配置已保存。',
-                });
+                showToast('通知配置已保存');
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);
             }
         }
 
         async function clearNotifySecret(which) {
+            if (!(await Ui.showConfirmModal({
+                title: '确认清除',
+                message: which === 'feishu'
+                    ? '确定清除已保存的飞书 App Secret 吗？'
+                    : '确定清除已保存的 QQ 机器人 App Secret 吗？',
+                confirmText: '清除',
+                danger: true,
+            }))) return;
             const patch = which === 'feishu'
                 ? { feishu_app_secret: null }
                 : { qq_bot_app_secret: null };
@@ -1840,10 +1850,7 @@
                     return;
                 }
                 _applyNotifyWebhooksToForm(data);
-                await Ui.showAlertModal({
-                    title: '已更新',
-                    message: which === 'feishu' ? '已清除飞书 App Secret。' : '已清除 QQ 机器人 App Secret。',
-                });
+                showToast(which === 'feishu' ? '已清除飞书密钥' : '已清除 QQ 密钥');
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);
             }
@@ -2083,6 +2090,11 @@
                 showToast('操作太频繁，请稍后再试', true);
                 return;
             }
+            if (!(await Ui.showConfirmModal({
+                title: '确认同步',
+                message: '确定要立即同步该账号吗？',
+                confirmText: '同步',
+            }))) return;
             const btn = document.getElementById(`sync-btn-${accountId}`);
             syncCooldownUntilByAccount.set(accountId, now + SYNC_COOLDOWN_MS);
             if (btn) {
@@ -2100,10 +2112,7 @@
                     showToast(data.detail || '同步失败', true);
                     return;
                 }
-                await Ui.showAlertModal({
-                    title: '同步成功',
-                    message: data.message || `账号 ${accountId} 已同步。`,
-                });
+                showToast(data.message || `账号 ${accountId} 同步成功`);
                 await loadAccounts();
                 await viewAccountDetail(accountId);
             } catch (e) {
@@ -2208,6 +2217,12 @@
                 return;
             }
 
+            if (!(await Ui.showConfirmModal({
+                title: '确认保存',
+                message: `确定将配置名称保存为「${escapeHtml(nextName)}」吗？`,
+                confirmText: '保存',
+            }))) return;
+
             savingAccountNameIds.add(accountId);
             try {
                 const resp = await fetch(`${API_BASE}/api/accounts/${accountId}`, {
@@ -2229,10 +2244,7 @@
                 const cachedDetail = accountDetailCache.get(accountId);
                 if (cachedDetail) cachedDetail.name = nextName;
                 restore(nextName);
-                await Ui.showAlertModal({
-                    title: '保存成功',
-                    message: '配置名称已更新。',
-                });
+                showToast('配置名称更新成功');
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);
                 setTimeout(() => {
@@ -2395,6 +2407,12 @@
                 expires_at: expiresInput && expiresInput.value ? new Date(expiresInput.value).toISOString() : null,
             };
 
+            if (!(await Ui.showConfirmModal({
+                title: '确认创建',
+                message: '确定创建该接口密钥吗？创建后请立即复制明文密钥。',
+                confirmText: '创建',
+            }))) return;
+
             btn.disabled = true;
             btn.textContent = '创建中...';
             try {
@@ -2413,10 +2431,7 @@
                 if (nameInput) nameInput.value = '';
                 resetApiKeyScopeCheckboxes();
                 if (expiresInput) expiresInput.value = '';
-                await Ui.showAlertModal({
-                    title: '创建成功',
-                    message: '接口密钥已创建，请尽快复制并保存明文密钥。',
-                });
+                showToast('接口密钥创建成功');
                 loadApiKeys();
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);
