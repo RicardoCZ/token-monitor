@@ -60,3 +60,7 @@ async def init_db():
             await conn.execute(text("ALTER TABLE users ADD COLUMN notify_webhooks JSON NULL"))
         except Exception:
             pass
+        try:
+            await conn.execute(text("ALTER TABLE alerts DROP COLUMN mute_reason"))
+        except Exception:
+            pass

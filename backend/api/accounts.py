@@ -75,7 +75,6 @@ class AlertMutePatchRequest(BaseModel):
     """muted_until 必填键：null 表示解除静默；非 null 须为未来 UTC 时间（可与前端 ISO8601 Z 对齐）。"""
 
     muted_until: Optional[datetime] = None
-    mute_reason: Optional[str] = None
 
 
 class AlertRuleResponse(BaseModel):
@@ -88,7 +87,6 @@ class AlertRuleResponse(BaseModel):
     last_triggered_at: Optional[datetime]
     last_recovered_at: Optional[datetime]
     muted_until: Optional[datetime] = None
-    mute_reason: Optional[str] = None
 
 
 class AlertRuleWithAccountResponse(AlertRuleResponse):
@@ -241,7 +239,6 @@ def _serialize_alert_rule(rule: Alert) -> AlertRuleResponse:
         last_triggered_at=rule.last_triggered_at,
         last_recovered_at=rule.last_recovered_at,
         muted_until=rule.muted_until,
-        mute_reason=rule.mute_reason,
     )
 
 @router.get("", response_model=List[AccountResponse])
@@ -774,7 +771,6 @@ async def patch_alert_rule_mute(
 
     if body.muted_until is None:
         rule.muted_until = None
-        rule.mute_reason = None
     else:
         until = _naive_utc_dt(body.muted_until)
         now = datetime.utcnow()
@@ -784,9 +780,6 @@ async def patch_alert_rule_mute(
                 detail="muted_until 须晚于当前时间（UTC）",
             )
         rule.muted_until = until
-        if "mute_reason" in fs:
-            reason = (body.mute_reason or "").strip()
-            rule.mute_reason = reason[:255] if reason else None
 
     await db.commit()
     await db.refresh(rule)

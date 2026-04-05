@@ -131,7 +131,6 @@ class Alert(Base):
     last_triggered_at = Column(DateTime)
     last_recovered_at = Column(DateTime)
     muted_until = Column(DateTime, nullable=True)  # 静默截止（UTC naive），到期后自动恢复判定
-    mute_reason = Column(String(255), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
     # 关联

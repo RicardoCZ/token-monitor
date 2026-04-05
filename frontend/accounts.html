@@ -312,11 +312,11 @@
          */
         .alert-rule-toolbar {
             display: flex;
-            gap: 14px;
+            gap: 16px;
             align-items: flex-end;
-            margin-top: 4px;
-            margin-bottom: 18px;
-            padding: 16px 18px;
+            margin-top: 8px;
+            margin-bottom: 20px;
+            padding: 18px 20px;
             background: var(--surface-inset);
             border-radius: var(--radius-md);
             border: 1px solid var(--surface-inset-border);
@@ -342,7 +342,7 @@
             border-radius: 6px;
             color: #fff;
             font-size: 13px;
-            min-width: 130px;
+            width: 100%;
         }
         .alert-rule-toolbar select:focus,
         .alert-rule-toolbar input:focus {
@@ -351,30 +351,28 @@
             background: rgba(102, 126, 234, 0.1);
         }
         .alert-rule-toolbar .alert-account-group {
-            flex: 1 1 0;
             min-width: 120px;
-            max-width: 168px;
         }
         .alert-rule-toolbar .alert-metric-group {
-            flex: 1 1 0;
-            min-width: 120px;
-            max-width: 200px;
+            min-width: 140px;
         }
-        .alert-rule-toolbar .alert-channel-toolbar-group {
-            flex: 1 1 200px;
-            min-width: 188px;
-            max-width: 300px;
+        .alert-rule-toolbar .alert-threshold-group {
+            width: 90px;
         }
         .alert-rule-toolbar .alert-threshold-group input {
-            width: 80px;
-            min-width: 80px;
+            width: 90px;
+        }
+        .alert-rule-toolbar .alert-channel-toolbar-group {
+            min-width: 200px;
         }
         .alert-toolbar-right {
             display: flex;
             gap: 16px;
             align-items: flex-end;
-            margin-left: auto;
-            flex-shrink: 0;
+            justify-content: flex-end;
+        }
+        .alert-toolbar-right .form-group {
+            margin-bottom: 0;
         }
         /* 工具条内自定义下拉须与原生 select / number（36px）同高，否则会与阈值、按钮错行 */
         .alert-rule-toolbar .custom-select-trigger {
@@ -386,20 +384,21 @@
             border: 1px solid rgba(255, 255, 255, 0.15);
         }
         .alert-toolbar-right > .btn {
-            width: auto;
-            min-width: 120px;
+            min-width: 100px;
             height: 36px;
             box-sizing: border-box;
-            padding: 0 20px;
+            padding: 0 24px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             line-height: 1.15;
+            flex-shrink: 0;
         }
         .alert-channel-checks {
             display: flex;
             gap: 8px;
             align-items: center;
+            height: 36px;
         }
 
         .alert-events-bar {
@@ -508,6 +507,28 @@
         /* 仅告警通知三列表格：压缩内框高度（略矮于全页默认 40px 输入框） */
         .notify-fields-grid .form-group input {
             height: 36px;
+        }
+        .notify-sensitive-wrap {
+            display: flex;
+            gap: 8px;
+            align-items: stretch;
+            min-width: 0;
+        }
+        .notify-sensitive-wrap .notify-sensitive-input {
+            flex: 1;
+            min-width: 0;
+            font-family: inherit;
+        }
+        .notify-sensitive-wrap .notify-reveal-btn {
+            flex-shrink: 0;
+            height: 36px;
+            padding: 0 10px;
+            margin: 0;
+            font-size: 11px;
+            font-weight: 500;
+            white-space: nowrap;
+            border-radius: 6px;
+            align-self: stretch;
         }
         .notify-form-actions {
             display: flex;
@@ -701,23 +722,25 @@
             margin-top: 16px;
         }
         .alert-hub-card .list-section.alert-hub-section {
-            margin-top: 12px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
         }
         .list-section-title {
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
         .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
         }
         .alert-hub-section .section-header.rules-list-header {
             align-items: center;
             gap: 12px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            padding-bottom: 10px;
-            margin-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding-bottom: 12px;
+            margin-bottom: 14px;
         }
         .alert-hub-section .section-header.rules-list-header .list-pagination {
             margin-top: 0;
@@ -763,26 +786,118 @@
         .rules-table-wrap .mini-table.rules-table {
             margin-top: 0;
         }
+        .mini-table.rules-table th.rules-col-metric,
+        .mini-table.rules-table th.rules-col-threshold {
+            padding-left: calc(16px + var(--rules-mtc-shift));
+        }
+        .mini-table.rules-table th.rules-col-channels {
+            text-align: left;
+            padding: 14px 14px 14px calc(22px + var(--rules-mtc-shift));
+            vertical-align: middle;
+        }
+        .mini-table.rules-table .rules-channel-head-row {
+            display: flex;
+            flex-wrap: wrap;
+            row-gap: 8px;
+            column-gap: 12px;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        .mini-table.rules-table .rules-channel-head-dummy .chk-pill {
+            visibility: hidden;
+        }
+        .mini-table.rules-table .rules-channel-head-mid {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .mini-table.rules-table .rules-channel-head-sizer {
+            visibility: hidden;
+        }
+        .mini-table.rules-table .rules-channel-head-title {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+            pointer-events: none;
+            letter-spacing: 0.02em;
+            font-size: 12px;
+            font-weight: 600;
+            color: #aeb6d4;
+        }
+        .mini-table.rules-table td.rules-td-metric,
+        .mini-table.rules-table td.rules-col-threshold {
+            padding-left: calc(16px + var(--rules-mtc-shift));
+        }
+        .mini-table.rules-table th.rules-col-threshold {
+            padding-right: 8px;
+        }
+        .mini-table.rules-table td.rules-col-threshold {
+            padding-right: 8px;
+        }
+        .mini-table.rules-table td.rules-col-channels {
+            text-align: left;
+            padding-left: calc(22px + var(--rules-mtc-shift));
+            padding-right: 14px;
+        }
+        .mini-table.rules-table th.rules-col-enabled {
+            text-align: left;
+            padding: 14px 0 14px 0;
+            vertical-align: middle;
+        }
+        .mini-table.rules-table td.rules-col-enabled {
+            text-align: left;
+            padding: 14px 0 14px 0;
+            vertical-align: middle;
+        }
+        /* 位移加在内层，避免 transform 作用在 th/td 上导致表头背景、斑马纹错位 */
+        .mini-table.rules-table .rules-enabled-cell-shift {
+            display: inline-block;
+            transform: translateX(-72px);
+            vertical-align: middle;
+        }
+        /* 与 .toggle-switch 同宽，标题与下方轨开关左缘、中心线一致 */
+        .mini-table.rules-table th.rules-col-enabled .rules-enabled-cell-shift {
+            width: 44px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .mini-table.rules-table td.rules-col-enabled .rules-enabled-cell-shift {
+            width: 44px;
+            box-sizing: border-box;
+        }
+        .mini-table.rules-table td.rules-col-enabled .toggle-switch {
+            display: block;
+            margin-left: 0;
+            margin-right: 0;
+        }
         .mini-table.rules-table .rule-channel-checks {
             flex-wrap: wrap;
-            row-gap: 6px;
+            row-gap: 8px;
+            column-gap: 12px;
+            justify-content: flex-start;
         }
         .mini-table.rules-table {
             width: 100%;
             table-layout: fixed;
+            /* 指标 / 阈值 / 告警渠道 三列内容整体右移（列宽与列间相对位置不变） */
+            --rules-mtc-shift: 12px;
         }
         .mini-table.rules-table col.rules-col-account { width: 10%; }
         .mini-table.rules-table col.rules-col-metric { width: 10%; }
-        .mini-table.rules-table col.rules-col-threshold { width: 72px; }
+        .mini-table.rules-table col.rules-col-threshold { width: 84px; }
         .mini-table.rules-table col.rules-col-channels { width: 32%; }
         .mini-table.rules-table col.rules-col-enabled { width: 52px; }
         .mini-table.rules-table col.rules-col-status { width: 92px; }
-        .mini-table.rules-table col.rules-col-mute { width: 150px; }
+        .mini-table.rules-table col.rules-col-mute { width: 113px; }
         .mini-table.rules-table col.rules-col-actions { width: 88px; }
         .mini-table.rules-table th,
         .mini-table.rules-table td {
             vertical-align: middle;
-            padding: 10px 10px;
+            padding: 12px 12px;
+            text-align: center;
         }
         .mini-table.rules-table .rules-td-account {
             overflow: hidden;
@@ -802,14 +917,62 @@
         .mini-table.rules-table th.rules-col-status {
             white-space: nowrap;
             word-break: keep-all;
+            text-align: left;
+            padding: 14px 8px 14px 0;
+            vertical-align: middle;
+        }
+        .mini-table.rules-table .rules-status-cell-shift {
+            display: inline-block;
+            transform: translateX(-24px);
+            vertical-align: middle;
+            box-sizing: border-box;
+        }
+        /* 与状态胶囊同宽区域，抬头与「告警中 / 已恢复」左右居中一致 */
+        .mini-table.rules-table th.rules-col-status .rules-status-cell-shift {
+            width: 76px;
+            text-align: center;
+        }
+        .mini-table.rules-table td.rules-col-status .rules-status-cell-shift {
+            width: 76px;
+            text-align: center;
         }
         .mini-table.rules-table .rules-col-status .account-status-tag {
             white-space: nowrap;
             display: inline-block;
         }
         .rules-col-mute {
-            vertical-align: top;
+            vertical-align: middle;
             overflow: visible;
+        }
+        .mini-table.rules-table th.rules-col-mute,
+        .mini-table.rules-table td.rules-col-mute {
+            text-align: center;
+            padding: 14px 6px;
+            vertical-align: middle;
+        }
+        /* 抬头与时长同 75px 条带；th/td 共用同一位移；抬头 min-height 与触发条 28px 对齐 */
+        .mini-table.rules-table th.rules-col-mute .rules-mute-cell-shift,
+        .mini-table.rules-table td.rules-col-mute .rules-mute-cell-shift {
+            transform: translateX(-25px);
+        }
+        .mini-table.rules-table th.rules-col-mute .rules-mute-cell-shift {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 75px;
+            min-height: 28px;
+            max-width: 100%;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .mini-table.rules-table td.rules-col-mute .rules-mute-cell-shift {
+            display: block;
+            width: fit-content;
+            max-width: 100%;
+            min-width: 75px;
+            margin-left: auto;
+            margin-right: auto;
+            box-sizing: border-box;
         }
         .rules-table-wrap .custom-select-options {
             z-index: 100;
@@ -832,35 +995,27 @@
             gap: 6px;
             min-width: 0;
         }
-        .rule-mute-controls-row {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            align-items: stretch;
-            min-width: 0;
-            width: 100%;
-            max-width: 100%;
-        }
         .mini-table.rules-table .rule-mute-hours-wrap {
-            width: 100%;
+            width: 75px;
+            max-width: 75px;
             min-width: 0;
-            max-width: none;
+            margin-left: auto;
+            margin-right: auto;
+            box-sizing: border-box;
+        }
+        .mini-table.rules-table .rule-mute-hours-wrap .custom-select-trigger {
+            text-align: left;
+            padding-left: 8px;
+            padding-right: 22px;
+            display: flex;
+            align-items: center;
+            line-height: 1.2;
         }
         .rule-mute-meta {
             font-size: 11px;
             color: #a8b0d3;
             line-height: 1.35;
             word-break: break-word;
-        }
-        .rule-mute-reason-input {
-            width: 100%;
-            min-width: 0;
-            max-width: none;
-            box-sizing: border-box;
-            height: 28px;
-            padding: 2px 6px;
-            font-size: 11px;
-            border-radius: 6px;
         }
         .rule-mute-stack > .btn.small {
             width: auto;
@@ -888,8 +1043,30 @@
             min-width: 0;
             box-sizing: border-box;
         }
+        .mini-table.rules-table .rules-col-threshold .rule-inline-input {
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .mini-table.rules-table .rule-mute-stack {
+            align-items: center;
+        }
+        .mini-table.rules-table .rule-mute-stack > .btn.small {
+            align-self: center;
+        }
+        .mini-table.rules-table .rule-actions-stack {
+            justify-content: center;
+        }
         .list-pagination {
             margin-top: 8px;
+        }
+        .alert-hub-section #alert-rules-pagination:not(:empty) {
+            display: inline-flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+        .alert-hub-section .alert-rules-page-total {
+            color: #888;
         }
         .mini-table {
             width: 100%;
@@ -965,39 +1142,43 @@
         .toast.show { display: block; }
 
         .alert-hub-card .sub-title {
-            line-height: 1.35;
+            line-height: 1.5;
             max-width: 820px;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
         }
         .alert-hub-section .list-section-title {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 600;
             color: #e8ecff;
             letter-spacing: 0.02em;
-            margin-bottom: 12px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
         }
         .mini-table.rules-table thead th {
+            text-align: center;
             text-transform: none;
             letter-spacing: 0.02em;
             font-size: 12px;
             color: #aeb6d4;
             font-weight: 600;
-            padding: 12px 14px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(255, 255, 255, 0.05);
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.04);
         }
         .mini-table tbody tr:nth-child(odd) {
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(255, 255, 255, 0.02);
         }
         .mini-table tbody tr:nth-child(even) {
-            background: rgba(255, 255, 255, 0.01);
+            background: transparent;
         }
         .mini-table tbody tr:hover {
-            background: rgba(102, 126, 234, 0.12);
+            background: rgba(102, 126, 234, 0.08);
         }
         .mini-table.rules-table tbody td {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
         }
 
         .alert-channel-checks, .rule-channel-checks {
@@ -1067,6 +1248,7 @@
             margin-left: 0;
         }
         .alert-channel-checks.toolbar-channels .inline-chk .chk-pill {
+            height: 36px;
             min-height: 36px;
             box-sizing: border-box;
             padding: 0 12px;
@@ -1104,7 +1286,10 @@
                     <div class="form-group">
                         <label>App ID</label>
                         <div class="notify-secret-hint" aria-hidden="true"></div>
-                        <input id="wh-feishu-app-id" type="text" autocomplete="off" placeholder="cli_xxx 或自建应用 App ID">
+                        <div class="notify-sensitive-wrap">
+                            <input id="wh-feishu-app-id" class="notify-sensitive-input" type="password" autocomplete="off" spellcheck="false" placeholder="cli_xxx 或自建应用 App ID">
+                            <button type="button" class="btn secondary small notify-reveal-btn" aria-label="显示或隐藏 App ID" aria-pressed="false" onclick="toggleNotifySensitiveField('wh-feishu-app-id', this)">显示</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>App Secret（仅更新时填）</label>
@@ -1114,7 +1299,10 @@
                     <div class="form-group">
                         <label>Open ID（通知人）</label>
                         <div class="notify-secret-hint" aria-hidden="true"></div>
-                        <input id="wh-feishu-open-id" type="text" autocomplete="off" placeholder="ou_xxxxxxxx">
+                        <div class="notify-sensitive-wrap">
+                            <input id="wh-feishu-open-id" class="notify-sensitive-input" type="password" autocomplete="off" spellcheck="false" placeholder="ou_xxxxxxxx">
+                            <button type="button" class="btn secondary small notify-reveal-btn" aria-label="显示或隐藏 Open ID" aria-pressed="false" onclick="toggleNotifySensitiveField('wh-feishu-open-id', this)">显示</button>
+                        </div>
                     </div>
                 </div>
                 <div class="notify-form-actions">
@@ -1127,7 +1315,10 @@
                     <div class="form-group">
                         <label>App ID</label>
                         <div class="notify-secret-hint" aria-hidden="true"></div>
-                        <input id="wh-qq-bot-app-id" type="text" autocomplete="off" placeholder="QQ 开放平台 AppID">
+                        <div class="notify-sensitive-wrap">
+                            <input id="wh-qq-bot-app-id" class="notify-sensitive-input" type="password" autocomplete="off" spellcheck="false" placeholder="QQ 开放平台 AppID">
+                            <button type="button" class="btn secondary small notify-reveal-btn" aria-label="显示或隐藏 App ID" aria-pressed="false" onclick="toggleNotifySensitiveField('wh-qq-bot-app-id', this)">显示</button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>App Secret（仅更新时填）</label>
@@ -1137,7 +1328,10 @@
                     <div class="form-group">
                         <label>Open ID（通知人）</label>
                         <div class="notify-secret-hint" aria-hidden="true"></div>
-                        <input id="wh-qq-openid" type="text" autocomplete="off" placeholder="QQ 单聊用户 openid">
+                        <div class="notify-sensitive-wrap">
+                            <input id="wh-qq-openid" class="notify-sensitive-input" type="password" autocomplete="off" spellcheck="false" placeholder="QQ 单聊用户 openid">
+                            <button type="button" class="btn secondary small notify-reveal-btn" aria-label="显示或隐藏 openid" aria-pressed="false" onclick="toggleNotifySensitiveField('wh-qq-openid', this)">显示</button>
+                        </div>
                     </div>
                 </div>
                 <div class="notify-form-actions">
@@ -1154,7 +1348,7 @@
 
         <div class="card alert-hub-card">
             <h2>🚨 告警规则</h2>
-            <p class="sub-title">在上方选定<strong>账号</strong>与<strong>指标</strong>，设置阈值并勾选通知渠道后，点<strong>保存规则</strong>即可新建或覆盖该账号下该指标的规则。下方表格用于逐条修改；每行点<strong>保存</strong>后生效。若需静默，请先选<strong>时长</strong>再点该行<strong>保存</strong>。告警仅在<strong>首次</strong>超过阈值时推送一次，恢复后才会再次触发。</p>
+            <p class="sub-title">在上方选定<strong>账号</strong>与<strong>指标</strong>，设置阈值并勾选通知渠道后，点<strong>保存规则</strong>即可新建或覆盖该账号下该指标的规则。下方表格用于逐条修改；每行点<strong>保存</strong>后生效。静默列默认为<strong>无静默</strong>；若需静默，请先选静默时长再点该行<strong>保存</strong>。告警仅在<strong>首次</strong>超过阈值时推送一次，恢复后才会再次触发。</p>
             <div class="alert-rule-toolbar">
                 <div class="form-group alert-account-group">
                     <label>账号</label>
@@ -1271,6 +1465,35 @@
             };
         }
 
+        function toggleNotifySensitiveField(inputId, btn) {
+            const el = document.getElementById(inputId);
+            if (!el || !btn) return;
+            if (el.type === 'password') {
+                el.type = 'text';
+                btn.textContent = '隐藏';
+                btn.setAttribute('aria-pressed', 'true');
+            } else {
+                el.type = 'password';
+                btn.textContent = '显示';
+                btn.setAttribute('aria-pressed', 'false');
+            }
+        }
+
+        function maskAllNotifySensitiveFields() {
+            const ids = ['wh-feishu-app-id', 'wh-feishu-open-id', 'wh-qq-bot-app-id', 'wh-qq-openid'];
+            for (const id of ids) {
+                const el = document.getElementById(id);
+                if (!el) continue;
+                el.type = 'password';
+                const wrap = el.closest('.notify-sensitive-wrap');
+                const b = wrap && wrap.querySelector('.notify-reveal-btn');
+                if (b) {
+                    b.textContent = '显示';
+                    b.setAttribute('aria-pressed', 'false');
+                }
+            }
+        }
+
         function collectNotifyChannelsFromRuleForm(idx) {
             const pairs = idx == null
                 ? [['log', 'alert-ch-log'], ['feishu', 'alert-ch-feishu'], ['qq', 'alert-ch-qq']]
@@ -1342,6 +1565,7 @@
             if (qh) qh.textContent = data.qq_bot_app_secret_configured ? '（已保存密钥）' : '';
             notifyWebhooksCache = data || {};
             updateNotifyWebhookStatusBox();
+            maskAllNotifySensitiveFields();
         }
 
         async function loadNotifyWebhooks() {
@@ -2036,14 +2260,14 @@
                     ? 'background: rgba(102,126,234,0.45); border-color: rgba(102,126,234,0.8);'
                     : '';
                 pageItems.push(
-                    `<button type="button" class="btn secondary small" style="margin-right:4px;${activeStyle}" onclick="changeAlertRulesPage(${p})">${p}</button>`
+                    `<button type="button" class="btn secondary small" style="${activeStyle}" onclick="changeAlertRulesPage(${p})">${p}</button>`
                 );
             }
             container.innerHTML = `
                 <button type="button" class="btn secondary small" ${prevDisabled} onclick="changeAlertRulesPage(${page - 1})">上一页</button>
                 ${pageItems.join('')}
                 <button type="button" class="btn secondary small" ${nextDisabled} onclick="changeAlertRulesPage(${page + 1})">下一页</button>
-                <span style="margin-left:8px;color:#888;">共 ${total} 条规则</span>
+                <span class="alert-rules-page-total">共 ${total} 条规则</span>
             `;
         }
 
@@ -2083,11 +2307,20 @@
                                 <th class="rules-col-account">账号</th>
                                 <th class="rules-col-metric">指标</th>
                                 <th class="rules-col-threshold">阈值(%)</th>
-                                <th class="rules-col-channels">告警渠道</th>
-                                <th class="rules-col-enabled" style="text-align:center;">启用</th>
-                                <th class="rules-col-status" style="text-align:center;">状态</th>
-                                <th class="rules-col-mute">静默</th>
-                                <th class="rules-col-actions" style="text-align:right;">操作</th>
+                                <th class="rules-col-channels" scope="col">
+                                    <div class="rule-channel-checks rules-channel-head-row" role="presentation">
+                                        <label class="inline-chk rules-channel-head-dummy" aria-hidden="true"><span class="chk-pill">日志</span></label>
+                                        <span class="rules-channel-head-mid">
+                                            <span class="chk-pill rules-channel-head-sizer" aria-hidden="true">飞书</span>
+                                            <span class="rules-channel-head-title">告警渠道</span>
+                                        </span>
+                                        <label class="inline-chk rules-channel-head-dummy" aria-hidden="true"><span class="chk-pill">QQ</span></label>
+                                    </div>
+                                </th>
+                                <th class="rules-col-enabled"><span class="rules-enabled-cell-shift">启用</span></th>
+                                <th class="rules-col-status"><span class="rules-status-cell-shift">状态</span></th>
+                                <th class="rules-col-mute"><span class="rules-mute-cell-shift">静默</span></th>
+                                <th class="rules-col-actions">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2100,21 +2333,17 @@
                                 const muteCell = item.muted_until ? `
                                     <div class="rule-mute-stack">
                                         <div class="rule-mute-meta">至 ${escapeHtml(formatDate(item.muted_until))}</div>
-                                        ${item.mute_reason ? `<div class="rule-mute-meta">${escapeHtml(item.mute_reason)}</div>` : ''}
                                         <button type="button" class="btn secondary small" onclick='clearAlertMute(${item.account_id}, ${JSON.stringify(item.metric_key)})'>解除</button>
                                     </div>
                                 ` : `
                                     <div class="rule-mute-stack">
-                                        <div class="rule-mute-controls-row">
-                                            <div class="rule-mute-hours-wrap">
-                                                <select id="rule-mute-hours-${idx}">
-                                                    <option value="0">时长</option>
-                                                    <option value="1">1 小时</option>
-                                                    <option value="8">8 小时</option>
-                                                    <option value="24">24 小时</option>
-                                                </select>
-                                            </div>
-                                            <input id="rule-mute-reason-${idx}" class="rule-inline-input rule-mute-reason-input" placeholder="原因">
+                                        <div class="rule-mute-hours-wrap">
+                                            <select id="rule-mute-hours-${idx}">
+                                                <option value="0">无静默</option>
+                                                <option value="1">1 小时</option>
+                                                <option value="8">8 小时</option>
+                                                <option value="24">24 小时</option>
+                                            </select>
                                         </div>
                                     </div>
                                 `;
@@ -2126,21 +2355,25 @@
                                         <input id="rule-threshold-${idx}" class="rule-inline-input" type="number" step="0.1" min="0" max="100" value="${Number(item.threshold ?? 0)}">
                                     </td>
                                     <td class="rules-col-channels">
-                                        <div class="rule-channel-checks" style="gap:6px;">
+                                        <div class="rule-channel-checks">
                                             <label class="inline-chk"><input type="checkbox" id="rule-ch-log-${idx}" ${rc('log')}><span class="chk-pill">日志</span></label>
                                             <label class="inline-chk"><input type="checkbox" id="rule-ch-feishu-${idx}" ${rc('feishu')}><span class="chk-pill">飞书</span></label>
                                             <label class="inline-chk"><input type="checkbox" id="rule-ch-qq-${idx}" ${rc('qq')}><span class="chk-pill">QQ</span></label>
                                         </div>
                                     </td>
-                                    <td class="rules-col-enabled" style="text-align:center;">
+                                    <td class="rules-col-enabled">
                                         <input id="rule-enabled-${idx}" type="hidden" value="${item.is_enabled ? 'true' : 'false'}">
-                                        <div id="rule-enabled-toggle-${idx}" class="toggle-switch ${item.is_enabled ? 'active' : ''}" role="switch" aria-checked="${item.is_enabled ? 'true' : 'false'}" title="${item.is_enabled ? '当前：启用，点击可停用' : '当前：停用，点击可启用'}" onclick="toggleRuleEnabled(${idx})" style="margin:0 auto;"></div>
+                                        <div class="rules-enabled-cell-shift">
+                                        <div id="rule-enabled-toggle-${idx}" class="toggle-switch ${item.is_enabled ? 'active' : ''}" role="switch" aria-checked="${item.is_enabled ? 'true' : 'false'}" title="${item.is_enabled ? '当前：启用，点击可停用' : '当前：停用，点击可启用'}" onclick="toggleRuleEnabled(${idx})"></div>
+                                        </div>
                                     </td>
-                                    <td class="rules-col-status" style="text-align:center;">${renderStatusTag(item.is_firing ? '告警中' : '已恢复', item.is_firing ? 'warn' : 'ok')}</td>
-                                    <td class="rules-col-mute">${muteCell}</td>
-                                    <td class="rules-col-actions" style="text-align:right; white-space:nowrap;">
-                                        <span class="rule-link-btn" onclick='saveAlertRuleInline(${item.account_id}, ${JSON.stringify(item.metric_key)}, ${idx})'>保存</span>
-                                        <span class="rule-link-btn" onclick='deleteAlertRuleInline(${item.account_id}, ${JSON.stringify(item.metric_key)})' style="color:#e57373;">删除</span>
+                                    <td class="rules-col-status"><span class="rules-status-cell-shift">${renderStatusTag(item.is_firing ? '告警中' : '已恢复', item.is_firing ? 'warn' : 'ok')}</span></td>
+                                    <td class="rules-col-mute"><div class="rules-mute-cell-shift">${muteCell}</div></td>
+                                    <td class="rules-col-actions" style="white-space:nowrap;">
+                                        <div class="rule-actions-stack">
+                                            <span class="rule-link-btn" onclick='saveAlertRuleInline(${item.account_id}, ${JSON.stringify(item.metric_key)}, ${idx})'>保存</span>
+                                            <span class="rule-link-btn" onclick='deleteAlertRuleInline(${item.account_id}, ${JSON.stringify(item.metric_key)})' style="color:#e57373;">删除</span>
+                                        </div>
                                     </td>
                                 </tr>
                             `;
@@ -2411,9 +2644,7 @@
                         await reloadAlertData();
                         return;
                     }
-                    const reasonRaw = (document.getElementById(`rule-mute-reason-${idx}`)?.value || '').trim();
                     const payload = { muted_until: until };
-                    if (reasonRaw) payload.mute_reason = reasonRaw;
                     const mresp = await fetch(
                         `${API_BASE}/api/accounts/${accountId}/alerts/${encodeURIComponent(metricKey)}/mute`,
                         {
@@ -2494,6 +2725,7 @@
         }
 
         function switchNotifyTab(tab) {
+            maskAllNotifySensitiveFields();
             document.querySelectorAll('.notify-tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.notify-tab-content').forEach(c => { c.style.display = 'none'; });
             const btn = document.querySelector(`.notify-tab[data-tab="${tab}"]`);

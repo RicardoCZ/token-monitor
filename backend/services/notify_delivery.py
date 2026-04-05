@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import select
@@ -96,6 +97,42 @@ def _resolve_qq_app_credentials(wh: dict | None) -> tuple[str | None, str | None
     return None, None
 
 
+def format_alert_notification_text(
+    *,
+    account_label: str,
+    service_id: str,
+    metric_key: str,
+    observed_pct: float | None,
+    threshold_pct: float | None,
+    account_id: int | None = None,
+    footer_note: str | None = None,
+) -> str:
+    """
+    飞书 / QQ 共用纯文本模板（msg_type=text）。
+    时间统一为 UTC，与告警评估用的 utcnow 一致。
+    """
+    obs = f"{float(observed_pct):.2f}" if observed_pct is not None else "—"
+    th = f"{float(threshold_pct):.2f}" if threshold_pct is not None else "—"
+    when = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    id_line = f"\n🆔 账号 ID：{account_id}" if account_id is not None else ""
+    foot = f"\n\n{footer_note}" if footer_note else ""
+    label = (account_label or "").strip() or "（未命名）"
+    svc = (service_id or "").strip() or "—"
+    mkey = (metric_key or "").strip() or "—"
+    return (
+        "🚨 Token Monitor · 告警\n"
+        "────────────────────\n"
+        f"🏷️ 账号：{label}\n"
+        f"☁️ 服务：{svc}\n"
+        f"📈 指标：{mkey}\n"
+        f"📍 当前值：{obs}%\n"
+        f"⚖️ 阈值：{th}%\n"
+        f"⏰ 时间：{when}"
+        f"{id_line}"
+        f"{foot}"
+    )
+
+
 async def dispatch_alert_trigger_notifications(
     db: AsyncSession,
     *,
@@ -103,6 +140,8 @@ async def dispatch_alert_trigger_notifications(
     snapshot: UsageSnapshot,
     plain_message: str,
     channels: list[str],
+    observed_percent: float | None = None,
+    threshold_percent: float | None = None,
 ) -> None:
     """按规则渠道发送文本（触发告警时）。"""
     need = {c.lower() for c in channels if c and c.lower() in ("feishu", "qq")}
@@ -122,11 +161,15 @@ async def dispatch_alert_trigger_notifications(
     wh = _coerce_notify_webhooks_dict(user.notify_webhooks)
     qq_openid = parse_qq_user_openid(wh)
     feishu_open_id = parse_feishu_open_id(wh)
-    title = "Token Monitor 告警"
-    body = (
-        f"{title}\n"
-        f"{plain_message}\n"
-        f"账号 ID: {rule.account_id} / 服务: {snapshot.service_id} / 指标: {rule.metric_key}"
+
+    body = format_alert_notification_text(
+        account_label=account.name or "",
+        service_id=str(snapshot.service_id or ""),
+        metric_key=str(rule.metric_key or ""),
+        observed_pct=observed_percent,
+        threshold_pct=threshold_percent,
+        account_id=int(rule.account_id),
+        footer_note=None,
     )
 
     if "feishu" in need:

@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm.attributes import flag_modified
 
 from models.database import get_db
-from models.db_models import ApiKey, User, InviteCode
+from models.db_models import ApiKey, InviteCode, User
 from core.api_keys import generate_api_key, get_api_key_prefix, hash_api_key
 from core.config import settings
 from core.credential_crypto import encrypt_credential

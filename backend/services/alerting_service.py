@@ -107,7 +107,6 @@ async def evaluate_alert_for_snapshot(
         if now < rule.muted_until:
             return {"enabled": True, "status": "muted", "metric_key": metric_key}
         rule.muted_until = None
-        rule.mute_reason = None
         await db.commit()
     threshold = float(rule.threshold or 0)
     channels = normalize_notify_channels(rule.notify_channels)
@@ -138,6 +137,8 @@ async def evaluate_alert_for_snapshot(
                 snapshot=snapshot,
                 plain_message=message,
                 channels=channels,
+                observed_percent=observed,
+                threshold_percent=threshold,
             )
             return {"enabled": True, "status": "triggered", "metric_key": metric_key}
 
