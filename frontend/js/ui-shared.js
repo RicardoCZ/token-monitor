@@ -140,10 +140,12 @@
         if (showAdminLink) {
             links.push({ path: "admin.html", label: "⚙️ 管理后台" });
         }
-        return links
+        const nav = links
             .filter((item) => item.path.toLowerCase() !== page)
             .map((item) => `<a href="${item.path}" class="header-top-link">${item.label}</a>`)
             .join("");
+        const apk = `<a href="/api/latest-android-apk" class="header-top-link" download title="项目根目录 android-apk 下按修改时间最新的 .apk">下载 APK</a>`;
+        return nav + apk;
     }
 
     w.TMDUi = Object.assign({}, w.TMDUi || {}, {

@@ -21,7 +21,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # 导入路由
-from api import common, minimax, xfyun, cdp, auth, accounts, services, admin_users
+from api import common, minimax, xfyun, cdp, auth, accounts, services, admin_users, bookmarklet
 
 # 导入数据库
 from models.database import init_db
@@ -126,6 +126,9 @@ app.include_router(xfyun.router)
 
 # CDP 浏览器连接接口
 app.include_router(cdp.router)
+
+# 书签采集（免 CDP）
+app.include_router(bookmarklet.router)
 
 # ============ 静态文件服务 (保留原有功能) ============
 

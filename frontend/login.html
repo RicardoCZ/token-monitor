@@ -177,6 +177,22 @@
             color: #667eea;
             text-decoration: none;
         }
+
+        .apk-dl-link {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid #667eea;
+            color: #667eea;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: background 0.2s, color 0.2s;
+        }
+        .apk-dl-link:hover {
+            background: rgba(102, 126, 234, 0.12);
+            color: #5568d3;
+        }
     </style>
 </head>
 <body>
@@ -192,6 +208,9 @@
         </div>
         <p style="color:#666;font-size:14px;text-align:center;margin-bottom:24px;line-height:1.5;">
             数据库中尚无管理员账号。请设置管理员用户名与密码，用于登录与发放邀请码。
+        </p>
+        <p style="text-align:center;margin-bottom:20px;">
+            <a href="/api/latest-android-apk" download class="apk-dl-link">下载 Android APK</a>
         </p>
         <div id="setup-error" class="error" style="display:none;"></div>
         <div id="setup-success" class="success" style="display:none;"></div>
@@ -214,6 +233,9 @@
             <h1>✨ Token Monitor</h1>
             <p>API 额度监控平台</p>
         </div>
+        <p style="text-align:center;margin-bottom:18px;">
+            <a href="/api/latest-android-apk" download class="apk-dl-link">下载 Android APK</a>
+        </p>
         
         <div class="tabs">
             <div class="tab active" data-tab="login">登录</div>
@@ -260,6 +282,8 @@
         
         <div class="info">
             <a href="api.html">返回首页</a>
+            <span style="color:#ccc;margin:0 10px;">|</span>
+            <a href="/api/latest-android-apk" download>下载 APK</a>
         </div>
     </div>
     </div>

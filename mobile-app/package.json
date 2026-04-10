@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "cap:sync": "npx cap sync",
-    "cap:open": "npx cap open android"
+    "cap:open": "npx cap open android",
+    "release:apk": "bash build-release-apk.sh"
   },
   "keywords": [],
   "author": "",

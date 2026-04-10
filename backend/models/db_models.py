@@ -181,3 +181,14 @@ class ApiKey(Base):
 
     # 关联
     user = relationship("User", back_populates="api_keys")
+
+
+class BookmarkletStash(Base):
+    """书签采集暂存：用户在供应商页执行 bookmarklet 后写入，设置页轮询拉取。"""
+
+    __tablename__ = "bookmarklet_stashes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    payload = Column(JSON, nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), index=True)

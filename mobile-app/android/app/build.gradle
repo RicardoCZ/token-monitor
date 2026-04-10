@@ -25,12 +25,17 @@ android {
     if (keystoreFile.exists()) {
         keystoreProperties.load(new FileInputStream(keystoreFile))
     }
+    def prop = { String k -> (keystoreProperties[k] ?: '').toString().trim() }
+    def storePwd = prop('keystore.password')
+    // PKCS12 / 多数 keytool 生成的条目：私钥口令与库口令相同；仅当确实单独设过 key 口令时才填 keystore.keypassword
+    def keyPwd = prop('keystore.keypassword').isEmpty() ? storePwd : prop('keystore.keypassword')
     signingConfigs {
         release {
-            storeFile keystoreProperties['keystore.file'] ? file(keystoreProperties['keystore.file']) : null
-            storePassword keystoreProperties['keystore.password'] ?: ''
-            keyAlias keystoreProperties['keystore.alias'] ?: ''
-            keyPassword keystoreProperties['keystore.keypassword'] ?: ''
+            // 相对路径相对 android/；勿用 app 子模块的 file()，否则 D:/ 或 ../ 会被拼到 app/ 下
+            storeFile keystoreProperties['keystore.file'] ? rootProject.file(keystoreProperties['keystore.file']) : null
+            storePassword storePwd
+            keyAlias prop('keystore.alias')
+            keyPassword keyPwd
         }
     }
 

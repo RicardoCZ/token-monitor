@@ -382,6 +382,28 @@
             text-align: center;
             margin-top: 10px;
         }
+
+        /* 书签拉取结果提示：须放在「手动输入」标签内，否则切换标签后看不见 */
+        .manual-pull-notice {
+            padding: 12px 14px;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            line-height: 1.55;
+            display: none;
+        }
+        .manual-pull-notice.info {
+            display: block;
+            background: rgba(33, 150, 243, 0.18);
+            color: #90caf9;
+            border: 1px solid rgba(33, 150, 243, 0.35);
+        }
+        .manual-pull-notice.success {
+            display: block;
+            background: rgba(76, 175, 80, 0.18);
+            color: #a5d6a7;
+            border: 1px solid rgba(76, 175, 80, 0.35);
+        }
         
         .refresh-btn {
             padding: 6px 14px;
@@ -641,6 +663,24 @@
             display: none;
             margin-top: 8px;
         }
+
+        .cdp-scope-note {
+            font-size: 13px;
+            color: #9aa0a6;
+            line-height: 1.55;
+            margin: 0 0 12px;
+        }
+        .cdp-guide-toggle {
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+        .cdp-guide-details {
+            display: none;
+            margin-bottom: 16px;
+        }
+        .cdp-guide-details.is-open {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -656,17 +696,42 @@
         
         <!-- CDP 连接模式 -->
         <div id="tab-cdp" class="tab-content active">
+            <div class="card" id="bookmarklet-card">
+                <h2>书签采集（推荐 · 无需远程调试端口）</h2>
+                <p style="font-size:13px;color:#aaa;line-height:1.5;margin-bottom:12px;">
+                    在 <strong>已登录</strong> 的 MiniMax / 讯飞官网页面点击书签，即可把 Cookie 与页面信息提交到本站（短时令牌，约 15 分钟有效）。公网部署时无需 SSH 隧道。
+                    <br><span style="color:#888;">MiniMax 的 <code>HERTZ-SESSION</code> 若为 HttpOnly，任何页面脚本都无法读取；此时书签会尽量从存储里补全，否则需在「手动输入」里从开发者工具 Cookies 中粘贴该值。</span>
+                </p>
+                <div class="step">
+                    <span class="step-num">1</span>
+                    点击下方按钮生成书签，将出现的链接 <strong>拖到浏览器书签栏</strong>（或复制下方整段 <code>javascript:...</code> 新建书签）。
+                </div>
+                <button type="button" class="btn btn-success" id="btn-bm-token">生成采集书签</button>
+                <p id="bm-token-hint" class="status" style="margin-top:10px;"></p>
+                <a id="bm-drag-link" href="#" class="header-top-link" style="display:none;margin-top:8px;font-size:14px;" title="拖到书签栏保存；勿在本页点击">拖到书签栏：Token Monitor 采集</a>
+                <textarea id="bm-href-preview" readonly style="display:none;width:100%;min-height:56px;margin-top:10px;font-size:11px;background:rgba(0,0,0,0.35);color:#ccc;border:1px solid var(--border-color);border-radius:8px;padding:8px;"></textarea>
+                <div class="step" style="margin-top:14px;">
+                    <span class="step-num">2</span>
+                    打开 <strong>MiniMax 或讯飞</strong> 官网并登录，点击刚保存的书签，看到成功提示。
+                </div>
+                <div class="step">
+                    <span class="step-num">3</span>
+                    回到本页，点击拉取，将自动填充到「手动输入」页。
+                </div>
+                <button type="button" class="btn btn-secondary" id="btn-bm-poll">拉取采集结果</button>
+                <div id="bm-message" class="status" style="margin-top:10px;"></div>
+            </div>
+
             <div class="card" id="cdp-connect-card">
                 <h2>🤖 CDP 自动获取 Cookie</h2>
+                <p class="cdp-scope-note">
+                    <strong>适用范围：</strong>仅当 <strong>本服务后端</strong> 与 <strong>用于登录供应商的浏览器</strong> 在同一台机器（或能直接访问该浏览器 <code>127.0.0.1</code> 远程调试端口）时适用。浏览器在另一台电脑、或部署在远端服务器时无法使用本方式，请用上方「书签采集」或「手动输入」。
+                </p>
 
-                <div id="cdp-connect-config">
-                    <div id="cdp-status" class="cdp-status disconnected">
-                        <div class="cdp-status-row">
-                            <span><span class="status-dot red"></span>未连接</span>
-                            <span id="cdp-port-display">-</span>
-                        </div>
-                    </div>
-
+                <button type="button" class="btn btn-secondary cdp-guide-toggle" id="btn-toggle-cdp-guide" aria-expanded="false">
+                    展开：本地调试端口连接说明
+                </button>
+                <div id="cdp-guide-details" class="cdp-guide-details" aria-hidden="true">
                     <div class="step">
                         <span class="step-num">1</span>
                         <strong>创建浏览器调试快捷方式</strong>：
@@ -685,11 +750,20 @@
                         在地址栏输入 <code style="color:#667eea;">chrome://inspect/#remote-debugging</code> 并回车
                         <br>✅ 勾选 <strong>Allow remote debugging for this browser instance</strong>
                         <br>✅ 确认看到 <code>Server running at: 127.0.0.1:9223</code>（端口号可能不同）
-                        <br><button class="btn" style="padding:8px 16px;font-size:13px;margin-top:8px;" onclick="showChromeInspectGuide()">📸 查看示例截图</button>
+                        <br><button type="button" class="btn" style="padding:8px 16px;font-size:13px;margin-top:8px;" onclick="showChromeInspectGuide()">📸 查看示例截图</button>
                     </div>
                     <div class="step">
                         <span class="step-num">4</span>
                         回到本页面，填入端口号，点击连接
+                    </div>
+                </div>
+
+                <div id="cdp-connect-config">
+                    <div id="cdp-status" class="cdp-status disconnected">
+                        <div class="cdp-status-row">
+                            <span><span class="status-dot red"></span>未连接</span>
+                            <span id="cdp-port-display">-</span>
+                        </div>
                     </div>
 
                     <select id="browser-type">
@@ -746,9 +820,14 @@
                 </div>
                 
                 <div id="targets-area">
-                    <div class="step" style="background:rgba(33,150,243,0.1);border:1px solid rgba(33,150,243,0.3);font-size:12px;">
-                        <span class="step-num" style="background:linear-gradient(135deg, #2196F3, #64B5F6);">💡</span>
-                        <strong>操作提示：</strong>先勾选要获取的服务 → 在浏览器中打开对应登录地址并登录 → 点击刷新列表 → 确认看到✅标记后 → 再获取Cookie
+                    <button type="button" class="btn btn-secondary cdp-guide-toggle" id="btn-toggle-cdp-login-guide" aria-expanded="false">
+                        展开：连接后如何选标签页、获取 Cookie
+                    </button>
+                    <div id="cdp-login-guide-details" class="cdp-guide-details" aria-hidden="true">
+                        <div class="step" style="background:rgba(33,150,243,0.1);border:1px solid rgba(33,150,243,0.3);font-size:12px;">
+                            <span class="step-num" style="background:linear-gradient(135deg, #2196F3, #64B5F6);">💡</span>
+                            <strong>操作提示：</strong>先勾选要获取的服务 → 在浏览器中打开对应登录地址并登录 → 点击刷新列表 → 确认看到✅标记后 → 再获取Cookie
+                        </div>
                     </div>
                     <h3>
                         📑 可用标签页
@@ -765,6 +844,7 @@
         
         <!-- 手动输入模式 -->
         <div id="tab-manual" class="tab-content">
+            <div id="manual-pull-notice" class="manual-pull-notice" role="status" aria-live="polite"></div>
             <!-- 动态渲染的配置窗口容器 -->
             <div id="manual-services-container"></div>
             
@@ -800,6 +880,10 @@
             ? 'http://localhost:5188'
             : '';
         const API_BASE = S.API_BASE;
+        /** 书签在第三方域执行，必须用绝对 API 根（与 API_BASE 一致，生产为空时用当前页 origin） */
+        const BM_API_ORIGIN = (typeof API_BASE === 'string' && API_BASE.startsWith('http'))
+            ? API_BASE.replace(/\/$/, '')
+            : window.location.origin;
         const CURRENT_PAGE = S.CURRENT_PAGE;
 
         const getAuthHeaders = () => TMDAuth.getAuthHeaders();
@@ -1731,6 +1815,75 @@
                 btn.disabled = false;
             }
         }
+
+        function buildBookmarkletHref(token) {
+            const oj = JSON.stringify(BM_API_ORIGIN);
+            const tj = JSON.stringify(token);
+            const code =
+                '(function(){var origin=' + oj + ';var token=' + tj + ';' +
+                'function kv(s){var o={};try{for(var i=0;i<s.length;i++){var k=s.key(i);o[k]=s.getItem(k);}}catch(e){}return o;}' +
+                'function merge(doc,arr){var m={};doc.split(";").forEach(function(p){p=p.trim();if(!p)return;var i=p.indexOf("=");if(i<0)return;var n=p.slice(0,i).trim(),v=p.slice(i+1);if(n)m[n]=v;});if(arr)for(var j=0;j<arr.length;j++){var c=arr[j];if(c&&c.name&&m[c.name]===undefined)m[c.name]=c.value;}return Object.keys(m).map(function(k){return k+"="+m[k];}).join("; ");}' +
+                'async function run(){var ls=kv(localStorage),ss=kv(sessionStorage),cookies=document.cookie;try{if(typeof cookieStore!=="undefined"&&typeof cookieStore.getAll==="function")cookies=merge(cookies,await cookieStore.getAll());}catch(e1){}' +
+                'var body={token:token,cookies:cookies,local_storage:ls,session_storage:ss,page_url:location.href,page_title:document.title,body_text:document.body&&document.body.innerText?document.body.innerText.slice(0,400000):""};' +
+                'fetch(origin+"/api/setup/bookmarklet-ingest",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(d){alert(d.message||(d.ok?"已提交":"失败"));}).catch(function(e){alert("请求失败:"+e);});}' +
+                'run();})();';
+            return 'javascript:' + encodeURIComponent(code);
+        }
+
+        async function applyBookmarkletPollData(data) {
+            let sid = (data.service_hint || '').trim();
+            if (!sid) {
+                const u = (data.page_url || '').toLowerCase();
+                if (u.includes('minimax') || u.includes('minimaxi')) sid = 'minimax';
+                else if (u.includes('xfyun')) sid = 'xfyun';
+            }
+            if (sid !== 'minimax' && sid !== 'xfyun') {
+                showMessage('bm-message', 'error', '无法识别服务，请在 MiniMax 或讯飞已登录页面重新点击书签采集。');
+                return;
+            }
+            if (cdpServices.length === 0) {
+                await loadServices();
+            }
+            if (!manualServices.includes(sid)) {
+                manualServices.push(sid);
+            }
+            const pi = data.page_info && typeof data.page_info === 'object' ? data.page_info : {};
+            if (Object.keys(pi).length) {
+                pendingPageInfo[sid] = pi;
+            }
+            renderManualServices();
+            const cookieStr = data.cookies || '';
+            let hertzManualHint = '';
+            if (sid === 'minimax') {
+                autoFillMinimaxCookies(cookieStr);
+                const fromCookie = hasNonEmptyHertzSessionInCookieString(cookieStr);
+                const hzEl = document.getElementById('minimax-HERTZ-SESSION');
+                const fieldHas = hzEl && hzEl.value.trim();
+                if (!fromCookie || !fieldHas) {
+                    hertzManualHint = ' MiniMax 的 HERTZ-SESSION 常为 HttpOnly，页面脚本读不到，后端也未必能从 localStorage 补全。请在本页下方表单中找到「HERTZ-SESSION」，在已登录的 MiniMax 页按 F12 → Application → Cookies → 选择 minimaxi.com / platform.minimax.io 等站点 → 复制 HERTZ-SESSION 的 Value 粘贴到该框。';
+                }
+            } else {
+                autoFillXfyunCookies(cookieStr);
+            }
+            applyPendingMinimaxGroupIdFromPageInfo();
+            const hint = document.getElementById('auto-fill-hint');
+            if (hint) hint.style.display = 'block';
+            loadCurrentConfig();
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            const manualTab = document.querySelector('[data-tab="manual"]');
+            const manualPane = document.getElementById('tab-manual');
+            if (manualTab) manualTab.classList.add('active');
+            if (manualPane) manualPane.classList.add('active');
+            const label = sid === 'minimax' ? 'MiniMax' : '讯飞';
+            const summary = '已拉取并填充（' + label + '）。';
+            setManualPullNotice(hertzManualHint ? 'info' : 'success', summary + hertzManualHint);
+            const bmEl = document.getElementById('bm-message');
+            if (bmEl) {
+                bmEl.className = 'status';
+                bmEl.textContent = '';
+            }
+        }
         
         /** CDP 返回的 groupId 写入 pendingPageInfo 时，MiniMax 卡片可能尚未 render；须在 render + 填 Cookie 后再写入输入框。 */
         function applyPendingMinimaxGroupIdFromPageInfo() {
@@ -1775,6 +1928,27 @@
                 }
             });
             return result;
+        }
+
+        function hasNonEmptyHertzSessionInCookieString(cookieStr) {
+            const v = parseCookieString(cookieStr || '')['HERTZ-SESSION'];
+            return !!(v && String(v).trim());
+        }
+
+        /** 书签拉取后在「手动输入」页顶部显示提示（避免 #bm-message 留在已隐藏的标签里） */
+        function setManualPullNotice(type, text) {
+            const el = document.getElementById('manual-pull-notice');
+            if (!el) return;
+            if (!text) {
+                el.style.display = 'none';
+                el.textContent = '';
+                el.className = 'manual-pull-notice';
+                return;
+            }
+            el.className = 'manual-pull-notice ' + (type || 'info');
+            el.textContent = text;
+            el.style.display = 'block';
+            el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
         
         function showMessage(elId, type, text) {
@@ -1994,9 +2168,86 @@
         function generateMinimaxCookie() {
             saveCookie('minimax');
         }
+
+        function wireCdpGuideToggle(btnId, detailsId) {
+            const btn = document.getElementById(btnId);
+            const det = document.getElementById(detailsId);
+            if (!btn || !det) return;
+            const expandLabel = btn.textContent.trim();
+            const collapseLabel = expandLabel.replace(/^展开：/, '收起：');
+            btn.addEventListener('click', () => {
+                const open = det.classList.toggle('is-open');
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                det.setAttribute('aria-hidden', open ? 'false' : 'true');
+                btn.textContent = open ? collapseLabel : expandLabel;
+            });
+        }
         
         // 页面加载 - 先检查登录
         initCustomBrowserTypeSelect();
+        wireCdpGuideToggle('btn-toggle-cdp-guide', 'cdp-guide-details');
+        wireCdpGuideToggle('btn-toggle-cdp-login-guide', 'cdp-login-guide-details');
+        document.getElementById('bm-drag-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            const h = document.getElementById('bm-token-hint');
+            if (h) {
+                h.className = 'status info';
+                h.textContent = '请将该链接拖到浏览器书签栏保存；在供应商已登录页面从书签栏点击执行，不要在本页点击。';
+            }
+        });
+        document.getElementById('btn-bm-token').addEventListener('click', async () => {
+            const hint = document.getElementById('bm-token-hint');
+            const link = document.getElementById('bm-drag-link');
+            const ta = document.getElementById('bm-href-preview');
+            hint.className = 'status info';
+            hint.textContent = '正在生成令牌…';
+            link.style.display = 'none';
+            ta.style.display = 'none';
+            try {
+                const resp = await fetch(`${API_BASE}/api/setup/bookmarklet-token`, {
+                    method: 'POST',
+                    headers: getJsonAuthHeaders(),
+                    body: JSON.stringify({}),
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    hint.className = 'status error';
+                    hint.textContent = '生成失败: ' + (data.detail || resp.status);
+                    return;
+                }
+                const href = buildBookmarkletHref(data.token);
+                link.href = href;
+                link.style.display = 'inline-block';
+                ta.value = href;
+                ta.style.display = 'block';
+                hint.className = 'status success';
+                hint.textContent = '书签已生成（约 ' + Math.round((data.expires_in_sec || 900) / 60) + ' 分钟内有效）。拖到书签栏或复制下方整段。';
+            } catch (e) {
+                hint.className = 'status error';
+                hint.textContent = '网络错误: ' + e.message;
+            }
+        });
+        document.getElementById('btn-bm-poll').addEventListener('click', async () => {
+            setManualPullNotice('', '');
+            showMessage('bm-message', 'info', '拉取中…');
+            try {
+                const resp = await fetch(`${API_BASE}/api/setup/bookmarklet-poll`, {
+                    headers: getAuthHeaders(),
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showMessage('bm-message', 'error', '拉取失败: ' + (data.detail || resp.status));
+                    return;
+                }
+                if (!data.has_data) {
+                    showMessage('bm-message', 'info', '暂无采集数据，请先在供应商页面点击书签。');
+                    return;
+                }
+                await applyBookmarkletPollData(data);
+            } catch (e) {
+                showMessage('bm-message', 'error', '网络错误: ' + e.message);
+            }
+        });
         checkAuth().then(() => {
             loadCurrentConfig();
         });

@@ -99,6 +99,20 @@
             line-height: 1.5;
         }
         .gate { text-align: center; color: #666; padding: 24px 0; }
+        .apk-dl-link {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid #667eea;
+            color: #667eea;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+        }
+        .apk-dl-link:hover {
+            background: rgba(102, 126, 234, 0.12);
+            color: #5568d3;
+        }
     </style>
 </head>
 <body>
@@ -112,6 +126,7 @@
         <div class="blocked">
             <p>管理员账号已存在，无法通过本页再次初始化。</p>
             <p style="margin-top:16px;"><a href="login.html">前往登录</a></p>
+            <p style="margin-top:20px;"><a href="/api/latest-android-apk" download class="apk-dl-link">下载 Android APK</a></p>
         </div>
     </div>
 
@@ -121,6 +136,9 @@
             <p>首次使用 · 创建管理员</p>
         </div>
         <p class="intro">请设置管理员用户名与密码。</p>
+        <p style="text-align:center;margin-bottom:20px;">
+            <a href="/api/latest-android-apk" download class="apk-dl-link">下载 Android APK</a>
+        </p>
         <div id="setup-error" class="error"></div>
         <div id="setup-success" class="success"></div>
         <form id="setup-form">
