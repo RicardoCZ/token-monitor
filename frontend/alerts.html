@@ -432,9 +432,9 @@
             margin-top: 2px;
         }
         .alert-events-bar .alert-events-filter-group {
-            flex: 1 1 160px;
-            min-width: 140px;
-            max-width: 280px;
+            flex: 0 1 auto;
+            min-width: 100px;
+            max-width: 132px;
         }
         .alert-events-bar .alert-events-refresh-group {
             flex: 0 0 auto;
@@ -1864,6 +1864,31 @@
             `;
         }
 
+        /** 每页 tbody 固定 ALERT_EVENTS_PAGE_SIZE 行；不加 class/不改全局样式，仅用占位单元格垫行 */
+        function buildAlertEventsTableBodyRows(items) {
+            const rows = items.map(
+                (item) => `
+                                <tr>
+                                    <td>${escapeHtml(item.account_name || `账号#${item.account_id || '-'}`)}</td>
+                                    <td>${formatDate(item.created_at)}</td>
+                                    <td>${escapeHtml(item.metric_key || '-')}</td>
+                                    <td>${renderStatusTag(formatAlertEventStatus(item.status), getAlertStatusTagClass(item.status))}</td>
+                                    <td>${escapeHtml(formatAlertEventMessage(item))}</td>
+                                </tr>`
+            );
+            const padCount = Math.max(0, ALERT_EVENTS_PAGE_SIZE - rows.length);
+            const padRow = `
+                                <tr aria-hidden="true">
+                                    <td>—</td>
+                                    <td>—</td>
+                                    <td>—</td>
+                                    <td>—</td>
+                                    <td>—</td>
+                                </tr>`;
+            for (let i = 0; i < padCount; i++) rows.push(padRow);
+            return rows.join("");
+        }
+
         /**
          * @param {number} seq
          * @param {number} [page=1]
@@ -1913,15 +1938,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            ${items.map(item => `
-                                <tr>
-                                    <td>${escapeHtml(item.account_name || `账号#${item.account_id || '-'}`)}</td>
-                                    <td>${formatDate(item.created_at)}</td>
-                                    <td>${escapeHtml(item.metric_key || '-')}</td>
-                                    <td>${renderStatusTag(formatAlertEventStatus(item.status), getAlertStatusTagClass(item.status))}</td>
-                                    <td>${escapeHtml(formatAlertEventMessage(item))}</td>
-                                </tr>
-                            `).join('')}
+                            ${buildAlertEventsTableBodyRows(items)}
                         </tbody>
                     </table>
                 `;

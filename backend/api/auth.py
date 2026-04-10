@@ -118,6 +118,28 @@ class SetupFirstRequest(BaseModel):
         return v
 
 
+class ChangePasswordRequest(BaseModel):
+    """POST /auth/change-password — 已登录用户修改登录密码"""
+
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v):
+        import re
+
+        if len(v) < 8:
+            raise ValueError("密码至少8位")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("密码须包含大写字母")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("密码须包含小写字母")
+        if not re.search(r"\d", v):
+            raise ValueError("密码须包含数字")
+        return v
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -131,6 +153,8 @@ class UserInfo(BaseModel):
     username: str
     role: str
     is_active: bool
+    # 与 setup-first 创建的首个管理员一致；仅此类账号可在后台授予「管理员」角色
+    is_system_account: bool = False
     created_at: datetime
 
     class Config:
@@ -417,6 +441,7 @@ async def setup_first_admin(
         username=req.username,
         password_hash=get_password_hash(req.password),
         role="admin",
+        is_system_account=True,
     )
     db.add(user)
     await db.commit()
@@ -543,6 +568,37 @@ async def logout(
     current_user.token_version = int(current_user.token_version or 0) + 1
     await db.commit()
     return LogoutResponse()
+
+
+@router.post("/change-password", response_model=TokenResponse)
+async def change_password(
+    body: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    校验当前密码后更新哈希，递增 token_version 使其它终端上的旧 JWT 失效；
+    响应中的 access_token 需由客户端替换本地存储。
+    """
+    if not verify_password(body.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="当前密码错误"
+        )
+    if body.current_password == body.new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="新密码不能与当前密码相同"
+        )
+    current_user.password_hash = get_password_hash(body.new_password)
+    current_user.token_version = int(current_user.token_version or 0) + 1
+    await db.commit()
+    await db.refresh(current_user)
+    access_token = create_user_access_token(current_user)
+    return TokenResponse(
+        access_token=access_token,
+        user_id=current_user.id,
+        username=current_user.username,
+        role=current_user.role,
+    )
 
 
 @router.get("/me", response_model=UserInfo)

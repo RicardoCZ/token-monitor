@@ -1145,6 +1145,22 @@ header {
   transform: scale(0.98);
 }
 
+.welcome-loading {
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  padding: 24px 12px 8px;
+}
+
+.welcome-loading-hint {
+  text-align: center;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: rgba(180, 180, 200, 0.88);
+  padding: 0 8px 16px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .welcome-cta {
     transition: none;

@@ -3,13 +3,57 @@
 
 set -euo pipefail
 
-PORT=5188
 BACKEND_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VENV_DIR="$BACKEND_DIR/.venv"
 REQ_FILE="$BACKEND_DIR/requirements.txt"
+ENV_FILE="$BACKEND_DIR/.env"
 cd "$BACKEND_DIR"
 
+# 端口：与 core/config 一致，优先 .env 中 PORT，默认 5188
+PORT=5188
+if [[ -f "$ENV_FILE" ]]; then
+  _line="$(grep -E '^[[:space:]]*PORT=' "$ENV_FILE" | tail -n1 || true)"
+  if [[ -n "${_line:-}" ]]; then
+    PORT="${_line#*=}"
+    PORT="${PORT//$'\r'/}"
+    PORT="${PORT//\"/}"
+    PORT="${PORT//\'/}"
+  fi
+fi
+
+# 虚拟环境 Python：须 3.9+（aiomysql>=0.3 等）；优先较新版本
+pick_venv_python() {
+  local c maj min
+  for c in python3.12 python3.11 python3.10 python3.9; do
+    if command -v "$c" >/dev/null 2>&1; then
+      read -r maj min < <("$c" -c 'import sys; print(sys.version_info[0], sys.version_info[1])' 2>/dev/null) || continue
+      if [[ "${maj:-0}" -eq 3 ]] && [[ "${min:-0}" -ge 9 ]]; then
+        echo "$c"
+        return 0
+      fi
+    fi
+  done
+  if command -v python3 >/dev/null 2>&1; then
+    echo "python3"
+    return 0
+  fi
+  return 1
+}
+
+VENV_PY="$(pick_venv_python)" || {
+  echo "==> 错误: 未找到 python3，请先安装 Python 3.9+" >&2
+  exit 1
+}
+if [[ "$VENV_PY" == python3 ]]; then
+   read -r _maj _min < <(python3 -c 'import sys; print(sys.version_info[0], sys.version_info[1])' 2>/dev/null) || true
+  if [[ "${_maj:-0}" -lt 3 ]] || [[ "${_maj:-0}" -eq 3 && "${_min:-0}" -lt 9 ]]; then
+    echo "==> 错误: 当前 python3 为 ${_maj:-?}.${_min:-?}，需要 3.9+。请安装 python3.9/python3.10 等后重试。" >&2
+    exit 1
+  fi
+fi
+
 echo "==> 工作目录: $BACKEND_DIR"
+echo "==> 使用端口: $PORT；venv Python: $VENV_PY"
 
 # 1) 停止占用本端口的旧进程
 if command -v lsof >/dev/null 2>&1; then
@@ -28,8 +72,12 @@ if command -v lsof >/dev/null 2>&1; then
     echo "==> 未发现监听端口 $PORT 的旧进程"
   fi
 else
-  echo "==> 警告: 未找到 lsof，跳过按端口结束进程；将尝试匹配 uvicorn"
-  pkill -f "uvicorn app:app.*--port ${PORT}" 2>/dev/null || true
+  echo "==> 警告: 未找到 lsof，尝试 fuser 或 pkill"
+  if command -v fuser >/dev/null 2>&1; then
+    fuser -k "${PORT}/tcp" 2>/dev/null || true
+  else
+    pkill -f "uvicorn app:app.*--port ${PORT}" 2>/dev/null || true
+  fi
   sleep 1
 fi
 
@@ -48,8 +96,8 @@ echo "==> 端口 $PORT 可用"
 if [ -d "$VENV_DIR" ]; then
   echo "==> 虚拟环境已存在: $VENV_DIR"
 else
-  echo "==> 创建虚拟环境: $VENV_DIR"
-  python3 -m venv "$VENV_DIR"
+  echo "==> 创建虚拟环境: $VENV_DIR ($VENV_PY -m venv)"
+  "$VENV_PY" -m venv "$VENV_DIR"
 fi
 
 # 4) 安装依赖（如缺失）

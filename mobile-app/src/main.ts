@@ -11,6 +11,14 @@ const app = document.getElementById('app') as HTMLElement
 // 默认服务器配置
 const DEFAULT_SERVER = 'http://192.168.3.36:5188'
 
+/** CapacitorHttp 默认不设超时，不可达地址会卡住很久；欢迎页 / 鉴权须快速失败 */
+const HTTP_CONNECT_TIMEOUT_MS = 8000
+const HTTP_READ_TIMEOUT_MS = 12000
+
+function httpTimeoutOptions(): { connectTimeout: number; readTimeout: number } {
+  return { connectTimeout: HTTP_CONNECT_TIMEOUT_MS, readTimeout: HTTP_READ_TIMEOUT_MS }
+}
+
 // 服务配置
 const SERVICES = {
   minimax: {
@@ -482,7 +490,8 @@ async function checkAuth(): Promise<boolean> {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
-      }
+      },
+      ...httpTimeoutOptions()
     })
     return resp.status === 200
   } catch {
@@ -513,7 +522,8 @@ async function fetchSetupStatus(): Promise<boolean> {
     const resp = await CapacitorHttp.request({
       method: 'GET',
       url: `${getServerUrl()}/auth/setup-status`,
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
+      ...httpTimeoutOptions()
     })
     const v = parseHasAdminFromSetupResponse(resp)
     if (v !== null) return v
@@ -1519,6 +1529,13 @@ function renderWelcome(): void {
     if (welcomeTimer !== null) {
       clearInterval(welcomeTimer)
       welcomeTimer = null
+    }
+    // 立即反馈：否则请求挂起时倒计时已停，数字停在3 等，像假死
+    const inner = app.querySelector('.welcome-inner')
+    if (inner) {
+      inner.innerHTML =
+        '<p class="welcome-loading" role="status">正在连接服务器…</p>' +
+        '<p class="welcome-loading-hint">若等待较久，请检查手机网络与 App 内服务器地址</p>'
     }
     void startApp()
   }

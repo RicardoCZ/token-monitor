@@ -42,6 +42,10 @@
             max-width: 800px;
             margin: 0 auto;
         }
+
+        .container--admin {
+            max-width: 1040px;
+        }
         
         .header {
             text-align: center;
@@ -113,6 +117,200 @@
             font-size: 18px;
             margin-bottom: 20px;
             color: #fff;
+        }
+
+        .card-section-head h2 {
+            margin-bottom: 0;
+            font-size: 19px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: #f2f4ff;
+        }
+
+        /* 平台用户卡片：与其他区块区分的一层轻质感 */
+        .card--platform-users {
+            border-color: rgba(102, 126, 234, 0.22);
+            box-shadow:
+                var(--shadow-card),
+                0 0 0 1px rgba(102, 126, 234, 0.08) inset;
+            background:
+                linear-gradient(
+                    165deg,
+                    rgba(102, 126, 234, 0.09) 0%,
+                    rgba(255, 255, 255, 0.06) 38%,
+                    rgba(255, 255, 255, 0.05) 100%
+                );
+        }
+
+        .card--platform-users .card-section-head {
+            padding-bottom: 14px;
+            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        .card--platform-users .card-section-head--row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .card--platform-users .card-section-head--row h2 {
+            margin: 0;
+        }
+
+        .card--platform-users .btn-add-user {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 9px 18px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            color: #f8f9ff;
+            background: linear-gradient(
+                140deg,
+                rgba(124, 142, 255, 0.98) 0%,
+                rgba(102, 126, 234, 0.95) 42%,
+                rgba(118, 75, 162, 0.92) 100%
+            );
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            border-radius: 10px;
+            box-shadow:
+                0 2px 12px rgba(102, 126, 234, 0.4),
+                0 0 0 1px rgba(102, 126, 234, 0.2) inset;
+            transition:
+                transform 0.2s ease,
+                box-shadow 0.2s ease,
+                filter 0.2s ease;
+        }
+
+        .card--platform-users .btn-add-user:hover {
+            transform: translateY(-2px);
+            box-shadow:
+                0 8px 24px rgba(102, 126, 234, 0.48),
+                0 0 0 1px rgba(255, 255, 255, 0.22) inset;
+            filter: brightness(1.05);
+        }
+
+        .card--platform-users .btn-add-user:active {
+            transform: translateY(0);
+            filter: brightness(0.98);
+        }
+
+        .card--platform-users .btn-add-user:focus-visible {
+            outline: 2px solid rgba(168, 184, 255, 0.85);
+            outline-offset: 2px;
+        }
+
+        .admin-add-user-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 10002;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .admin-add-user-modal.is-open {
+            display: flex;
+        }
+
+        .admin-add-user-modal__backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .admin-add-user-modal__panel {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 420px;
+            background: linear-gradient(155deg, #252a42 0%, #1e2238 48%, #1a1e32 100%);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 16px;
+            padding: 22px 24px;
+            box-shadow: 0 28px 56px rgba(0, 0, 0, 0.5);
+        }
+
+        .admin-add-user-modal__panel h3 {
+            margin: 0 0 14px;
+            font-size: 17px;
+            font-weight: 600;
+            color: #eceff7;
+        }
+
+        .admin-add-user-modal__err {
+            font-size: 13px;
+            color: #ff8a80;
+            margin: 0 0 12px;
+            min-height: 1.2em;
+        }
+
+        .admin-add-user-modal__err:empty {
+            display: none;
+        }
+
+        .admin-add-user-modal__actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 18px;
+        }
+
+        .admin-add-user-modal__field {
+            margin-bottom: 14px;
+        }
+
+        .admin-add-user-modal__field label {
+            display: block;
+            font-size: 12px;
+            color: #aeb6d4;
+            margin-bottom: 6px;
+        }
+
+        .admin-add-user-modal__field input,
+        .admin-add-user-modal__field select {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .admin-add-user-modal__field select option {
+            background: #2a2a4a;
+            color: #fff;
+        }
+
+        .admin-add-user-modal__field input:focus,
+        .admin-add-user-modal__field select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .admin-add-user-modal__check {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            color: #dbe3ff;
+            font-size: 14px;
+            user-select: none;
+        }
+
+        .admin-add-user-modal__check input {
+            width: 17px;
+            height: 17px;
+            accent-color: #667eea;
         }
         
         .form-row {
@@ -374,6 +572,309 @@
             font-size: 12px;
         }
 
+        /* —— 平台用户：单表格（分页内多行，避免一人一卡） —— */
+        .admin-users-table-wrap {
+            margin-top: 12px;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.11);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            background: rgba(8, 10, 22, 0.45);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.06),
+                0 12px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .admin-users-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            min-width: 640px;
+        }
+
+        .admin-users-table thead th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: linear-gradient(
+                180deg,
+                rgba(32, 36, 62, 0.98) 0%,
+                rgba(26, 29, 50, 0.96) 100%
+            );
+            backdrop-filter: blur(10px);
+            color: #9aa4cc;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 13px 12px;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.28);
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        .admin-users-table thead th:first-child {
+            border-top-left-radius: 14px;
+        }
+
+        .admin-users-table thead th:last-child {
+            border-top-right-radius: 14px;
+        }
+
+        .admin-users-table tbody tr {
+            transition: background var(--transition-normal);
+        }
+
+        .admin-users-table tbody tr:nth-child(even) {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .admin-users-table tbody tr:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .admin-users-table tbody tr.admin-users-table__pad-row,
+        .admin-users-table tbody tr.admin-users-table__pad-row:nth-child(even) {
+            background: rgba(0, 0, 0, 0.12);
+            pointer-events: none;
+        }
+
+        .admin-users-table tbody tr.admin-users-table__pad-row:hover {
+            background: rgba(0, 0, 0, 0.12);
+        }
+
+        .admin-users-table tbody tr.admin-users-table__pad-row td {
+            min-height: 52px;
+            height: 52px;
+            color: rgba(168, 176, 211, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            vertical-align: middle;
+        }
+
+        .admin-users-table tbody tr.admin-users-table__pad-row .cell-pad-placeholder {
+            letter-spacing: 0.12em;
+        }
+
+        .admin-users-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .admin-users-table tbody tr:last-child td:first-child {
+            border-bottom-left-radius: 14px;
+        }
+
+        .admin-users-table tbody tr:last-child td:last-child {
+            border-bottom-right-radius: 14px;
+        }
+
+        .admin-users-table td {
+            padding: 11px 12px;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            vertical-align: middle;
+            color: #e8ebfb;
+        }
+
+        .admin-users-table td:first-child,
+        .admin-users-table th:first-child {
+            padding-left: 16px;
+            width: 4.5rem;
+        }
+
+        .admin-users-table td:last-child,
+        .admin-users-table th:last-child {
+            padding-right: 16px;
+        }
+
+        .admin-users-table .admin-id-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 2rem;
+            padding: 4px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            color: #aeb6e8;
+            background: rgba(102, 126, 234, 0.14);
+            border: 1px solid rgba(102, 126, 234, 0.28);
+            border-radius: 8px;
+        }
+
+        .admin-users-table .admin-id-badge--placeholder {
+            visibility: hidden;
+        }
+
+        /* 邀请码列表：与平台用户表同套容器与行高，仅放宽首列（邀请码）宽度 */
+        .admin-users-table.invite-codes-table--invite {
+            min-width: 520px;
+        }
+
+        .admin-users-table.invite-codes-table--invite td:first-child,
+        .admin-users-table.invite-codes-table--invite th:first-child {
+            width: auto;
+            min-width: 10rem;
+        }
+
+        .admin-users-table .cell-user {
+            font-weight: 600;
+            color: #f6f8ff;
+            word-break: break-all;
+        }
+
+        .admin-users-table .cell-mono {
+            font-variant-numeric: tabular-nums;
+            color: #a8b0d3;
+            font-size: 12px;
+        }
+
+        .admin-users-table .cell-time {
+            font-variant-numeric: tabular-nums;
+            font-size: 12px;
+            color: #b4bcda;
+            white-space: nowrap;
+        }
+
+        .admin-users-table select {
+            padding: 8px 11px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 13px;
+            box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+            min-width: 118px;
+            cursor: pointer;
+        }
+
+        .admin-users-table select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .admin-users-table select option {
+            background: #2a2a4a;
+            color: #fff;
+        }
+
+        /* 与 alerts.html「当前规则」启用列相同的轨式开关 */
+        .admin-users-table .cell-check--switch {
+            position: relative;
+            padding: 4px 0;
+        }
+
+        .admin-users-table .admin-user-active-cb {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .admin-users-table .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 22px;
+            background: rgba(55, 58, 72, 0.95);
+            border-radius: 11px;
+            cursor: pointer;
+            transition: background 0.2s ease, box-shadow 0.2s ease;
+            display: inline-block;
+            vertical-align: middle;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.28);
+            border: none;
+            padding: 0;
+            font-size: 0;
+            line-height: 0;
+        }
+
+        .admin-users-table .toggle-switch.active {
+            background: linear-gradient(180deg, #66bb6a 0%, #43a047 100%);
+            box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.35);
+        }
+
+        .admin-users-table .toggle-switch::after {
+            content: "";
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+        }
+
+        .admin-users-table .toggle-switch.active::after {
+            transform: translateX(22px);
+        }
+
+        .admin-users-table .cell-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .admin-users-table .cell-actions .btn.small:not(.secondary):not(.danger) {
+            margin-right: 0;
+            border-radius: 10px;
+            padding: 7px 16px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+        }
+
+        .admin-users-table .cell-actions .btn.small:not(.secondary):not(.danger):hover:not(:disabled) {
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.45);
+        }
+
+        .admin-users-table .cell-actions .btn.danger.small {
+            border-radius: 10px;
+            padding: 7px 14px;
+            margin-right: 0;
+        }
+
+        .admin-users-table .cell-actions .btn.secondary.small {
+            border-radius: 10px;
+            padding: 7px 14px;
+        }
+
+        .admin-users-pager {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .admin-users-pager .btn.secondary.small {
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+        }
+
+        .admin-users-pager .pager-info {
+            color: var(--text-secondary);
+            font-size: 12px;
+            margin-left: 6px;
+        }
+
+        .pager-ellipsis {
+            color: var(--text-secondary);
+            font-size: 13px;
+            padding: 0 4px;
+            user-select: none;
+        }
+
         .toast {
             position: fixed;
             top: max(20px, env(safe-area-inset-top, 0px));
@@ -416,20 +917,22 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container container--admin">
         <div class="header">
             <h1>⚙️ 管理后台</h1>
             <div id="user-info" class="header-user-bar"></div>
         </div>
 
         <!-- 平台用户 -->
-        <div class="card">
-            <h2>👥 平台用户</h2>
-            <p class="hint">管理用户角色、启用状态和登录密码（重置密码后立即生效）。勿禁用最后一个管理员。</p>
+        <div class="card card--platform-users">
+            <div class="card-section-head card-section-head--row">
+                <h2>平台用户</h2>
+                <button type="button" class="btn btn-add-user" onclick="openAdminAddUserModal()">新增用户</button>
+            </div>
             <div id="admin-users-list">
                 <div class="empty">加载中...</div>
             </div>
-            <div id="admin-users-pagination" class="small-note" style="margin-top: 8px;"></div>
+            <div id="admin-users-pagination"></div>
         </div>
         
         <!-- 创建邀请码 -->
@@ -472,9 +975,44 @@
             <div id="codes-list">
                 <div class="empty">加载中...</div>
             </div>
-            <div id="codes-pagination" class="small-note" style="margin-top: 8px;"></div>
+            <div id="codes-pagination" class="admin-users-pager" style="margin-top: 8px;"></div>
         </div>
 
+    </div>
+
+    <div id="admin-add-user-modal" class="admin-add-user-modal" aria-hidden="true">
+        <div class="admin-add-user-modal__backdrop" onclick="closeAdminAddUserModal()"></div>
+        <div class="admin-add-user-modal__panel" role="dialog" aria-modal="true" aria-labelledby="admin-add-user-title">
+            <h3 id="admin-add-user-title">新增用户</h3>
+            <p class="admin-add-user-modal__err" id="admin-add-user-err" role="alert"></p>
+            <div class="admin-add-user-modal__field">
+                <label for="au-new-username">用户名</label>
+                <input id="au-new-username" type="text" autocomplete="off" maxlength="20" placeholder="字母开头，3–20 位">
+            </div>
+            <div class="admin-add-user-modal__field">
+                <label for="au-new-password">登录密码</label>
+                <input id="au-new-password" type="password" autocomplete="new-password" placeholder="≥8 位，含大写、小写、数字">
+            </div>
+            <div class="admin-add-user-modal__field">
+                <label for="au-new-password2">确认密码</label>
+                <input id="au-new-password2" type="password" autocomplete="new-password" placeholder="再次输入">
+            </div>
+            <div class="admin-add-user-modal__field">
+                <label for="au-new-role">角色</label>
+                <select id="au-new-role">
+                    <option value="user" selected>普通用户</option>
+                    <option value="admin">管理员</option>
+                </select>
+            </div>
+            <label class="admin-add-user-modal__check">
+                <input type="checkbox" id="au-new-active" checked>
+                <span>账号启用</span>
+            </label>
+            <div class="admin-add-user-modal__actions">
+                <button type="button" class="btn secondary" onclick="closeAdminAddUserModal()">取消</button>
+                <button type="button" class="btn" id="admin-add-user-submit" onclick="submitAdminAddUser()">创建</button>
+            </div>
+        </div>
     </div>
     
     <div id="toast" class="toast"></div>
@@ -497,12 +1035,343 @@
         const INVITE_PAGE_SIZE = 5;
         let adminUsersCache = [];
         let adminUsersPage = 1;
-        const ADMIN_USERS_PAGE_SIZE = 8;
+        /** 与邀请码列表一致：每页 5 条，超出则分页 */
+        const ADMIN_USERS_PAGE_SIZE = 5;
+        /** 分页页码按钮最多显示个数，多出来的用「…」收缩 */
+        const PAGER_MAX_NUMERIC_BUTTONS = 5;
+        /** 与后端 is_system_account 一致：仅超级管理员可授予「管理员」角色 */
+        let adminCanSetAdminRole = false;
 
         const getAuthHeaders = () => TMDAuth.getAuthHeaders();
         const getJsonHeaders = () => TMDAuth.getJsonHeaders();
 
         const escapeHtml = (text) => U.escapeHtml(text);
+
+        function buildCompactNumericPageButtons(currentPage, totalPages, clickFnName) {
+            const btn = (p) => {
+                const st =
+                    p === currentPage
+                        ? "background: rgba(102,126,234,0.45); border-color: rgba(102,126,234,0.55);"
+                        : "";
+                return `<button type="button" class="btn secondary small" style="margin-right:4px;${st}" onclick="${clickFnName}(${p})">${p}</button>`;
+            };
+            const ell = '<span class="pager-ellipsis" aria-hidden="true">…</span>';
+            if (totalPages <= PAGER_MAX_NUMERIC_BUTTONS) {
+                let s = "";
+                for (let p = 1; p <= totalPages; p++) s += btn(p);
+                return s;
+            }
+            const parts = [];
+            if (currentPage <= 3) {
+                for (let p = 1; p <= 4; p++) parts.push(btn(p));
+                parts.push(ell);
+                parts.push(btn(totalPages));
+            } else if (currentPage >= totalPages - 2) {
+                parts.push(btn(1));
+                parts.push(ell);
+                for (let p = totalPages - 3; p <= totalPages; p++) parts.push(btn(p));
+            } else {
+                parts.push(btn(1));
+                parts.push(ell);
+                parts.push(btn(currentPage - 1));
+                parts.push(btn(currentPage));
+                parts.push(btn(currentPage + 1));
+                parts.push(ell);
+                parts.push(btn(totalPages));
+            }
+            return parts.join("");
+        }
+
+        const REG_ADMIN_NEW_USERNAME = /^[a-zA-Z][a-zA-Z0-9_]{2,19}$/;
+
+        function validateNewAdminUsername(s) {
+            const t = (s || "").trim();
+            if (t.length < 3) return "用户名至少3字符";
+            if (t.length > 20) return "用户名最多20字符";
+            if (!REG_ADMIN_NEW_USERNAME.test(t)) {
+                return "用户名须字母开头，仅字母数字下划线";
+            }
+            return "";
+        }
+
+        function validateNewAdminPassword(s) {
+            if (s.length < 8) return "密码至少8位";
+            if (!/[A-Z]/.test(s)) return "密码须包含大写字母";
+            if (!/[a-z]/.test(s)) return "密码须包含小写字母";
+            if (!/\d/.test(s)) return "密码须包含数字";
+            return "";
+        }
+
+        function applyAdminRoleUiRestrictions() {
+            const sel = document.getElementById("au-new-role");
+            if (!sel) return;
+            const adminOpt = sel.querySelector('option[value="admin"]');
+            if (adminOpt) {
+                adminOpt.hidden = !adminCanSetAdminRole;
+                adminOpt.disabled = !adminCanSetAdminRole;
+            }
+        }
+
+        /** 超级管理员可删管理员与普通用户；普通管理员仅可删普通用户 */
+        function canDeleteAdminUser(u) {
+            if (!u) return false;
+            if (adminCanSetAdminRole) return true;
+            return u.role === "user";
+        }
+
+        function adminUserRoleSelectOptions(u) {
+            if (adminCanSetAdminRole) {
+                return (
+                    `<option value="user" ${u.role === "user" ? "selected" : ""}>普通用户</option>` +
+                    `<option value="admin" ${u.role === "admin" ? "selected" : ""}>管理员</option>`
+                );
+            }
+            if (u.role === "admin") {
+                return (
+                    `<option value="user">普通用户</option>` +
+                    `<option value="admin" selected>管理员</option>`
+                );
+            }
+            return `<option value="user" selected>普通用户</option>`;
+        }
+
+        /** 每页固定渲染 ADMIN_USERS_PAGE_SIZE 行，不足时用占位行垫高（避免末页行数少时表格高度忽高忽低） */
+        function buildAdminUsersTableBodyRows(users) {
+            const rows = users.map(
+                (u) => `
+                                <tr>
+                                    <td><span class="admin-id-badge">${u.id}</span></td>
+                                    <td class="cell-user">${escapeHtml(u.username)}</td>
+                                    <td>
+                                        <select id="admin-user-role-${u.id}" autocomplete="off">
+                                            ${adminUserRoleSelectOptions(u)}
+                                        </select>
+                                    </td>
+                                    <td class="cell-check cell-check--switch">
+                                        <input type="checkbox" id="admin-user-active-${u.id}" class="admin-user-active-cb" ${u.is_active ? "checked" : ""} tabindex="-1" aria-hidden="true">
+                                        <button type="button" id="admin-user-active-sw-${u.id}" class="toggle-switch ${u.is_active ? "active" : ""}" role="switch" aria-checked="${u.is_active ? "true" : "false"}" title="${u.is_active ? "当前：启用，点击可停用" : "当前：停用，点击可启用"}" onclick="toggleAdminUserActiveSwitch(${u.id})"></button>
+                                    </td>
+                                    <td class="cell-time">${escapeHtml(new Date(u.created_at).toLocaleString("zh-CN"))}</td>
+                                    <td class="cell-actions">
+                                        <button type="button" class="btn secondary small" onclick="resetAdminUserPassword(${u.id})">重置密码</button>
+                                        <button type="button" class="btn small" onclick="patchAdminUser(${u.id})">保存</button>
+                                        ${
+                                            canDeleteAdminUser(u)
+                                                ? `<button type="button" class="btn danger small" onclick="deleteAdminUser(${u.id})">删除</button>`
+                                                : ""
+                                        }
+                                    </td>
+                                </tr>`
+            );
+            const padCount = Math.max(0, ADMIN_USERS_PAGE_SIZE - rows.length);
+            const padRow = `
+                                <tr class="admin-users-table__pad-row" aria-hidden="true">
+                                    <td><span class="admin-id-badge admin-id-badge--placeholder">&nbsp;</span></td>
+                                    <td class="cell-user cell-pad-placeholder">—</td>
+                                    <td>—</td>
+                                    <td></td>
+                                    <td class="cell-time">—</td>
+                                    <td></td>
+                                </tr>`;
+            for (let i = 0; i < padCount; i++) rows.push(padRow);
+            return rows.join("");
+        }
+
+        function formatAdminApiDetail(detail) {
+            if (detail == null) return "请求失败";
+            if (typeof detail === "string") return detail;
+            if (Array.isArray(detail)) {
+                return detail
+                    .map((x) =>
+                        x && typeof x === "object" && (x.msg || x.message)
+                            ? String(x.msg || x.message)
+                            : String(x)
+                    )
+                    .join("；");
+            }
+            return "请求失败";
+        }
+
+        function onAdminAddUserEscape(e) {
+            if (e.key === "Escape") {
+                e.preventDefault();
+                closeAdminAddUserModal();
+            }
+        }
+
+        function openAdminAddUserModal() {
+            const root = document.getElementById("admin-add-user-modal");
+            const err = document.getElementById("admin-add-user-err");
+            if (!root) return;
+            err.textContent = "";
+            document.getElementById("au-new-username").value = "";
+            document.getElementById("au-new-password").value = "";
+            document.getElementById("au-new-password2").value = "";
+            document.getElementById("au-new-role").value = "user";
+            document.getElementById("au-new-active").checked = true;
+            root.classList.add("is-open");
+            root.setAttribute("aria-hidden", "false");
+            document.addEventListener("keydown", onAdminAddUserEscape);
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const u = document.getElementById("au-new-username");
+                    if (u) u.focus();
+                });
+            });
+        }
+
+        function closeAdminAddUserModal() {
+            const root = document.getElementById("admin-add-user-modal");
+            if (!root || !root.classList.contains("is-open")) return;
+            root.classList.remove("is-open");
+            root.setAttribute("aria-hidden", "true");
+            document.removeEventListener("keydown", onAdminAddUserEscape);
+        }
+
+        async function submitAdminAddUser() {
+            const errEl = document.getElementById("admin-add-user-err");
+            const btn = document.getElementById("admin-add-user-submit");
+            const uEl = document.getElementById("au-new-username");
+            const p1 = document.getElementById("au-new-password");
+            const p2 = document.getElementById("au-new-password2");
+            const roleEl = document.getElementById("au-new-role");
+            const actEl = document.getElementById("au-new-active");
+            errEl.textContent = "";
+            const username = uEl.value.trim();
+            const uErr = validateNewAdminUsername(username);
+            if (uErr) {
+                errEl.textContent = uErr;
+                return;
+            }
+            const pw = p1.value;
+            const pErr = validateNewAdminPassword(pw);
+            if (pErr) {
+                errEl.textContent = pErr;
+                return;
+            }
+            if (pw !== p2.value) {
+                errEl.textContent = "两次输入的密码不一致";
+                return;
+            }
+            btn.disabled = true;
+            try {
+                const role = adminCanSetAdminRole ? roleEl.value : "user";
+                const resp = await fetch(`${API_BASE}/api/admin/users`, {
+                    method: "POST",
+                    headers: getJsonHeaders(),
+                    body: JSON.stringify({
+                        username,
+                        password: pw,
+                        role,
+                        is_active: actEl.checked,
+                    }),
+                });
+                let data = {};
+                try {
+                    data = await resp.json();
+                } catch (x1) {
+                    data = {};
+                }
+                if (!resp.ok) {
+                    errEl.textContent = formatAdminApiDetail(data.detail) || "创建失败";
+                    return;
+                }
+                closeAdminAddUserModal();
+                showToast("用户已创建");
+                adminUsersPage = 999999;
+                loadAdminUsers();
+            } catch (e) {
+                errEl.textContent = "网络错误：" + e.message;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function toggleAdminUserActiveSwitch(userId) {
+            const cb = document.getElementById(`admin-user-active-${userId}`);
+            const sw = document.getElementById(`admin-user-active-sw-${userId}`);
+            if (!cb || !sw) return;
+            const next = !cb.checked;
+            cb.checked = next;
+            sw.classList.toggle('active', next);
+            sw.setAttribute('aria-checked', next ? 'true' : 'false');
+            sw.title = next ? '当前：启用，点击可停用' : '当前：停用，点击可启用';
+        }
+
+        /** 与后端注册 / 管理 PATCH 规则一致：≥8 位，含大写、小写、数字 */
+        function generateAdminStrongPassword() {
+            const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+            const lower = 'abcdefghijkmnopqrstuvwxyz';
+            const digits = '0123456789';
+            const all = upper + lower + digits;
+            const rand = (n) => {
+                if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+                    const a = new Uint32Array(1);
+                    crypto.getRandomValues(a);
+                    return a[0] % n;
+                }
+                return Math.floor(Math.random() * n);
+            };
+            const pick = (set) => set[rand(set.length)];
+            const chars = [pick(upper), pick(lower), pick(digits)];
+            for (let i = 0; i < 10; i++) chars.push(pick(all));
+            for (let i = chars.length - 1; i > 0; i--) {
+                const j = rand(i + 1);
+                const t = chars[i];
+                chars[i] = chars[j];
+                chars[j] = t;
+            }
+            return chars.join('');
+        }
+
+        async function resetAdminUserPassword(userId) {
+            const row = adminUsersCache.find((x) => x.id === userId);
+            const label = row ? row.username : String(userId);
+            if (!Ui.showConfirmWithPassword) {
+                showToast('当前页面脚本版本过旧，请刷新后重试', true);
+                return;
+            }
+            const gate = await Ui.showConfirmWithPassword({
+                title: '安全确认',
+                message: `为「${label}」重置登录密码前，请输入您当前登录账号的密码。`,
+                passwordLabel: '当前登录密码',
+                confirmText: '继续',
+            });
+            if (!gate || !gate.ok) return;
+            const actorPassword = gate.password;
+            const pw = generateAdminStrongPassword();
+            if (!(await Ui.showConfirmModal({
+                title: '重置登录密码',
+                message: `将用户「${label}」的登录密码重置为随机密码。请先复制生成的密码，再点「确定重置」。`,
+                emphasis: pw,
+                confirmText: '确定重置',
+                danger: true,
+            }))) return;
+            try {
+                const resp = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
+                    method: 'PATCH',
+                    headers: getJsonHeaders(),
+                    body: JSON.stringify({ new_password: pw, actor_password: actorPassword }),
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    showToast(data.detail || '重置密码失败', true);
+                    return;
+                }
+                showToast('密码已重置');
+                if (Ui && typeof Ui.showAlertModal === 'function') {
+                    await Ui.showAlertModal({
+                        title: '新登录密码',
+                        message: '请保存并告知用户：',
+                        emphasis: pw,
+                        okText: '知道了',
+                    });
+                }
+                loadAdminUsers();
+            } catch (e) {
+                showToast('网络错误: ' + e.message, true);
+            }
+        }
 
         function showToast(msg, isError) {
             Ui.showToast(msg, isError);
@@ -632,30 +1501,56 @@
             return inviteCodesCache.filter(code => getInviteCodeStatus(code).key === inviteStatusFilter);
         }
 
+        /** 每页固定 INVITE_PAGE_SIZE 行，不足时垫占位行（与平台用户列表一致） */
+        function buildInviteCodesTableBodyRows(pageItems) {
+            const rows = pageItems.map((code) => {
+                const status = getInviteCodeStatus(code);
+                const usesText =
+                    code.max_uses === 0
+                        ? `${code.used_count} / ∞`
+                        : `${code.used_count} / ${code.max_uses}`;
+                return `
+                                <tr>
+                                    <td><span class="code">${escapeHtml(code.code)}</span></td>
+                                    <td>${escapeHtml(usesText)}</td>
+                                    <td><span class="status ${status.className}">${escapeHtml(status.text)}</span></td>
+                                    <td class="cell-time">${escapeHtml(new Date(code.created_at).toLocaleString("zh-CN"))}</td>
+                                    <td class="cell-actions">
+                                        <button type="button" class="btn danger small" onclick='deleteInviteCode(${JSON.stringify(code.code)})'>删除</button>
+                                    </td>
+                                </tr>`;
+            });
+            const padCount = Math.max(0, INVITE_PAGE_SIZE - rows.length);
+            const padRow = `
+                                <tr class="admin-users-table__pad-row" aria-hidden="true">
+                                    <td><span class="code" style="visibility:hidden">.</span></td>
+                                    <td class="cell-user cell-pad-placeholder">—</td>
+                                    <td>—</td>
+                                    <td class="cell-time">—</td>
+                                    <td></td>
+                                </tr>`;
+            for (let i = 0; i < padCount; i++) rows.push(padRow);
+            return rows.join("");
+        }
+
         function renderInvitePagination(total, page) {
             const container = document.getElementById('codes-pagination');
             if (!container) return;
             const totalPages = Math.max(1, Math.ceil((total || 0) / INVITE_PAGE_SIZE));
             if (totalPages <= 1) {
-                container.innerHTML = '';
+                container.innerHTML = total
+                    ? `<span class="pager-info">共 ${total} 条</span>`
+                    : '';
                 return;
             }
             const prevDisabled = page <= 1 ? 'disabled' : '';
             const nextDisabled = page >= totalPages ? 'disabled' : '';
-            const pageItems = [];
-            for (let p = 1; p <= totalPages; p++) {
-                const activeStyle = p === page
-                    ? 'background: rgba(102,126,234,0.45); border-color: rgba(102,126,234,0.8);'
-                    : '';
-                pageItems.push(
-                    `<button class="btn secondary small" style="margin-right:4px;${activeStyle}" onclick="changeInvitePage(${p})">${p}</button>`
-                );
-            }
+            const pageItems = buildCompactNumericPageButtons(page, totalPages, 'changeInvitePage');
             container.innerHTML = `
                 <button type="button" class="btn secondary small" ${prevDisabled} onclick="changeInvitePage(${page - 1})">上一页</button>
-                ${pageItems.join('')}
+                ${pageItems}
                 <button type="button" class="btn secondary small" ${nextDisabled} onclick="changeInvitePage(${page + 1})">下一页</button>
-                <span style="margin-left:8px;color:#888;">共 ${total} 条</span>
+                <span class="pager-info">共 ${total} 条</span>
             `;
         }
 
@@ -675,7 +1570,8 @@
             const pageItems = filtered.slice(start, start + INVITE_PAGE_SIZE);
 
             container.innerHTML = `
-                    <table>
+                    <div class="admin-users-table-wrap">
+                    <table class="admin-users-table invite-codes-table--invite">
                         <thead>
                             <tr>
                                 <th>邀请码</th>
@@ -686,26 +1582,10 @@
                             </tr>
                         </thead>
                         <tbody>
-                            ${pageItems.map(code => {
-                                const status = getInviteCodeStatus(code);
-                                const usesText = code.max_uses === 0 
-                                    ? `${code.used_count} / ∞` 
-                                    : `${code.used_count} / ${code.max_uses}`;
-                                
-                                return `
-                                    <tr>
-                                        <td><span class="code">${code.code}</span></td>
-                                        <td>${usesText}</td>
-                                        <td><span class="status ${status.className}">${status.text}</span></td>
-                                        <td>${new Date(code.created_at).toLocaleString('zh-CN')}</td>
-                                        <td>
-                                            <button class="btn danger small" onclick='deleteInviteCode(${JSON.stringify(code.code)})'>删除</button>
-                                        </td>
-                                    </tr>
-                                `;
-                            }).join('')}
+                            ${buildInviteCodesTableBodyRows(pageItems)}
                         </tbody>
                     </table>
+                    </div>
                 `;
             renderInvitePagination(filtered.length, inviteCurrentPage);
         }
@@ -776,43 +1656,33 @@
                 const total = Number(data.total || 0);
                 const totalPages = Math.max(1, Math.ceil(total / ADMIN_USERS_PAGE_SIZE));
                 adminUsersPage = Math.min(Math.max(1, adminUsersPage), totalPages);
+                // 页码曾超出范围（如创建用户后跳到「最后一页」）时，首次响应 items 可能为空但 total>0
+                if (total > 0 && adminUsersCache.length === 0) {
+                    return loadAdminUsers();
+                }
                 if (!adminUsersCache.length) {
                     container.innerHTML = '<div class="empty">暂无用户</div>';
                     renderAdminUsersPagination(total, adminUsersPage);
                     return;
                 }
                 container.innerHTML = `
-                    <table>
+                    <div class="admin-users-table-wrap">
+                    <table class="admin-users-table">
                         <thead>
                             <tr>
                                 <th>ID</th>
                                 <th>用户名</th>
                                 <th>角色</th>
                                 <th>状态</th>
-                                <th>新密码</th>
                                 <th>注册时间</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${adminUsersCache.map(u => `
-                                <tr>
-                                    <td>${u.id}</td>
-                                    <td>${escapeHtml(u.username)}</td>
-                                    <td>
-                                        <select id="admin-user-role-${u.id}">
-                                            <option value="user" ${u.role === 'user' ? 'selected' : ''}>user</option>
-                                            <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option>
-                                        </select>
-                                    </td>
-                                    <td><label><input type="checkbox" id="admin-user-active-${u.id}" ${u.is_active ? 'checked' : ''}> 启用</label></td>
-                                    <td><input type="password" id="admin-user-pw-${u.id}" placeholder="不改请留空" autocomplete="new-password" style="min-width:120px;"></td>
-                                    <td>${new Date(u.created_at).toLocaleString('zh-CN')}</td>
-                                    <td><button type="button" class="btn secondary small" onclick="patchAdminUser(${u.id})">保存</button></td>
-                                </tr>
-                            `).join('')}
+                            ${buildAdminUsersTableBodyRows(adminUsersCache)}
                         </tbody>
                     </table>
+                    </div>
                 `;
                 renderAdminUsersPagination(total, adminUsersPage);
             } catch (e) {
@@ -826,21 +1696,19 @@
             if (!pagEl) return;
             const totalPages = Math.max(1, Math.ceil(total / ADMIN_USERS_PAGE_SIZE));
             if (totalPages <= 1) {
-                pagEl.innerHTML = total ? `<span style="color:#888;">共 ${total} 人</span>` : '';
+                pagEl.innerHTML = total ? `<div class="admin-users-pager"><span class="pager-info">共 ${total} 人</span></div>` : '';
                 return;
             }
             const prev = page <= 1 ? 'disabled' : '';
             const next = page >= totalPages ? 'disabled' : '';
-            let btns = '';
-            for (let p = 1; p <= totalPages; p++) {
-                const st = p === page ? 'background: rgba(102,126,234,0.45);' : '';
-                btns += `<button type="button" class="btn secondary small" style="margin-right:4px;${st}" onclick="changeAdminUsersPage(${p})">${p}</button>`;
-            }
+            const btns = buildCompactNumericPageButtons(page, totalPages, 'changeAdminUsersPage');
             pagEl.innerHTML = `
+                <div class="admin-users-pager">
                 <button type="button" class="btn secondary small" ${prev} onclick="changeAdminUsersPage(${page - 1})">上一页</button>
                 ${btns}
                 <button type="button" class="btn secondary small" ${next} onclick="changeAdminUsersPage(${page + 1})">下一页</button>
-                <span style="margin-left:8px;color:#888;">共 ${total} 人</span>
+                <span class="pager-info">共 ${total} 人</span>
+                </div>
             `;
         }
 
@@ -852,17 +1720,14 @@
         async function patchAdminUser(userId) {
             const roleEl = document.getElementById(`admin-user-role-${userId}`);
             const actEl = document.getElementById(`admin-user-active-${userId}`);
-            const pwEl = document.getElementById(`admin-user-pw-${userId}`);
             if (!roleEl || !actEl) return;
             const payload = {
                 role: roleEl.value,
                 is_active: actEl.checked
             };
-            const pw = (pwEl && pwEl.value) ? pwEl.value.trim() : '';
-            if (pw) payload.new_password = pw;
             if (!(await Ui.showConfirmModal({
                 title: '确认保存',
-                message: '确定保存对该用户的修改吗？' + (pw ? '（将更新登录密码）' : ''),
+                message: '确定保存对该用户的修改吗？',
                 confirmText: '保存',
             }))) return;
             try {
@@ -877,10 +1742,44 @@
                     return;
                 }
                 showToast('用户已更新');
-                if (pwEl) pwEl.value = '';
                 loadAdminUsers();
             } catch (e) {
                 showToast('网络错误: ' + e.message, true);
+            }
+        }
+
+        async function deleteAdminUser(userId) {
+            const row = adminUsersCache.find((x) => x.id === userId);
+            const name = row ? row.username : String(userId);
+            if (!canDeleteAdminUser(row)) {
+                showToast("无权删除该用户", true);
+                return;
+            }
+            if (!(await Ui.showConfirmModal({
+                title: "删除用户",
+                message: `确认删除用户「${name}」吗？其账号下数据将一并删除且不可恢复。`,
+                confirmText: "删除",
+                danger: true,
+            }))) return;
+            try {
+                const resp = await fetch(`${API_BASE}/api/admin/users/${userId}`, {
+                    method: "DELETE",
+                    headers: getAuthHeaders(),
+                });
+                let data = {};
+                try {
+                    data = await resp.json();
+                } catch (x) {
+                    data = {};
+                }
+                if (!resp.ok) {
+                    showToast(formatAdminApiDetail(data.detail) || "删除失败", true);
+                    return;
+                }
+                showToast("用户已删除");
+                loadAdminUsers();
+            } catch (e) {
+                showToast("网络错误: " + e.message, true);
             }
         }
         
@@ -890,8 +1789,15 @@
         }
         
         // 初始化
-        checkAuth().then(ok => {
+        checkAuth().then((ok) => {
             if (ok) {
+                const u = S.currentUser;
+                adminCanSetAdminRole = !!(
+                    u &&
+                    u.role === "admin" &&
+                    u.is_system_account
+                );
+                applyAdminRoleUiRestrictions();
                 initCustomMaxUsesSelect();
                 Ui.bindCustomSelectById('invite-status-filter');
                 loadAdminUsers();

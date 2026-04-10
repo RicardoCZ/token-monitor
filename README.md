@@ -44,7 +44,7 @@ INIT_MYSQL_ADMIN_USER='你的高权限用户名' INIT_MYSQL_ADMIN_PASSWORD='该�
 │   ├── api.html       # 实时监控看板
 │   ├── history.html   # 历史用量趋势（ECharts）
 │   ├── accounts.html  # 账号与告警管理
-│   ├── admin.html     # 管理后台（邀请码、API Key）
+│   ├── admin.html     # 管理后台（平台用户、邀请码、API Key 等）
 │   └── setup.html     # 凭证 / CDP 设置
 ├── mobile-app/        # Android 手机端 (Capacitor + Vite)
 │   ├── src/           # 移动端 H5 源码（构建产物进 www/）
@@ -60,7 +60,7 @@ INIT_MYSQL_ADMIN_USER='你的高权限用户名' INIT_MYSQL_ADMIN_PASSWORD='该�
 
 - MiniMax Token Plan 与讯飞星辰每日额度监控（Web + Android）
 - **历史用量趋势**（`history.html`，24h/7d，ECharts）
-- 多用户、账号与告警规则、API Key / 邀请码（管理端）；列表分页与监控页「最近告警」展示
+- 多用户、账号与告警规则；管理端 **平台用户**（角色/启用/删除等，超级管理员与普通管理员权限不同）、**邀请码**、**API Key**；列表分页与监控页「最近告警」展示
 - 监控卡「最近 7 天使用率」小折线图；卡片为纯色半透明（无毛玻璃与悬停上浮）
 - WebView / CDP 提取 Cookie；重置时间倒计时
 
@@ -161,7 +161,7 @@ uvicorn app:app --host 0.0.0.0 --port 5188
 
 ## 开发规范
 
-协作约定、Git 工作流与**远端推送**等由**本地维护**（不入本仓库）。勿将敏感笔记提交到远端；仅本地、勿提交的路径见仓库 **`.gitignore`**。可选：`git config core.hooksPath scripts/git-hooks`（说明见 `scripts/git-hooks/README`）。
+**通用准则**见 **`docs/开发规范.md`**（跨项目可复用的协作、UI/接口约定、Git 推送与验证习惯）。**本仓库依赖版本底线**见 **`docs/SECURITY.md`**。若根目录 **`.gitignore`** 排除了 `docs/`，以你本地副本为准；勿将敏感笔记提交远端。可选：`git config core.hooksPath scripts/git-hooks`（说明见 `scripts/git-hooks/README`）。
 
 ---
 

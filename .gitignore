@@ -33,6 +33,7 @@ backend/.coverage
 # 本地开发文档与任务清单 — 严禁加入索引或推送（勿 git add -f）
 docs/
 TODO.md
+todo.md
 
 # Cursor 本地规则（不纳入仓库）
 .cursor/

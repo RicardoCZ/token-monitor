@@ -3,6 +3,7 @@ Token Monitor - 数据库配置
 使用 SQLAlchemy 异步连接 MySQL
 """
 
+import logging
 from urllib.parse import quote_plus
 
 from sqlalchemy import text
@@ -70,3 +71,35 @@ async def init_db():
             await conn.execute(text("ALTER TABLE alerts DROP COLUMN mute_reason"))
         except Exception:
             pass
+        try:
+            await conn.execute(
+                text(
+                    "ALTER TABLE users ADD COLUMN is_system_account TINYINT(1) NOT NULL DEFAULT 0"
+                )
+            )
+        except Exception:
+            pass
+        # 尚无系统账号时，将 id 最小的管理员标为系统账号（与 setup-first 一致；避免复杂 UPDATE 在 MySQL 下失败却被静默吞掉）
+        try:
+            r = await conn.execute(
+                text("SELECT COUNT(*) FROM users WHERE is_system_account = 1")
+            )
+            sys_count = int(r.scalar() or 0)
+            if sys_count == 0:
+                r2 = await conn.execute(
+                    text("SELECT MIN(id) FROM users WHERE role = 'admin'")
+                )
+                mid = r2.scalar_one_or_none()
+                if mid is not None:
+                    await conn.execute(
+                        text(
+                            "UPDATE users SET is_system_account = 1 WHERE id = :mid AND role = 'admin'"
+                        ),
+                        {"mid": int(mid)},
+                    )
+        except Exception as e:
+            logging.getLogger(__name__).warning(
+                "is_system_account 回填失败（平台用户列表可能仍含系统管理员）: %s",
+                e,
+                exc_info=settings.debug,
+            )
